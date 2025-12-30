@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Kinematic Parking Simulator</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; color: #eee; font-family: sans-serif; }
+        canvas { display: block; }
+        #telemetry { position: absolute; top: 10px; left: 10px; pointer-events: none; white-space: pre-wrap; background: rgba(0,0,0,0.5); padding: 5px; }
+    </style>
+</head>
+<body>
+    <div id="telemetry">Loading...</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+/**
+ * A 2D Vector class for geometric operations.
+ */
+class Vector2 {
+    /**
+     * @param {number} x
+     * @param {number} y
+     */
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * Adds another vector to this one.
+     * @param {Vector2} v
+     * @returns {Vector2} New vector
+     */
+    add(v) {
+        return new Vector2(this.x + v.x, this.y + v.y);
+    }
+
+    /**
+     * Subtracts another vector from this one.
+     * @param {Vector2} v
+     * @returns {Vector2} New vector
+     */
+    sub(v) {
+        return new Vector2(this.x - v.x, this.y - v.y);
+    }
+
+    /**
+     * Scales the vector by a scalar.
+     * @param {number} s
+     * @returns {Vector2} New vector
+     */
+    scale(s) {
+        return new Vector2(this.x * s, this.y * s);
+    }
+
+    /**
+     * Calculates the dot product with another vector.
+     * @param {Vector2} v
+     * @returns {number}
+     */
+    dot(v) {
+        return this.x * v.x + this.y * v.y;
+    }
+
+    /**
+     * Rotates the vector by an angle.
+     * @param {number} angle Angle in radians
+     * @returns {Vector2} New vector
+     */
+    rotate(angle) {
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        return new Vector2(
+            this.x * cos - this.y * sin,
+            this.x * sin + this.y * cos
+        );
+    }
+
+    /**
+     * Returns the magnitude of the vector.
+     * @returns {number}
+     */
+    magnitude() {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+
+    /**
+     * Returns a normalized vector.
+     * @returns {Vector2}
+     */
+    normalize() {
+        const m = this.magnitude();
+        return m === 0 ? new Vector2(0, 0) : this.scale(1 / m);
+    }
+}
+
+/**
+ * Handles keyboard and gamepad input.
+ */
+class InputHandler {
+    constructor() {
+        this.keys = {};
+
+        // Ensure we are in a browser environment before adding listeners
+        if (typeof window !== 'undefined') {
+            window.addEventListener('keydown', (e) => this.keys[e.code] = true);
+            window.addEventListener('keyup', (e) => this.keys[e.code] = false);
+        }
+    }
+
+    /**
+     * Gets the current steering input (-1 to 1).
+     * @returns {number}
+     */
+    getSteer() {
+        let steer = 0;
+        if (this.keys['KeyA'] || this.keys['ArrowLeft']) steer -= 1;
+        if (this.keys['KeyD'] || this.keys['ArrowRight']) steer += 1;
+
+        // Gamepad check
+        if (typeof navigator !== 'undefined' && navigator.getGamepads) {
+            const gamepad = navigator.getGamepads()[0];
+            if (gamepad) {
+                // Left stick horizontal axis (usually axis 0)
+                const axisX = gamepad.axes[0];
+                if (Math.abs(axisX) > 0.1) steer = axisX; // Deadzone
+            }
+        }
+
+        return Math.max(-1, Math.min(1, steer));
+    }
+
+    /**
+     * Gets the current throttle/brake input (-1 to 1).
+     * Positive is forward, negative is backward/brake.
+     * @returns {number}
+     */
+    getThrottle() {
+        let throttle = 0;
+        if (this.keys['KeyW'] || this.keys['ArrowUp']) throttle += 1;
+        if (this.keys['KeyS'] || this.keys['ArrowDown']) throttle -= 1;
+
+        // Gamepad check
+        if (typeof navigator !== 'undefined' && navigator.getGamepads) {
+            const gamepad = navigator.getGamepads()[0];
+            if (gamepad) {
+                // Triggers usually are buttons 6 (LT) and 7 (RT)
+                // They return a value between 0 and 1.
+                const brake = gamepad.buttons[6] ? gamepad.buttons[6].value : 0;
+                const gas = gamepad.buttons[7] ? gamepad.buttons[7].value : 0;
+
+                throttle += gas;
+                throttle -= brake;
+            }
+        }
+
+        return Math.max(-1, Math.min(1, throttle));
+    }
+}
+
+/**
+ * Headless Game Engine containing physics and logic.
+ */
+class GameEngine {
+    constructor() {
+        // Car State
+        this.pos = new Vector2(100, 300);
+        this.heading = 0; // Radians, 0 points East
+        this.velocity = 0;
+        this.steerAngle = 0;
+
+        // Constants / Configuration
+        this.wheelBase = 40; // Distance between front and rear axles
+        this.maxSteerAngle = Math.PI / 4; // 45 degrees
+        this.maxSpeed = 300; // Pixels per second
+        this.acceleration = 150; // Pixels per second squared
+        this.friction = 0.98; // Damping factor per tick (approx)
+
+        // Dimensions for collision
+        this.width = 30;
+        this.length = 60;
+    }
+
+    /**
+     * Updates the game state.
+     * @param {number} dt Delta time in seconds
+     * @param {object} input Input state { steer: number, throttle: number }
+     */
+    update(dt, input) {
+        // 1. Update Steering Angle
+        // Smooth steering could be added, but for now direct mapping
+        this.steerAngle = input.steer * this.maxSteerAngle;
+
+        // 2. Update Velocity (Acceleration & Friction)
+        if (input.throttle !== 0) {
+            this.velocity += input.throttle * this.acceleration * dt;
+        } else {
+            // Apply friction/drag when no input
+            this.velocity *= Math.pow(this.friction, dt * 60); // Frame-rate independent-ish friction
+            if (Math.abs(this.velocity) < 0.1) this.velocity = 0;
+        }
+
+        // Clamp speed
+        this.velocity = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.velocity));
+
+        // 3. Ackermann Steering Kinematics
+        // dx = v * cos(theta)
+        // dy = v * sin(theta)
+        // dtheta = (v / L) * tan(delta)
+
+        this.pos.x += this.velocity * Math.cos(this.heading) * dt;
+        this.pos.y += this.velocity * Math.sin(this.heading) * dt;
+
+        // Angular velocity depends on linear velocity
+        const angularVelocity = (this.velocity / this.wheelBase) * Math.tan(this.steerAngle);
+        this.heading += angularVelocity * dt;
+    }
+
+    /**
+     * Returns the polygon representing the car's bounding box.
+     * Used for SAT.
+     * @returns {Vector2[]} Array of vertices
+     */
+    getPolygon() {
+        const hw = this.width / 2;
+        const hl = this.length / 2;
+
+        // Relative corners
+        const corners = [
+            new Vector2(hl, hw),
+            new Vector2(hl, -hw),
+            new Vector2(-hl, -hw),
+            new Vector2(-hl, hw)
+        ];
+
+        // Rotate and translate
+        return corners.map(p => p.rotate(this.heading).add(this.pos));
+    }
+}
+
+/**
+ * SAT Collision Helper
+ */
+const SAT = {
+    /**
+     * Checks if two convex polygons intersect.
+     * @param {Vector2[]} polyA
+     * @param {Vector2[]} polyB
+     * @returns {boolean}
+     */
+    checkCollision(polyA, polyB) {
+        const polygons = [polyA, polyB];
+        for (let i = 0; i < polygons.length; i++) {
+            const polygon = polygons[i];
+            for (let j = 0; j < polygon.length; j++) {
+                const p1 = polygon[j];
+                const p2 = polygon[(j + 1) % polygon.length];
+
+                // Normal axis
+                const normal = new Vector2(-(p2.y - p1.y), p2.x - p1.x).normalize();
+
+                const minMaxA = this.project(polyA, normal);
+                const minMaxB = this.project(polyB, normal);
+
+                if (minMaxA.max < minMaxB.min || minMaxB.max < minMaxA.min) {
+                    return false; // Gap found
+                }
+            }
+        }
+        return true;
+    },
+
+    project(poly, axis) {
+        let min = poly[0].dot(axis);
+        let max = min;
+        for (let i = 1; i < poly.length; i++) {
+            const p = poly[i].dot(axis);
+            if (p < min) min = p;
+            if (p > max) max = p;
+        }
+        return { min, max };
+    }
+};
+
+/**
+ * Renders the game state to a canvas.
+ */
+class CanvasRenderer {
+    /**
+     * @param {HTMLCanvasElement} canvas
+     */
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    /**
+     * Draws the current frame.
+     * @param {GameEngine} game
+     */
+    render(game) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.save();
+
+        // Translate to car center
+        this.ctx.translate(game.pos.x, game.pos.y);
+        this.ctx.rotate(game.heading);
+
+        // Draw Body
+        this.ctx.fillStyle = '#3498db';
+        this.ctx.fillRect(-game.length / 2, -game.width / 2, game.length, game.width);
+
+        // Indicate front with a small line or color difference
+        this.ctx.fillStyle = '#2980b9';
+        this.ctx.fillRect(game.length / 4, -game.width / 2, game.length / 4, game.width);
+
+        // Draw Wheels
+        this.ctx.fillStyle = '#000';
+        const wheelWidth = 12;
+        const wheelHeight = 6;
+        const halfL = game.wheelBase / 2; // Wheelbase is distance between axles. Let's assume center is mid-point.
+        // Actually, usually center of car is mid-point of bounding box.
+        // If wheelbase is 40 and car length is 60, axles are at +/- 20.
+
+        const axleX = game.wheelBase / 2;
+        const axleY = game.width / 2;
+
+        // Rear Wheels (Fixed)
+        this.drawWheel(-axleX, -axleY, wheelWidth, wheelHeight, 0);
+        this.drawWheel(-axleX, axleY, wheelWidth, wheelHeight, 0);
+
+        // Front Wheels (Steerable)
+        this.drawWheel(axleX, -axleY, wheelWidth, wheelHeight, game.steerAngle);
+        this.drawWheel(axleX, axleY, wheelWidth, wheelHeight, game.steerAngle);
+
+        this.ctx.restore();
+    }
+
+    drawWheel(x, y, w, h, angle) {
+        this.ctx.save();
+        this.ctx.translate(x, y);
+        this.ctx.rotate(angle);
+        this.ctx.fillRect(-w / 2, -h / 2, w, h);
+        this.ctx.restore();
+    }
+}
+
+// --- Bootstrap ---
+
+// Init
+const canvas = document.getElementById('gameCanvas');
+const engine = new GameEngine();
+const inputHandler = new InputHandler();
+const renderer = new CanvasRenderer(canvas);
+const telemetry = document.getElementById('telemetry');
+
+// Expose to window
+window.game = engine;
+
+// Game Loop
+let lastTime = performance.now();
+
+function loop(now) {
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    // Get Inputs
+    const input = {
+        steer: inputHandler.getSteer(),
+        throttle: inputHandler.getThrottle()
+    };
+
+    // Update Logic
+    engine.update(dt, input);
+
+    // Render
+    renderer.render(engine);
+
+    // Telemetry Update
+    telemetry.innerText = `Pos: (${engine.pos.x.toFixed(1)}, ${engine.pos.y.toFixed(1)})
+Heading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°
+Speed: ${engine.velocity.toFixed(1)} px/s
+Steer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°
+Input: [S:${input.steer.toFixed(2)}, T:${input.throttle.toFixed(2)}]`;
+
+    requestAnimationFrame(loop);
+}
+
+// Start Loop
+requestAnimationFrame(loop);
+
+
+// --- Self-Test ---
+(function runSelfTest() {
+    console.log("Running Self-Test: 1s of Gas + Left Turn...");
+    const testEngine = new GameEngine();
+    // Move starting position to 0,0 for easier calculation checks if needed, or keep default
+    testEngine.pos = new Vector2(0, 0);
+    testEngine.heading = 0;
+    testEngine.velocity = 0;
+
+    const dt = 1/60; // Fixed timestep for test
+    const steps = 60; // 1 second roughly
+
+    for (let i = 0; i < steps; i++) {
+        testEngine.update(dt, { steer: -1, throttle: 1 });
+    }
+
+    console.log("Self-Test Complete.");
+    console.log(`Final Position: x=${testEngine.pos.x.toFixed(2)}, y=${testEngine.pos.y.toFixed(2)}`);
+    console.log(`Final Heading: ${(testEngine.heading * 180 / Math.PI).toFixed(2)} degrees`);
+
+    // Simple heuristic check: Should have moved forward and turned left (negative y, positive x, negative heading)
+    if (testEngine.pos.x > 0 && testEngine.pos.y < 0 && testEngine.heading < 0) {
+        console.log("Self-Test PASSED: Movement logic appears correct (moved forward-left).");
+    } else {
+        console.warn("Self-Test WARNING: Unexpected position/heading.");
+    }
+})();
+
+    </script>
+</body>
+</html>
