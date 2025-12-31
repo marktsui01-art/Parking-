@@ -1,27 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2D Kinematic Parking Simulator</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #222; color: #eee; font-family: sans-serif; }
-        canvas { display: block; }
-        #telemetry { position: absolute; top: 10px; left: 10px; pointer-events: none; white-space: pre-wrap; background: rgba(0,0,0,0.5); padding: 5px; z-index: 10; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #222;
+            color: #eee;
+            font-family: sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #telemetry {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+            white-space: pre-wrap;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            z-index: 10;
+        }
 
         /* New UI Styles */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; justify-content: center; align-items: center; z-index: 20; }
-        #level-chooser { pointer-events: auto; background: rgba(0,0,0,0.85); padding: 30px; border-radius: 10px; text-align: center; border: 2px solid #444; }
-        #level-chooser h1 { margin-top: 0; }
-        .level-btn { display: block; width: 200px; padding: 10px; margin: 10px auto; background: #3498db; color: white; border: none; cursor: pointer; font-size: 1.1em; border-radius: 5px; }
-        .level-btn:hover { background: #2980b9; }
-        #message-area { position: absolute; top: 20%; width: 100%; text-align: center; font-size: 3em; font-weight: bold; text-shadow: 2px 2px 4px #000; display: none; }
-        .win { color: #2ecc71; }
-        .loss { color: #e74c3c; }
-        #return-btn { margin-top: 20px; background: #7f8c8d; pointer-events: auto; }
-        #return-container { position: absolute; bottom: 20%; width: 100%; text-align: center; display: none; }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+
+        #level-chooser {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #444;
+        }
+
+        #level-chooser h1 {
+            margin-top: 0;
+        }
+
+        .level-btn {
+            display: block;
+            width: 200px;
+            padding: 10px;
+            margin: 10px auto;
+            background: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1em;
+            border-radius: 5px;
+        }
+
+        .level-btn:hover {
+            background: #2980b9;
+        }
+
+        #message-area {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            font-size: 3em;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
+            display: none;
+        }
+
+        .win {
+            color: #2ecc71;
+        }
+
+        .loss {
+            color: #e74c3c;
+        }
+
+        #return-btn {
+            margin-top: 20px;
+            background: #7f8c8d;
+            pointer-events: auto;
+        }
+
+        #return-container {
+            position: absolute;
+            bottom: 20%;
+            width: 100%;
+            text-align: center;
+            display: none;
+        }
     </style>
 </head>
+
 <body>
     <div id="telemetry">Loading...</div>
     <div id="ui-layer">
@@ -31,788 +117,789 @@
             <div id="level-list"></div>
         </div>
         <div id="return-container">
-             <button id="return-btn" class="level-btn">Back to Menu</button>
+            <button id="return-btn" class="level-btn">Back to Menu</button>
         </div>
     </div>
     <canvas id="gameCanvas"></canvas>
 
     <script>
-/**
- * A 2D Vector class for geometric operations.
- */
-class Vector2 {
-    /**
-     * @param {number} x
-     * @param {number} y
-     */
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-    }
+        /**
+         * A 2D Vector class for geometric operations.
+         */
+        class Vector2 {
+            /**
+             * @param {number} x
+             * @param {number} y
+             */
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
 
-    /**
-     * Adds another vector to this one.
-     * @param {Vector2} v
-     * @returns {Vector2} New vector
-     */
-    add(v) {
-        return new Vector2(this.x + v.x, this.y + v.y);
-    }
+            /**
+             * Adds another vector to this one.
+             * @param {Vector2} v
+             * @returns {Vector2} New vector
+             */
+            add(v) {
+                return new Vector2(this.x + v.x, this.y + v.y);
+            }
 
-    /**
-     * Subtracts another vector from this one.
-     * @param {Vector2} v
-     * @returns {Vector2} New vector
-     */
-    sub(v) {
-        return new Vector2(this.x - v.x, this.y - v.y);
-    }
+            /**
+             * Subtracts another vector from this one.
+             * @param {Vector2} v
+             * @returns {Vector2} New vector
+             */
+            sub(v) {
+                return new Vector2(this.x - v.x, this.y - v.y);
+            }
 
-    /**
-     * Scales the vector by a scalar.
-     * @param {number} s
-     * @returns {Vector2} New vector
-     */
-    scale(s) {
-        return new Vector2(this.x * s, this.y * s);
-    }
+            /**
+             * Scales the vector by a scalar.
+             * @param {number} s
+             * @returns {Vector2} New vector
+             */
+            scale(s) {
+                return new Vector2(this.x * s, this.y * s);
+            }
 
-    /**
-     * Calculates the dot product with another vector.
-     * @param {Vector2} v
-     * @returns {number}
-     */
-    dot(v) {
-        return this.x * v.x + this.y * v.y;
-    }
+            /**
+             * Calculates the dot product with another vector.
+             * @param {Vector2} v
+             * @returns {number}
+             */
+            dot(v) {
+                return this.x * v.x + this.y * v.y;
+            }
 
-    /**
-     * Rotates the vector by an angle.
-     * @param {number} angle Angle in radians
-     * @returns {Vector2} New vector
-     */
-    rotate(angle) {
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        return new Vector2(
-            this.x * cos - this.y * sin,
-            this.x * sin + this.y * cos
-        );
-    }
+            /**
+             * Rotates the vector by an angle.
+             * @param {number} angle Angle in radians
+             * @returns {Vector2} New vector
+             */
+            rotate(angle) {
+                const cos = Math.cos(angle);
+                const sin = Math.sin(angle);
+                return new Vector2(
+                    this.x * cos - this.y * sin,
+                    this.x * sin + this.y * cos
+                );
+            }
 
-    /**
-     * Returns the magnitude of the vector.
-     * @returns {number}
-     */
-    magnitude() {
-        return Math.sqrt(this.x * this.x + this.y * this.y);
-    }
+            /**
+             * Returns the magnitude of the vector.
+             * @returns {number}
+             */
+            magnitude() {
+                return Math.sqrt(this.x * this.x + this.y * this.y);
+            }
 
-    /**
-     * Returns a normalized vector.
-     * @returns {Vector2}
-     */
-    normalize() {
-        const m = this.magnitude();
-        return m === 0 ? new Vector2(0, 0) : this.scale(1 / m);
-    }
-}
-
-/**
- * Helper to create polygon vertices for a rectangle.
- * @param {number} x Center x
- * @param {number} y Center y
- * @param {number} width Width (x-axis local)
- * @param {number} height Height (y-axis local)
- * @param {number} angle Angle in radians
- * @returns {Vector2[]}
- */
-function createPolygon(x, y, width, height, angle) {
-    const hw = width / 2;
-    const hh = height / 2;
-    // Corners relative to center, unrotated
-    const corners = [
-        new Vector2(hw, hh),
-        new Vector2(hw, -hh),
-        new Vector2(-hw, -hh),
-        new Vector2(-hw, hh)
-    ];
-    // Rotate and translate
-    return corners.map(p => p.rotate(angle).add(new Vector2(x, y)));
-}
-
-/**
- * Level Definitions
- */
-const LEVELS = [
-    {
-        name: "Level 1: The Basics",
-        description: "Park the car in the green box.",
-        start: { x: 100, y: 300, heading: 0 },
-        target: { x: 600, y: 300, width: 80, height: 50, angle: 0 },
-        obstacles: [
-            // Walls around the world
-            { x: 400, y: 0, width: 800, height: 20, angle: 0 }, // Top
-            { x: 400, y: 600, width: 800, height: 20, angle: 0 }, // Bottom
-            { x: 0, y: 300, width: 20, height: 600, angle: 0 }, // Left
-            { x: 800, y: 300, width: 20, height: 600, angle: 0 }, // Right
-        ]
-    },
-    {
-        name: "Level 2: The Alley",
-        description: "Navigate through the narrow path.",
-        start: { x: 100, y: 300, heading: 0 },
-        target: { x: 700, y: 300, width: 80, height: 50, angle: 0 },
-        obstacles: [
-            // Bounds
-            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
-            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
-            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
-            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
-
-            // Alley walls
-            { x: 400, y: 200, width: 400, height: 20, angle: 0 },
-            { x: 400, y: 400, width: 400, height: 20, angle: 0 },
-        ]
-    },
-    {
-        name: "Level 3: Parallel Park",
-        description: "Park between the two obstacles.",
-        start: { x: 100, y: 450, heading: 0 },
-        target: { x: 500, y: 200, width: 90, height: 50, angle: 0 },
-        obstacles: [
-            // Bounds
-            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
-            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
-            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
-            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
-
-            // Parked cars
-            { x: 350, y: 200, width: 70, height: 40, angle: 0 },
-            { x: 650, y: 200, width: 70, height: 40, angle: 0 },
-        ]
-    },
-    {
-        name: "Realistic 90° Parking",
-        description: "Standard parking lot. Park in the box.",
-        // 20px = 1m
-        start: { x: 100, y: 300, heading: 0 },
-        // Target: 2.5m x 5m = 50px x 100px (Vertical)
-        target: { x: 600, y: 300, width: 50, height: 100, angle: 0 },
-        obstacles: [
-            // Bounds
-            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
-            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
-            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
-            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
-
-            // Parking Lines/Obstacles (simulating other cars)
-            // Aisle width 6m = 120px.
-            // Parking row Y = 300.
-            // Neighbors. Gap is 50px (2.5m).
-            // Left neighbor
-            { x: 600 - 50, y: 300, width: 38, height: 94, angle: 0 }, // Car is 38x94
-            // Right neighbor
-            { x: 600 + 50, y: 300, width: 38, height: 94, angle: 0 }
-        ]
-    },
-    {
-        name: "Realistic Parallel Park",
-        description: "Street parking. Don't hit the expensive cars.",
-        // 20px = 1m
-        start: { x: 100, y: 400, heading: 0 },
-        // Target: 6m long = 120px. Width 2.5m = 50px.
-        target: { x: 500, y: 200, width: 130, height: 60, angle: 0 }, // slightly larger for tolerance
-        obstacles: [
-            // Bounds
-            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
-            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
-            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
-            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
-
-            // Curb
-            { x: 400, y: 150, width: 800, height: 20, angle: 0 },
-
-            // Cars
-            // Target center 500. Gap 6m+ (say 7m = 140px).
-            // Rear car center: 500 - 70 - 47 (half car length) = 383
-            { x: 380, y: 200, width: 94, height: 38, angle: 0 },
-            // Front car center: 500 + 70 + 47 = 617
-            { x: 620, y: 200, width: 94, height: 38, angle: 0 }
-        ]
-    }
-];
-
-/**
- * Handles keyboard and gamepad input.
- */
-class InputHandler {
-    constructor() {
-        this.keys = {};
-
-        // Ensure we are in a browser environment before adding listeners
-        if (typeof window !== 'undefined') {
-            window.addEventListener('keydown', (e) => this.keys[e.code] = true);
-            window.addEventListener('keyup', (e) => this.keys[e.code] = false);
-        }
-    }
-
-    /**
-     * Gets the current steering input (-1 to 1).
-     * @returns {number}
-     */
-    getSteer() {
-        let steer = 0;
-        if (this.keys['KeyA'] || this.keys['ArrowLeft']) steer -= 1;
-        if (this.keys['KeyD'] || this.keys['ArrowRight']) steer += 1;
-
-        // Gamepad check
-        if (typeof navigator !== 'undefined' && navigator.getGamepads) {
-            const gamepad = navigator.getGamepads()[0];
-            if (gamepad) {
-                // Left stick horizontal axis (usually axis 0)
-                const axisX = gamepad.axes[0];
-                if (Math.abs(axisX) > 0.1) steer = axisX; // Deadzone
+            /**
+             * Returns a normalized vector.
+             * @returns {Vector2}
+             */
+            normalize() {
+                const m = this.magnitude();
+                return m === 0 ? new Vector2(0, 0) : this.scale(1 / m);
             }
         }
 
-        return Math.max(-1, Math.min(1, steer));
-    }
+        /**
+         * Helper to create polygon vertices for a rectangle.
+         * @param {number} x Center x
+         * @param {number} y Center y
+         * @param {number} width Width (x-axis local)
+         * @param {number} height Height (y-axis local)
+         * @param {number} angle Angle in radians
+         * @returns {Vector2[]}
+         */
+        function createPolygon(x, y, width, height, angle) {
+            const hw = width / 2;
+            const hh = height / 2;
+            // Corners relative to center, unrotated
+            const corners = [
+                new Vector2(hw, hh),
+                new Vector2(hw, -hh),
+                new Vector2(-hw, -hh),
+                new Vector2(-hw, hh)
+            ];
+            // Rotate and translate
+            return corners.map(p => p.rotate(angle).add(new Vector2(x, y)));
+        }
 
-    /**
-     * Gets the current throttle/brake input (-1 to 1).
-     * Positive is forward, negative is backward/brake.
-     * @returns {number}
-     */
-    getThrottle() {
-        let throttle = 0;
-        if (this.keys['KeyW'] || this.keys['ArrowUp']) throttle += 1;
-        if (this.keys['KeyS'] || this.keys['ArrowDown']) throttle -= 1;
+        /**
+         * Level Definitions
+         */
+        const LEVELS = [
+            {
+                name: "Level 1: The Basics",
+                description: "Park the car in the green box.",
+                start: { x: 100, y: 300, heading: 0 },
+                target: { x: 600, y: 300, width: 80, height: 50, angle: 0 },
+                obstacles: [
+                    // Walls around the world
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 }, // Top
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 }, // Bottom
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 }, // Left
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 }, // Right
+                ]
+            },
+            {
+                name: "Level 2: The Alley",
+                description: "Navigate through the narrow path.",
+                start: { x: 100, y: 300, heading: 0 },
+                target: { x: 700, y: 300, width: 80, height: 50, angle: 0 },
+                obstacles: [
+                    // Bounds
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 },
 
-        // Gamepad check
-        if (typeof navigator !== 'undefined' && navigator.getGamepads) {
-            const gamepad = navigator.getGamepads()[0];
-            if (gamepad) {
-                // Triggers usually are buttons 6 (LT) and 7 (RT)
-                // They return a value between 0 and 1.
-                const brake = gamepad.buttons[6] ? gamepad.buttons[6].value : 0;
-                const gas = gamepad.buttons[7] ? gamepad.buttons[7].value : 0;
+                    // Alley walls
+                    { x: 400, y: 200, width: 400, height: 20, angle: 0 },
+                    { x: 400, y: 400, width: 400, height: 20, angle: 0 },
+                ]
+            },
+            {
+                name: "Level 3: Parallel Park",
+                description: "Park between the two obstacles.",
+                start: { x: 100, y: 450, heading: 0 },
+                target: { x: 500, y: 200, width: 110, height: 46, angle: 0 },
+                obstacles: [
+                    // Bounds
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 },
 
-                throttle += gas;
-                throttle -= brake;
+                    // Parked cars
+                    { x: 350, y: 200, width: 70, height: 40, angle: 0 },
+                    { x: 650, y: 200, width: 70, height: 40, angle: 0 },
+                ]
+            },
+            {
+                name: "Realistic 90° Parking",
+                description: "Standard parking lot. Park in the box.",
+                // 20px = 1m
+                start: { x: 100, y: 300, heading: 0 },
+                // Target: 2.5m x 5m = 50px x 100px (Vertical)
+                target: { x: 600, y: 300, width: 50, height: 100, angle: 0 },
+                obstacles: [
+                    // Bounds
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+                    // Parking Lines/Obstacles (simulating other cars)
+                    // Aisle width 6m = 120px.
+                    // Parking row Y = 300.
+                    // Neighbors. Gap is 50px (2.5m).
+                    // Left neighbor
+                    { x: 600 - 50, y: 300, width: 38, height: 94, angle: 0 }, // Car is 38x94
+                    // Right neighbor
+                    { x: 600 + 50, y: 300, width: 38, height: 94, angle: 0 }
+                ]
+            },
+            {
+                name: "Realistic Parallel Park",
+                description: "Street parking. Don't hit the expensive cars.",
+                // 20px = 1m
+                start: { x: 100, y: 400, heading: 0 },
+                // Target: 6m long = 120px. Width 2.5m = 50px.
+                target: { x: 500, y: 200, width: 102, height: 42, angle: 0 }, // slightly larger for tolerance
+                obstacles: [
+                    // Bounds
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+                    // Curb
+                    { x: 400, y: 150, width: 800, height: 20, angle: 0 },
+
+                    // Cars
+                    // Target center 500. Gap 6m+ (say 7m = 140px).
+                    // Rear car center: 500 - 70 - 47 (half car length) = 383
+                    { x: 380, y: 200, width: 94, height: 38, angle: 0 },
+                    // Front car center: 500 + 70 + 47 = 617
+                    { x: 620, y: 200, width: 94, height: 38, angle: 0 }
+                ]
             }
-        }
-
-        return Math.max(-1, Math.min(1, throttle));
-    }
-}
-
-/**
- * Headless Game Engine containing physics and logic.
- */
-class GameEngine {
-    constructor(config = {}) {
-        // Car State
-        this.pos = new Vector2(100, 300);
-        this.heading = 0; // Radians, 0 points East
-        this.velocity = 0;
-        this.steerAngle = 0;
-
-        // Constants / Configuration
-        // Scale: ~20 pixels = 1 meter
-        this.wheelBase = config.wheelBase || 56; // ~2.8m
-        this.maxSteerAngle = config.maxSteerAngle || (30 * Math.PI / 180); // 30 degrees
-        this.maxSpeed = config.maxSpeed || 300; // 15 m/s = 54 km/h
-        this.acceleration = config.acceleration || 150;
-        this.friction = config.friction || 0.98;
-
-        // Dimensions for collision
-        this.width = config.width || 38; // ~1.9m
-        this.length = config.length || 94; // ~4.7m
-
-        // Level Data
-        this.currentLevel = null;
-        this.crashed = false;
-        this.won = false;
-    }
-
-    loadLevel(level) {
-        this.currentLevel = level;
-        this.pos = new Vector2(level.start.x, level.start.y);
-        this.heading = level.start.heading || 0;
-        this.velocity = 0;
-        this.steerAngle = 0;
-        this.crashed = false;
-        this.won = false;
-    }
-
-    /**
-     * Updates the game state.
-     * @param {number} dt Delta time in seconds
-     * @param {object} input Input state { steer: number, throttle: number }
-     */
-    update(dt, input) {
-        if (this.crashed || this.won) return;
-
-        // 1. Update Steering Angle
-        // Smooth steering could be added, but for now direct mapping
-        this.steerAngle = input.steer * this.maxSteerAngle;
-
-        // 2. Update Velocity (Acceleration & Friction)
-        if (input.throttle !== 0) {
-            this.velocity += input.throttle * this.acceleration * dt;
-        } else {
-            // Apply friction/drag when no input
-            this.velocity *= Math.pow(this.friction, dt * 60); // Frame-rate independent-ish friction
-            if (Math.abs(this.velocity) < 0.1) this.velocity = 0;
-        }
-
-        // Clamp speed
-        this.velocity = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.velocity));
-
-        // 3. Ackermann Steering Kinematics
-        // dx = v * cos(theta)
-        // dy = v * sin(theta)
-        // dtheta = (v / L) * tan(delta)
-
-        this.pos.x += this.velocity * Math.cos(this.heading) * dt;
-        this.pos.y += this.velocity * Math.sin(this.heading) * dt;
-
-        // Angular velocity depends on linear velocity
-        const angularVelocity = (this.velocity / this.wheelBase) * Math.tan(this.steerAngle);
-        this.heading += angularVelocity * dt;
-
-        // 4. Collision Detection
-        if (this.currentLevel) {
-            const carPoly = this.getPolygon();
-
-            // Obstacles
-            for (const obs of this.currentLevel.obstacles) {
-                const obsPoly = createPolygon(obs.x, obs.y, obs.width, obs.height, obs.angle);
-                if (SAT.checkCollision(carPoly, obsPoly)) {
-                    this.crashed = true;
-                    this.velocity = 0;
-                    return;
-                }
-            }
-
-            // Win Condition (Speed near 0 and fully contained in target)
-            // Ideally, we check if all 4 corners of car are inside the target polygon
-            if (Math.abs(this.velocity) < 5) { // Almost stopped
-                const target = this.currentLevel.target;
-                const targetPoly = createPolygon(target.x, target.y, target.width, target.height, target.angle);
-
-                // SAT checkCollision checks INTERSECTION.
-                // To check if A is INSIDE B, we need to check if A intersects B AND...
-                // Actually, if we use SAT, we can check if all points of A are inside B.
-                // Or simply: check collision. If colliding, and car center is "close enough" to target center?
-                // Let's implement a 'contains' check.
-                // A polygon A is contained in convex B if all points of A are inside B.
-                // Point inside convex polygon: all cross products (or dot with normals) must have same sign.
-
-                // For simplicity, let's use the SAT intersection as a prerequisite,
-                // and then check if the car center is within a small radius of target center?
-                // No, that's imprecise.
-                // Let's implement pointInPolygon for all 4 car corners.
-
-                if (this.isCarInside(carPoly, targetPoly)) {
-                    this.won = true;
-                }
-            }
-        }
-    }
-
-    isCarInside(carPoly, targetPoly) {
-        // Check if every point of carPoly is inside targetPoly
-        // Since target is a rectangle (convex), we can use the Separating Axis Theorem concept
-        // or just standard point-in-convex-polygon.
-
-        // For a convex polygon, a point is inside if it lies on the same side of all lines defined by edges.
-
-        for (const p of carPoly) {
-            if (!this.isPointInConvexPoly(p, targetPoly)) return false;
-        }
-        return true;
-    }
-
-    isPointInConvexPoly(p, poly) {
-        // Cross product approach
-        // (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x)
-        let lastSign = 0;
-        for (let i = 0; i < poly.length; i++) {
-            const p1 = poly[i];
-            const p2 = poly[(i + 1) % poly.length];
-
-            const val = (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x);
-            if (val !== 0) {
-                const sign = val > 0 ? 1 : -1;
-                if (lastSign !== 0 && sign !== lastSign) return false;
-                lastSign = sign;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Returns the polygon representing the car's bounding box.
-     * Used for SAT.
-     * @returns {Vector2[]} Array of vertices
-     */
-    getPolygon() {
-        const hw = this.width / 2;
-        const hl = this.length / 2;
-
-        // Relative corners
-        const corners = [
-            new Vector2(hl, hw),
-            new Vector2(hl, -hw),
-            new Vector2(-hl, -hw),
-            new Vector2(-hl, hw)
         ];
 
-        // Rotate and translate
-        return corners.map(p => p.rotate(this.heading).add(this.pos));
-    }
-}
+        /**
+         * Handles keyboard and gamepad input.
+         */
+        class InputHandler {
+            constructor() {
+                this.keys = {};
 
-/**
- * SAT Collision Helper
- */
-const SAT = {
-    /**
-     * Checks if two convex polygons intersect.
-     * @param {Vector2[]} polyA
-     * @param {Vector2[]} polyB
-     * @returns {boolean}
-     */
-    checkCollision(polyA, polyB) {
-        const polygons = [polyA, polyB];
-        for (let i = 0; i < polygons.length; i++) {
-            const polygon = polygons[i];
-            for (let j = 0; j < polygon.length; j++) {
-                const p1 = polygon[j];
-                const p2 = polygon[(j + 1) % polygon.length];
-
-                // Normal axis
-                const normal = new Vector2(-(p2.y - p1.y), p2.x - p1.x).normalize();
-
-                const minMaxA = this.project(polyA, normal);
-                const minMaxB = this.project(polyB, normal);
-
-                if (minMaxA.max < minMaxB.min || minMaxB.max < minMaxA.min) {
-                    return false; // Gap found
+                // Ensure we are in a browser environment before adding listeners
+                if (typeof window !== 'undefined') {
+                    window.addEventListener('keydown', (e) => this.keys[e.code] = true);
+                    window.addEventListener('keyup', (e) => this.keys[e.code] = false);
                 }
             }
+
+            /**
+             * Gets the current steering input (-1 to 1).
+             * @returns {number}
+             */
+            getSteer() {
+                let steer = 0;
+                if (this.keys['KeyA'] || this.keys['ArrowLeft']) steer -= 1;
+                if (this.keys['KeyD'] || this.keys['ArrowRight']) steer += 1;
+
+                // Gamepad check
+                if (typeof navigator !== 'undefined' && navigator.getGamepads) {
+                    const gamepad = navigator.getGamepads()[0];
+                    if (gamepad) {
+                        // Left stick horizontal axis (usually axis 0)
+                        const axisX = gamepad.axes[0];
+                        if (Math.abs(axisX) > 0.1) steer = axisX; // Deadzone
+                    }
+                }
+
+                return Math.max(-1, Math.min(1, steer));
+            }
+
+            /**
+             * Gets the current throttle/brake input (-1 to 1).
+             * Positive is forward, negative is backward/brake.
+             * @returns {number}
+             */
+            getThrottle() {
+                let throttle = 0;
+                if (this.keys['KeyW'] || this.keys['ArrowUp']) throttle += 1;
+                if (this.keys['KeyS'] || this.keys['ArrowDown']) throttle -= 1;
+
+                // Gamepad check
+                if (typeof navigator !== 'undefined' && navigator.getGamepads) {
+                    const gamepad = navigator.getGamepads()[0];
+                    if (gamepad) {
+                        // Triggers usually are buttons 6 (LT) and 7 (RT)
+                        // They return a value between 0 and 1.
+                        const brake = gamepad.buttons[6] ? gamepad.buttons[6].value : 0;
+                        const gas = gamepad.buttons[7] ? gamepad.buttons[7].value : 0;
+
+                        throttle += gas;
+                        throttle -= brake;
+                    }
+                }
+
+                return Math.max(-1, Math.min(1, throttle));
+            }
         }
-        return true;
-    },
 
-    project(poly, axis) {
-        let min = poly[0].dot(axis);
-        let max = min;
-        for (let i = 1; i < poly.length; i++) {
-            const p = poly[i].dot(axis);
-            if (p < min) min = p;
-            if (p > max) max = p;
+        /**
+         * Headless Game Engine containing physics and logic.
+         */
+        class GameEngine {
+            constructor(config = {}) {
+                // Car State
+                this.pos = new Vector2(100, 300);
+                this.heading = 0; // Radians, 0 points East
+                this.velocity = 0;
+                this.steerAngle = 0;
+
+                // Constants / Configuration
+                // Scale: ~20 pixels = 1 meter
+                this.wheelBase = config.wheelBase || 56; // ~2.8m
+                this.maxSteerAngle = config.maxSteerAngle || (30 * Math.PI / 180); // 30 degrees
+                this.maxSpeed = config.maxSpeed || 300; // 15 m/s = 54 km/h
+                this.acceleration = config.acceleration || 150;
+                this.friction = config.friction || 0.98;
+
+                // Dimensions for collision
+                this.width = config.width || 38; // ~1.9m
+                this.length = config.length || 94; // ~4.7m
+
+                // Level Data
+                this.currentLevel = null;
+                this.crashed = false;
+                this.won = false;
+            }
+
+            loadLevel(level) {
+                this.currentLevel = level;
+                this.pos = new Vector2(level.start.x, level.start.y);
+                this.heading = level.start.heading || 0;
+                this.velocity = 0;
+                this.steerAngle = 0;
+                this.crashed = false;
+                this.won = false;
+            }
+
+            /**
+             * Updates the game state.
+             * @param {number} dt Delta time in seconds
+             * @param {object} input Input state { steer: number, throttle: number }
+             */
+            update(dt, input) {
+                if (this.crashed || this.won) return;
+
+                // 1. Update Steering Angle
+                // Smooth steering could be added, but for now direct mapping
+                this.steerAngle = input.steer * this.maxSteerAngle;
+
+                // 2. Update Velocity (Acceleration & Friction)
+                if (input.throttle !== 0) {
+                    this.velocity += input.throttle * this.acceleration * dt;
+                } else {
+                    // Apply friction/drag when no input
+                    this.velocity *= Math.pow(this.friction, dt * 60); // Frame-rate independent-ish friction
+                    if (Math.abs(this.velocity) < 0.1) this.velocity = 0;
+                }
+
+                // Clamp speed
+                this.velocity = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.velocity));
+
+                // 3. Ackermann Steering Kinematics
+                // dx = v * cos(theta)
+                // dy = v * sin(theta)
+                // dtheta = (v / L) * tan(delta)
+
+                this.pos.x += this.velocity * Math.cos(this.heading) * dt;
+                this.pos.y += this.velocity * Math.sin(this.heading) * dt;
+
+                // Angular velocity depends on linear velocity
+                const angularVelocity = (this.velocity / this.wheelBase) * Math.tan(this.steerAngle);
+                this.heading += angularVelocity * dt;
+
+                // 4. Collision Detection
+                if (this.currentLevel) {
+                    const carPoly = this.getPolygon();
+
+                    // Obstacles
+                    for (const obs of this.currentLevel.obstacles) {
+                        const obsPoly = createPolygon(obs.x, obs.y, obs.width, obs.height, obs.angle);
+                        if (SAT.checkCollision(carPoly, obsPoly)) {
+                            this.crashed = true;
+                            this.velocity = 0;
+                            return;
+                        }
+                    }
+
+                    // Win Condition (Speed near 0 and fully contained in target)
+                    // Ideally, we check if all 4 corners of car are inside the target polygon
+                    if (Math.abs(this.velocity) < 5) { // Almost stopped
+                        const target = this.currentLevel.target;
+                        const targetPoly = createPolygon(target.x, target.y, target.width, target.height, target.angle);
+
+                        // SAT checkCollision checks INTERSECTION.
+                        // To check if A is INSIDE B, we need to check if A intersects B AND...
+                        // Actually, if we use SAT, we can check if all points of A are inside B.
+                        // Or simply: check collision. If colliding, and car center is "close enough" to target center?
+                        // Let's implement a 'contains' check.
+                        // A polygon A is contained in convex B if all points of A are inside B.
+                        // Point inside convex polygon: all cross products (or dot with normals) must have same sign.
+
+                        // For simplicity, let's use the SAT intersection as a prerequisite,
+                        // and then check if the car center is within a small radius of target center?
+                        // No, that's imprecise.
+                        // Let's implement pointInPolygon for all 4 car corners.
+
+                        if (this.isCarInside(carPoly, targetPoly)) {
+                            this.won = true;
+                        }
+                    }
+                }
+            }
+
+            isCarInside(carPoly, targetPoly) {
+                // Check if every point of carPoly is inside targetPoly
+                // Since target is a rectangle (convex), we can use the Separating Axis Theorem concept
+                // or just standard point-in-convex-polygon.
+
+                // For a convex polygon, a point is inside if it lies on the same side of all lines defined by edges.
+
+                for (const p of carPoly) {
+                    if (!this.isPointInConvexPoly(p, targetPoly)) return false;
+                }
+                return true;
+            }
+
+            isPointInConvexPoly(p, poly) {
+                // Cross product approach
+                // (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x)
+                let lastSign = 0;
+                for (let i = 0; i < poly.length; i++) {
+                    const p1 = poly[i];
+                    const p2 = poly[(i + 1) % poly.length];
+
+                    const val = (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x);
+                    if (val !== 0) {
+                        const sign = val > 0 ? 1 : -1;
+                        if (lastSign !== 0 && sign !== lastSign) return false;
+                        lastSign = sign;
+                    }
+                }
+                return true;
+            }
+
+            /**
+             * Returns the polygon representing the car's bounding box.
+             * Used for SAT.
+             * @returns {Vector2[]} Array of vertices
+             */
+            getPolygon() {
+                const hw = this.width / 2;
+                const hl = this.length / 2;
+
+                // Relative corners
+                const corners = [
+                    new Vector2(hl, hw),
+                    new Vector2(hl, -hw),
+                    new Vector2(-hl, -hw),
+                    new Vector2(-hl, hw)
+                ];
+
+                // Rotate and translate
+                return corners.map(p => p.rotate(this.heading).add(this.pos));
+            }
         }
-        return { min, max };
-    }
-};
 
-/**
- * Renders the game state to a canvas.
- */
-class CanvasRenderer {
-    /**
-     * @param {HTMLCanvasElement} canvas
-     */
-    constructor(canvas) {
-        this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-    }
+        /**
+         * SAT Collision Helper
+         */
+        const SAT = {
+            /**
+             * Checks if two convex polygons intersect.
+             * @param {Vector2[]} polyA
+             * @param {Vector2[]} polyB
+             * @returns {boolean}
+             */
+            checkCollision(polyA, polyB) {
+                const polygons = [polyA, polyB];
+                for (let i = 0; i < polygons.length; i++) {
+                    const polygon = polygons[i];
+                    for (let j = 0; j < polygon.length; j++) {
+                        const p1 = polygon[j];
+                        const p2 = polygon[(j + 1) % polygon.length];
 
-    resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-    }
+                        // Normal axis
+                        const normal = new Vector2(-(p2.y - p1.y), p2.x - p1.x).normalize();
 
-    /**
-     * Draws the current frame.
-     * @param {GameEngine} game
-     */
-    render(game) {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                        const minMaxA = this.project(polyA, normal);
+                        const minMaxB = this.project(polyB, normal);
 
-        // Draw Level Elements
-        if (game.currentLevel) {
-            // Draw Target
-            const target = game.currentLevel.target;
-            this.ctx.save();
-            this.ctx.translate(target.x, target.y);
-            this.ctx.rotate(target.angle);
-            this.ctx.strokeStyle = '#2ecc71';
-            this.ctx.lineWidth = 4;
-            this.ctx.setLineDash([10, 5]);
-            this.ctx.strokeRect(-target.width / 2, -target.height / 2, target.width, target.height);
-            // Semi-transparent fill
-            this.ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
-            this.ctx.fillRect(-target.width / 2, -target.height / 2, target.width, target.height);
-            this.ctx.restore();
+                        if (minMaxA.max < minMaxB.min || minMaxB.max < minMaxA.min) {
+                            return false; // Gap found
+                        }
+                    }
+                }
+                return true;
+            },
 
-            // Draw Obstacles
-            this.ctx.fillStyle = '#7f8c8d';
-            for (const obs of game.currentLevel.obstacles) {
+            project(poly, axis) {
+                let min = poly[0].dot(axis);
+                let max = min;
+                for (let i = 1; i < poly.length; i++) {
+                    const p = poly[i].dot(axis);
+                    if (p < min) min = p;
+                    if (p > max) max = p;
+                }
+                return { min, max };
+            }
+        };
+
+        /**
+         * Renders the game state to a canvas.
+         */
+        class CanvasRenderer {
+            /**
+             * @param {HTMLCanvasElement} canvas
+             */
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+
+            /**
+             * Draws the current frame.
+             * @param {GameEngine} game
+             */
+            render(game) {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw Level Elements
+                if (game.currentLevel) {
+                    // Draw Target
+                    const target = game.currentLevel.target;
+                    this.ctx.save();
+                    this.ctx.translate(target.x, target.y);
+                    this.ctx.rotate(target.angle);
+                    this.ctx.strokeStyle = '#2ecc71';
+                    this.ctx.lineWidth = 4;
+                    this.ctx.setLineDash([10, 5]);
+                    this.ctx.strokeRect(-target.width / 2, -target.height / 2, target.width, target.height);
+                    // Semi-transparent fill
+                    this.ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
+                    this.ctx.fillRect(-target.width / 2, -target.height / 2, target.width, target.height);
+                    this.ctx.restore();
+
+                    // Draw Obstacles
+                    this.ctx.fillStyle = '#7f8c8d';
+                    for (const obs of game.currentLevel.obstacles) {
+                        this.ctx.save();
+                        this.ctx.translate(obs.x, obs.y);
+                        this.ctx.rotate(obs.angle);
+                        this.ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
+                        this.ctx.restore();
+                    }
+                }
+
                 this.ctx.save();
-                this.ctx.translate(obs.x, obs.y);
-                this.ctx.rotate(obs.angle);
-                this.ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
+
+                // Translate to car center
+                this.ctx.translate(game.pos.x, game.pos.y);
+                this.ctx.rotate(game.heading);
+
+                // Draw Body
+                this.ctx.fillStyle = '#3498db';
+                if (game.crashed) this.ctx.fillStyle = '#e74c3c'; // Red if crashed
+                if (game.won) this.ctx.fillStyle = '#2ecc71'; // Green if won
+
+                this.ctx.fillRect(-game.length / 2, -game.width / 2, game.length, game.width);
+
+                // Indicate front with a small line or color difference
+                this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                this.ctx.fillRect(game.length / 4, -game.width / 2, game.length / 4, game.width);
+
+                // Draw Wheels
+                this.ctx.fillStyle = '#000';
+                const wheelWidth = 12;
+                const wheelHeight = 6;
+                const halfL = game.wheelBase / 2; // Wheelbase is distance between axles. Let's assume center is mid-point.
+                // Actually, usually center of car is mid-point of bounding box.
+                // If wheelbase is 40 and car length is 60, axles are at +/- 20.
+
+                const axleX = game.wheelBase / 2;
+                const axleY = game.width / 2;
+
+                // Rear Wheels (Fixed)
+                this.drawWheel(-axleX, -axleY, wheelWidth, wheelHeight, 0);
+                this.drawWheel(-axleX, axleY, wheelWidth, wheelHeight, 0);
+
+                // Front Wheels (Steerable)
+                this.drawWheel(axleX, -axleY, wheelWidth, wheelHeight, game.steerAngle);
+                this.drawWheel(axleX, axleY, wheelWidth, wheelHeight, game.steerAngle);
+
+                this.ctx.restore();
+            }
+
+            drawWheel(x, y, w, h, angle) {
+                this.ctx.save();
+                this.ctx.translate(x, y);
+                this.ctx.rotate(angle);
+                this.ctx.fillRect(-w / 2, -h / 2, w, h);
                 this.ctx.restore();
             }
         }
 
-        this.ctx.save();
+        // --- Bootstrap ---
 
-        // Translate to car center
-        this.ctx.translate(game.pos.x, game.pos.y);
-        this.ctx.rotate(game.heading);
+        // Init
+        const canvas = document.getElementById('gameCanvas');
+        const engine = new GameEngine();
+        const inputHandler = new InputHandler();
+        const renderer = new CanvasRenderer(canvas);
+        const telemetry = document.getElementById('telemetry');
 
-        // Draw Body
-        this.ctx.fillStyle = '#3498db';
-        if (game.crashed) this.ctx.fillStyle = '#e74c3c'; // Red if crashed
-        if (game.won) this.ctx.fillStyle = '#2ecc71'; // Green if won
+        // UI Elements
+        const uiLayer = document.getElementById('ui-layer');
+        const levelChooser = document.getElementById('level-chooser');
+        const levelList = document.getElementById('level-list');
+        const messageArea = document.getElementById('message-area');
+        const returnContainer = document.getElementById('return-container');
+        const returnBtn = document.getElementById('return-btn');
 
-        this.ctx.fillRect(-game.length / 2, -game.width / 2, game.length, game.width);
+        let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
 
-        // Indicate front with a small line or color difference
-        this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        this.ctx.fillRect(game.length / 4, -game.width / 2, game.length / 4, game.width);
+        // Level Manager Logic
+        function initLevelChooser() {
+            levelList.innerHTML = '';
+            LEVELS.forEach((level, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                btn.innerText = level.name;
+                btn.onclick = () => startLevel(index);
+                levelList.appendChild(btn);
+            });
+        }
 
-        // Draw Wheels
-        this.ctx.fillStyle = '#000';
-        const wheelWidth = 12;
-        const wheelHeight = 6;
-        const halfL = game.wheelBase / 2; // Wheelbase is distance between axles. Let's assume center is mid-point.
-        // Actually, usually center of car is mid-point of bounding box.
-        // If wheelbase is 40 and car length is 60, axles are at +/- 20.
+        function startLevel(index) {
+            const level = LEVELS[index];
+            engine.loadLevel(level);
+            gameState = 'PLAYING';
 
-        const axleX = game.wheelBase / 2;
-        const axleY = game.width / 2;
+            // UI Updates
+            levelChooser.style.display = 'none';
+            messageArea.style.display = 'none';
+            returnContainer.style.display = 'none';
+        }
 
-        // Rear Wheels (Fixed)
-        this.drawWheel(-axleX, -axleY, wheelWidth, wheelHeight, 0);
-        this.drawWheel(-axleX, axleY, wheelWidth, wheelHeight, 0);
+        function showMenu() {
+            gameState = 'MENU';
+            levelChooser.style.display = 'block';
+            messageArea.style.display = 'none';
+            returnContainer.style.display = 'none';
+        }
 
-        // Front Wheels (Steerable)
-        this.drawWheel(axleX, -axleY, wheelWidth, wheelHeight, game.steerAngle);
-        this.drawWheel(axleX, axleY, wheelWidth, wheelHeight, game.steerAngle);
+        function showGameOver(won) {
+            gameState = 'GAMEOVER';
+            messageArea.style.display = 'block';
+            messageArea.innerText = won ? 'LEVEL COMPLETE!' : 'CRASHED!';
+            messageArea.className = won ? 'win' : 'loss';
+            returnContainer.style.display = 'block';
+        }
 
-        this.ctx.restore();
-    }
-
-    drawWheel(x, y, w, h, angle) {
-        this.ctx.save();
-        this.ctx.translate(x, y);
-        this.ctx.rotate(angle);
-        this.ctx.fillRect(-w / 2, -h / 2, w, h);
-        this.ctx.restore();
-    }
-}
-
-// --- Bootstrap ---
-
-// Init
-const canvas = document.getElementById('gameCanvas');
-const engine = new GameEngine();
-const inputHandler = new InputHandler();
-const renderer = new CanvasRenderer(canvas);
-const telemetry = document.getElementById('telemetry');
-
-// UI Elements
-const uiLayer = document.getElementById('ui-layer');
-const levelChooser = document.getElementById('level-chooser');
-const levelList = document.getElementById('level-list');
-const messageArea = document.getElementById('message-area');
-const returnContainer = document.getElementById('return-container');
-const returnBtn = document.getElementById('return-btn');
-
-let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
-
-// Level Manager Logic
-function initLevelChooser() {
-    levelList.innerHTML = '';
-    LEVELS.forEach((level, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'level-btn';
-        btn.innerText = level.name;
-        btn.onclick = () => startLevel(index);
-        levelList.appendChild(btn);
-    });
-}
-
-function startLevel(index) {
-    const level = LEVELS[index];
-    engine.loadLevel(level);
-    gameState = 'PLAYING';
-
-    // UI Updates
-    levelChooser.style.display = 'none';
-    messageArea.style.display = 'none';
-    returnContainer.style.display = 'none';
-}
-
-function showMenu() {
-    gameState = 'MENU';
-    levelChooser.style.display = 'block';
-    messageArea.style.display = 'none';
-    returnContainer.style.display = 'none';
-}
-
-function showGameOver(won) {
-    gameState = 'GAMEOVER';
-    messageArea.style.display = 'block';
-    messageArea.innerText = won ? 'LEVEL COMPLETE!' : 'CRASHED!';
-    messageArea.className = won ? 'win' : 'loss';
-    returnContainer.style.display = 'block';
-}
-
-returnBtn.onclick = () => {
-    showMenu();
-};
-
-// Bootstrap
-initLevelChooser();
-showMenu();
-
-// Expose to window
-window.game = engine;
-
-// Game Loop
-let lastTime = performance.now();
-
-function loop(now) {
-    const dt = (now - lastTime) / 1000;
-    lastTime = now;
-
-    if (gameState === 'PLAYING') {
-        // Get Inputs
-        const input = {
-            steer: inputHandler.getSteer(),
-            throttle: inputHandler.getThrottle()
+        returnBtn.onclick = () => {
+            showMenu();
         };
 
-        // Update Logic
-        engine.update(dt, input);
+        // Bootstrap
+        initLevelChooser();
+        showMenu();
 
-        // Check for Game Over conditions
-        if (engine.crashed) {
-            showGameOver(false);
-        } else if (engine.won) {
-            showGameOver(true);
-        }
-    }
+        // Expose to window
+        window.game = engine;
 
-    // Render
-    renderer.render(engine);
+        // Game Loop
+        let lastTime = performance.now();
 
-    // Telemetry Update
-    if (gameState === 'PLAYING') {
-        telemetry.innerText = `Level: ${engine.currentLevel ? engine.currentLevel.name : 'None'}
+        function loop(now) {
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            if (gameState === 'PLAYING') {
+                // Get Inputs
+                const input = {
+                    steer: inputHandler.getSteer(),
+                    throttle: inputHandler.getThrottle()
+                };
+
+                // Update Logic
+                engine.update(dt, input);
+
+                // Check for Game Over conditions
+                if (engine.crashed) {
+                    showGameOver(false);
+                } else if (engine.won) {
+                    showGameOver(true);
+                }
+            }
+
+            // Render
+            renderer.render(engine);
+
+            // Telemetry Update
+            if (gameState === 'PLAYING') {
+                telemetry.innerText = `Level: ${engine.currentLevel ? engine.currentLevel.name : 'None'}
 Pos: (${engine.pos.x.toFixed(1)}, ${engine.pos.y.toFixed(1)})
 Heading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°
 Speed: ${engine.velocity.toFixed(1)} px/s
 Steer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°`;
-    } else {
-        telemetry.innerText = `State: ${gameState}`;
-    }
+            } else {
+                telemetry.innerText = `State: ${gameState}`;
+            }
 
-    requestAnimationFrame(loop);
-}
+            requestAnimationFrame(loop);
+        }
 
-// Start Loop
-requestAnimationFrame(loop);
+        // Start Loop
+        requestAnimationFrame(loop);
 
 
-// --- Self-Test ---
-(function runSelfTest() {
-    console.log("Running Self-Test: 1s of Gas + Left Turn...");
-    const testEngine = new GameEngine();
-    // Move starting position to 0,0 for easier calculation checks if needed, or keep default
-    testEngine.pos = new Vector2(0, 0);
-    testEngine.heading = 0;
-    testEngine.velocity = 0;
+        // --- Self-Test ---
+        (function runSelfTest() {
+            console.log("Running Self-Test: 1s of Gas + Left Turn...");
+            const testEngine = new GameEngine();
+            // Move starting position to 0,0 for easier calculation checks if needed, or keep default
+            testEngine.pos = new Vector2(0, 0);
+            testEngine.heading = 0;
+            testEngine.velocity = 0;
 
-    const dt = 1/60; // Fixed timestep for test
-    const steps = 60; // 1 second roughly
+            const dt = 1 / 60; // Fixed timestep for test
+            const steps = 60; // 1 second roughly
 
-    for (let i = 0; i < steps; i++) {
-        testEngine.update(dt, { steer: -1, throttle: 1 });
-    }
+            for (let i = 0; i < steps; i++) {
+                testEngine.update(dt, { steer: -1, throttle: 1 });
+            }
 
-    console.log("Self-Test Complete.");
-    console.log(`Final Position: x=${testEngine.pos.x.toFixed(2)}, y=${testEngine.pos.y.toFixed(2)}`);
-    console.log(`Final Heading: ${(testEngine.heading * 180 / Math.PI).toFixed(2)} degrees`);
+            console.log("Self-Test Complete.");
+            console.log(`Final Position: x=${testEngine.pos.x.toFixed(2)}, y=${testEngine.pos.y.toFixed(2)}`);
+            console.log(`Final Heading: ${(testEngine.heading * 180 / Math.PI).toFixed(2)} degrees`);
 
-    // Simple heuristic check: Should have moved forward and turned left (negative y, positive x, negative heading)
-    if (testEngine.pos.x > 0 && testEngine.pos.y < 0 && testEngine.heading < 0) {
-        console.log("Self-Test PASSED: Movement logic appears correct (moved forward-left).");
-    } else {
-        console.warn("Self-Test WARNING: Unexpected position/heading.");
-    }
-})();
+            // Simple heuristic check: Should have moved forward and turned left (negative y, positive x, negative heading)
+            if (testEngine.pos.x > 0 && testEngine.pos.y < 0 && testEngine.heading < 0) {
+                console.log("Self-Test PASSED: Movement logic appears correct (moved forward-left).");
+            } else {
+                console.warn("Self-Test WARNING: Unexpected position/heading.");
+            }
+        })();
 
-/**
- * Runs a regression test to verify turning circle dimensions.
- * @param {typeof GameEngine} EngineClass The GameEngine class to test
- * @returns {object} Test results
- */
-function testTurningCircle(EngineClass) {
-    const engine = new EngineClass();
-    console.log("Starting Turning Circle Test...");
-    console.log(`Config: WheelBase=${engine.wheelBase}, MaxSteer=${engine.maxSteerAngle.toFixed(3)} rad`);
+        /**
+         * Runs a regression test to verify turning circle dimensions.
+         * @param {typeof GameEngine} EngineClass The GameEngine class to test
+         * @returns {object} Test results
+         */
+        function testTurningCircle(EngineClass) {
+            const engine = new EngineClass();
+            console.log("Starting Turning Circle Test...");
+            console.log(`Config: WheelBase=${engine.wheelBase}, MaxSteer=${engine.maxSteerAngle.toFixed(3)} rad`);
 
-    engine.steerAngle = engine.maxSteerAngle;
-    engine.velocity = 100; // Constant speed
-    const dt = 0.01;
-    const startPos = { x: engine.pos.x, y: engine.pos.y };
-    let maxDist = 0;
+            engine.steerAngle = engine.maxSteerAngle;
+            engine.velocity = 100; // Constant speed
+            const dt = 0.01;
+            const startPos = { x: engine.pos.x, y: engine.pos.y };
+            let maxDist = 0;
 
-    // Calculate expected period
-    // angular_velocity = (v / L) * tan(delta)
-    const w = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
-    const T = 2 * Math.PI / w;
+            // Calculate expected period
+            // angular_velocity = (v / L) * tan(delta)
+            const w = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
+            const T = 2 * Math.PI / w;
 
-    // Simulate for slightly more than half a period to find diameter
-    const duration = (T / 2) * 1.2;
-    const steps = Math.ceil(duration / dt);
+            // Simulate for slightly more than half a period to find diameter
+            const duration = (T / 2) * 1.2;
+            const steps = Math.ceil(duration / dt);
 
-    for (let i = 0; i < steps; i++) {
-        // Manually integrate position for constant circular motion verification
-        // (Using same logic as engine.update mainly, but ensuring constant velocity/steer)
+            for (let i = 0; i < steps; i++) {
+                // Manually integrate position for constant circular motion verification
+                // (Using same logic as engine.update mainly, but ensuring constant velocity/steer)
 
-        // Update Pos
-        engine.pos.x += engine.velocity * Math.cos(engine.heading) * dt;
-        engine.pos.y += engine.velocity * Math.sin(engine.heading) * dt;
+                // Update Pos
+                engine.pos.x += engine.velocity * Math.cos(engine.heading) * dt;
+                engine.pos.y += engine.velocity * Math.sin(engine.heading) * dt;
 
-        // Update Heading
-        const angularVelocity = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
-        engine.heading += angularVelocity * dt;
+                // Update Heading
+                const angularVelocity = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
+                engine.heading += angularVelocity * dt;
 
-        // Track max distance from start (Diameter)
-        const dist = Math.sqrt(Math.pow(engine.pos.x - startPos.x, 2) + Math.pow(engine.pos.y - startPos.y, 2));
-        if (dist > maxDist) maxDist = dist;
-    }
+                // Track max distance from start (Diameter)
+                const dist = Math.sqrt(Math.pow(engine.pos.x - startPos.x, 2) + Math.pow(engine.pos.y - startPos.y, 2));
+                if (dist > maxDist) maxDist = dist;
+            }
 
-    const diameter = maxDist;
-    const radius = diameter / 2;
+            const diameter = maxDist;
+            const radius = diameter / 2;
 
-    console.log(`Turning Circle Test Results: Diameter=${diameter.toFixed(2)}, Radius=${radius.toFixed(2)}`);
-    return { diameter, radius };
-}
+            console.log(`Turning Circle Test Results: Diameter=${diameter.toFixed(2)}, Radius=${radius.toFixed(2)}`);
+            return { diameter, radius };
+        }
 
-window.runRegressionTests = () => testTurningCircle(GameEngine);
+        window.runRegressionTests = () => testTurningCircle(GameEngine);
 
     </script>
 </body>
+
 </html>
