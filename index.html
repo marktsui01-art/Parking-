@@ -410,7 +410,7 @@
                 this.maxSteerAngle = config.maxSteerAngle || (30 * Math.PI / 180); // 30 degrees
                 this.maxSpeed = config.maxSpeed || 300; // 15 m/s = 54 km/h
                 this.acceleration = config.acceleration || 150;
-                this.friction = config.friction || 0.98;
+                this.friction = config.friction || 0.95;
 
                 // Dimensions for collision
                 this.width = config.width || 38; // ~1.9m
@@ -482,9 +482,11 @@
                         }
                     }
 
-                    // Win Condition (Speed near 0 and fully contained in target)
-                    // Ideally, we check if all 4 corners of car are inside the target polygon
-                    if (Math.abs(this.velocity) < 5) { // Almost stopped
+                    // Win Condition (Speed near 0, inputs neutral, and fully contained in target)
+                    const isStationary = Math.abs(this.velocity) < 1;
+                    const isInputNeutral = input.steer === 0 && input.throttle === 0;
+
+                    if (isStationary && isInputNeutral) {
                         const target = this.currentLevel.target;
                         const targetPoly = createPolygon(target.x, target.y, target.width, target.height, target.angle);
 
@@ -492,12 +494,6 @@
                         // To check if A is INSIDE B, we need to check if A intersects B AND...
                         // Actually, if we use SAT, we can check if all points of A are inside B.
                         // Or simply: check collision. If colliding, and car center is "close enough" to target center?
-                        // Let's implement a 'contains' check.
-                        // A polygon A is contained in convex B if all points of A are inside B.
-                        // Point inside convex polygon: all cross products (or dot with normals) must have same sign.
-
-                        // For simplicity, let's use the SAT intersection as a prerequisite,
-                        // and then check if the car center is within a small radius of target center?
                         // No, that's imprecise.
                         // Let's implement pointInPolygon for all 4 car corners.
 
