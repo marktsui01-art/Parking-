@@ -234,7 +234,7 @@
             {
                 name: "Level 1: The Basics",
                 description: "Park the car in the green box.",
-                start: { x: 100, y: 300, heading: 0 },
+                start: { x: 72, y: 300, heading: 0 },
                 target: { x: 600, y: 300, width: 80, height: 50, angle: 0 },
                 obstacles: [
                     // Walls around the world
@@ -247,7 +247,7 @@
             {
                 name: "Level 2: The Alley",
                 description: "Navigate through the narrow path.",
-                start: { x: 100, y: 300, heading: 0 },
+                start: { x: 72, y: 300, heading: 0 },
                 target: { x: 700, y: 300, width: 80, height: 50, angle: 0 },
                 obstacles: [
                     // Bounds
@@ -264,7 +264,7 @@
             {
                 name: "Level 3: Parallel Park",
                 description: "Park between the two obstacles.",
-                start: { x: 100, y: 450, heading: 0 },
+                start: { x: 72, y: 450, heading: 0 },
                 target: { x: 500, y: 200, width: 110, height: 46, angle: 0 },
                 obstacles: [
                     // Bounds
@@ -282,7 +282,7 @@
                 name: "Realistic 90° Parking",
                 description: "Standard parking lot. Park in the box.",
                 // 20px = 1m
-                start: { x: 100, y: 300, heading: 0 },
+                start: { x: 72, y: 300, heading: 0 },
                 // Target: 2.5m x 5m = 50px x 100px (Vertical)
                 target: { x: 600, y: 300, width: 50, height: 100, angle: 0 },
                 obstacles: [
@@ -306,7 +306,7 @@
                 name: "Realistic Parallel Park",
                 description: "Street parking. Don't hit the expensive cars.",
                 // 20px = 1m
-                start: { x: 100, y: 400, heading: 0 },
+                start: { x: 72, y: 400, heading: 0 },
                 // Target: 6m long = 120px. Width 2.5m = 50px.
                 target: { x: 500, y: 200, width: 102, height: 42, angle: 0 }, // slightly larger for tolerance
                 obstacles: [
@@ -399,6 +399,7 @@
         class GameEngine {
             constructor(config = {}) {
                 // Car State
+                // this.pos represents the REAR AXLE position
                 this.pos = new Vector2(100, 300);
                 this.heading = 0; // Radians, 0 points East
                 this.velocity = 0;
@@ -456,10 +457,12 @@
                 // Clamp speed
                 this.velocity = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.velocity));
 
-                // 3. Ackermann Steering Kinematics
+                // 3. Ackermann Steering Kinematics (Bicycle Model)
+                // Reference point is now the REAR AXLE.
                 // dx = v * cos(theta)
                 // dy = v * sin(theta)
                 // dtheta = (v / L) * tan(delta)
+                // Because we are tracking the rear axle, there is no slip angle calculation needed for simple kinematics.
 
                 this.pos.x += this.velocity * Math.cos(this.heading) * dt;
                 this.pos.y += this.velocity * Math.sin(this.heading) * dt;
@@ -477,7 +480,7 @@
                         const obsPoly = createPolygon(obs.x, obs.y, obs.width, obs.height, obs.angle);
                         if (SAT.checkCollision(carPoly, obsPoly)) {
                             this.crashed = true;
-                            this.velocity = 0;
+                            this.velocity = 0; // Stop immediately on crash
                             return;
                         }
                     }
@@ -490,13 +493,6 @@
                         const target = this.currentLevel.target;
                         const targetPoly = createPolygon(target.x, target.y, target.width, target.height, target.angle);
 
-                        // SAT checkCollision checks INTERSECTION.
-                        // To check if A is INSIDE B, we need to check if A intersects B AND...
-                        // Actually, if we use SAT, we can check if all points of A are inside B.
-                        // Or simply: check collision. If colliding, and car center is "close enough" to target center?
-                        // No, that's imprecise.
-                        // Let's implement pointInPolygon for all 4 car corners.
-
                         if (this.isCarInside(carPoly, targetPoly)) {
                             this.won = true;
                         }
@@ -505,12 +501,6 @@
             }
 
             isCarInside(carPoly, targetPoly) {
-                // Check if every point of carPoly is inside targetPoly
-                // Since target is a rectangle (convex), we can use the Separating Axis Theorem concept
-                // or just standard point-in-convex-polygon.
-
-                // For a convex polygon, a point is inside if it lies on the same side of all lines defined by edges.
-
                 for (const p of carPoly) {
                     if (!this.isPointInConvexPoly(p, targetPoly)) return false;
                 }
@@ -541,10 +531,22 @@
              * @returns {Vector2[]} Array of vertices
              */
             getPolygon() {
+                // We need to calculate the center of the car based on the Rear Axle position (this.pos)
+                // Car Center = Rear Axle + (WheelBase / 2) * HeadingVector
+                // Wait, simply: Center is forward by wheelBase/2 from rear axle.
+
+                const cos = Math.cos(this.heading);
+                const sin = Math.sin(this.heading);
+
+                const centerDist = this.wheelBase / 2;
+                const centerX = this.pos.x + centerDist * cos;
+                const centerY = this.pos.y + centerDist * sin;
+                const center = new Vector2(centerX, centerY);
+
                 const hw = this.width / 2;
                 const hl = this.length / 2;
 
-                // Relative corners
+                // Relative corners to the CENTER
                 const corners = [
                     new Vector2(hl, hw),
                     new Vector2(hl, -hw),
@@ -552,8 +554,8 @@
                     new Vector2(-hl, hw)
                 ];
 
-                // Rotate and translate
-                return corners.map(p => p.rotate(this.heading).add(this.pos));
+                // Rotate and translate (using the calculated center)
+                return corners.map(p => p.rotate(this.heading).add(center));
             }
         }
 
@@ -656,39 +658,46 @@
 
                 this.ctx.save();
 
-                // Translate to car center
+                // Translate to REAR AXLE (which is this.pos)
                 this.ctx.translate(game.pos.x, game.pos.y);
                 this.ctx.rotate(game.heading);
 
+                // Now we are in local coordinates where (0,0) is the rear axle.
+                // Car center should be at (wheelBase / 2, 0)
+                const centerX = game.wheelBase / 2;
+                const centerY = 0;
+
                 // Draw Body
+                // Rectangle needs to be centered at (centerX, centerY)
                 this.ctx.fillStyle = '#3498db';
                 if (game.crashed) this.ctx.fillStyle = '#e74c3c'; // Red if crashed
                 if (game.won) this.ctx.fillStyle = '#2ecc71'; // Green if won
 
-                this.ctx.fillRect(-game.length / 2, -game.width / 2, game.length, game.width);
+                // fillRect(x, y, w, h)
+                // Top-left corner of the body relative to the local origin (rear axle):
+                // x = centerX - length/2
+                // y = centerY - width/2
+                this.ctx.fillRect(centerX - game.length / 2, centerY - game.width / 2, game.length, game.width);
 
                 // Indicate front with a small line or color difference
                 this.ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                this.ctx.fillRect(game.length / 4, -game.width / 2, game.length / 4, game.width);
+                // Front section
+                this.ctx.fillRect(centerX + game.length / 4, centerY - game.width / 2, game.length / 4, game.width);
 
                 // Draw Wheels
                 this.ctx.fillStyle = '#000';
                 const wheelWidth = 12;
                 const wheelHeight = 6;
-                const halfL = game.wheelBase / 2; // Wheelbase is distance between axles. Let's assume center is mid-point.
-                // Actually, usually center of car is mid-point of bounding box.
-                // If wheelbase is 40 and car length is 60, axles are at +/- 20.
 
-                const axleX = game.wheelBase / 2;
                 const axleY = game.width / 2;
 
-                // Rear Wheels (Fixed)
-                this.drawWheel(-axleX, -axleY, wheelWidth, wheelHeight, 0);
-                this.drawWheel(-axleX, axleY, wheelWidth, wheelHeight, 0);
+                // Rear Wheels (At local x=0)
+                this.drawWheel(0, -axleY, wheelWidth, wheelHeight, 0);
+                this.drawWheel(0, axleY, wheelWidth, wheelHeight, 0);
 
-                // Front Wheels (Steerable)
-                this.drawWheel(axleX, -axleY, wheelWidth, wheelHeight, game.steerAngle);
-                this.drawWheel(axleX, axleY, wheelWidth, wheelHeight, game.steerAngle);
+                // Front Wheels (At local x=wheelBase)
+                this.drawWheel(game.wheelBase, -axleY, wheelWidth, wheelHeight, game.steerAngle);
+                this.drawWheel(game.wheelBase, axleY, wheelWidth, wheelHeight, game.steerAngle);
 
                 this.ctx.restore();
             }
