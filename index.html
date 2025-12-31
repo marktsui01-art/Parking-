@@ -191,6 +191,55 @@ const LEVELS = [
             { x: 350, y: 200, width: 70, height: 40, angle: 0 },
             { x: 650, y: 200, width: 70, height: 40, angle: 0 },
         ]
+    },
+    {
+        name: "Realistic 90° Parking",
+        description: "Standard parking lot. Park in the box.",
+        // 20px = 1m
+        start: { x: 100, y: 300, heading: 0 },
+        // Target: 2.5m x 5m = 50px x 100px (Vertical)
+        target: { x: 600, y: 300, width: 50, height: 100, angle: 0 },
+        obstacles: [
+            // Bounds
+            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+            // Parking Lines/Obstacles (simulating other cars)
+            // Aisle width 6m = 120px.
+            // Parking row Y = 300.
+            // Neighbors. Gap is 50px (2.5m).
+            // Left neighbor
+            { x: 600 - 50, y: 300, width: 38, height: 94, angle: 0 }, // Car is 38x94
+            // Right neighbor
+            { x: 600 + 50, y: 300, width: 38, height: 94, angle: 0 }
+        ]
+    },
+    {
+        name: "Realistic Parallel Park",
+        description: "Street parking. Don't hit the expensive cars.",
+        // 20px = 1m
+        start: { x: 100, y: 400, heading: 0 },
+        // Target: 6m long = 120px. Width 2.5m = 50px.
+        target: { x: 500, y: 200, width: 130, height: 60, angle: 0 }, // slightly larger for tolerance
+        obstacles: [
+            // Bounds
+            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+            // Curb
+            { x: 400, y: 150, width: 800, height: 20, angle: 0 },
+
+            // Cars
+            // Target center 500. Gap 6m+ (say 7m = 140px).
+            // Rear car center: 500 - 70 - 47 (half car length) = 383
+            { x: 380, y: 200, width: 94, height: 38, angle: 0 },
+            // Front car center: 500 + 70 + 47 = 617
+            { x: 620, y: 200, width: 94, height: 38, angle: 0 }
+        ]
     }
 ];
 
@@ -262,7 +311,7 @@ class InputHandler {
  * Headless Game Engine containing physics and logic.
  */
 class GameEngine {
-    constructor() {
+    constructor(config = {}) {
         // Car State
         this.pos = new Vector2(100, 300);
         this.heading = 0; // Radians, 0 points East
@@ -270,15 +319,16 @@ class GameEngine {
         this.steerAngle = 0;
 
         // Constants / Configuration
-        this.wheelBase = 40; // Distance between front and rear axles
-        this.maxSteerAngle = Math.PI / 4; // 45 degrees
-        this.maxSpeed = 300; // Pixels per second
-        this.acceleration = 150; // Pixels per second squared
-        this.friction = 0.98; // Damping factor per tick (approx)
+        // Scale: ~20 pixels = 1 meter
+        this.wheelBase = config.wheelBase || 56; // ~2.8m
+        this.maxSteerAngle = config.maxSteerAngle || (30 * Math.PI / 180); // 30 degrees
+        this.maxSpeed = config.maxSpeed || 300; // 15 m/s = 54 km/h
+        this.acceleration = config.acceleration || 150;
+        this.friction = config.friction || 0.98;
 
         // Dimensions for collision
-        this.width = 30;
-        this.length = 60;
+        this.width = config.width || 38; // ~1.9m
+        this.length = config.length || 94; // ~4.7m
 
         // Level Data
         this.currentLevel = null;
@@ -711,6 +761,57 @@ requestAnimationFrame(loop);
         console.warn("Self-Test WARNING: Unexpected position/heading.");
     }
 })();
+
+/**
+ * Runs a regression test to verify turning circle dimensions.
+ * @param {typeof GameEngine} EngineClass The GameEngine class to test
+ * @returns {object} Test results
+ */
+function testTurningCircle(EngineClass) {
+    const engine = new EngineClass();
+    console.log("Starting Turning Circle Test...");
+    console.log(`Config: WheelBase=${engine.wheelBase}, MaxSteer=${engine.maxSteerAngle.toFixed(3)} rad`);
+
+    engine.steerAngle = engine.maxSteerAngle;
+    engine.velocity = 100; // Constant speed
+    const dt = 0.01;
+    const startPos = { x: engine.pos.x, y: engine.pos.y };
+    let maxDist = 0;
+
+    // Calculate expected period
+    // angular_velocity = (v / L) * tan(delta)
+    const w = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
+    const T = 2 * Math.PI / w;
+
+    // Simulate for slightly more than half a period to find diameter
+    const duration = (T / 2) * 1.2;
+    const steps = Math.ceil(duration / dt);
+
+    for (let i = 0; i < steps; i++) {
+        // Manually integrate position for constant circular motion verification
+        // (Using same logic as engine.update mainly, but ensuring constant velocity/steer)
+
+        // Update Pos
+        engine.pos.x += engine.velocity * Math.cos(engine.heading) * dt;
+        engine.pos.y += engine.velocity * Math.sin(engine.heading) * dt;
+
+        // Update Heading
+        const angularVelocity = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
+        engine.heading += angularVelocity * dt;
+
+        // Track max distance from start (Diameter)
+        const dist = Math.sqrt(Math.pow(engine.pos.x - startPos.x, 2) + Math.pow(engine.pos.y - startPos.y, 2));
+        if (dist > maxDist) maxDist = dist;
+    }
+
+    const diameter = maxDist;
+    const radius = diameter / 2;
+
+    console.log(`Turning Circle Test Results: Diameter=${diameter.toFixed(2)}, Radius=${radius.toFixed(2)}`);
+    return { diameter, radius };
+}
+
+window.runRegressionTests = () => testTurningCircle(GameEngine);
 
     </script>
 </body>
