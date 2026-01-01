@@ -105,6 +105,45 @@
             text-align: center;
             display: none;
         }
+
+        /* Editor UI */
+        #editor-ui {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 250px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border: 2px solid #555;
+            border-radius: 8px;
+            display: none;
+            pointer-events: auto;
+            flex-direction: column;
+            gap: 10px;
+            color: #fff;
+        }
+        #editor-ui h3 { margin: 0 0 10px 0; font-size: 1.2em; text-align: center; }
+        .editor-row { display: flex; justify-content: space-between; align-items: center; }
+        .editor-row label { width: 60px; }
+        .editor-row input { width: 140px; padding: 4px; background: #333; color: #fff; border: 1px solid #666; }
+        .editor-actions { display: flex; justify-content: space-between; margin-top: 10px; }
+        .editor-btn { flex: 1; padding: 8px; margin: 0 5px; cursor: pointer; border: none; border-radius: 4px; color: white; }
+        #btn-apply { background: #27ae60; }
+        #btn-close { background: #c0392b; }
+        #btn-copy-level {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: #f39c12;
+            color: #fff;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 30;
+            display: none; /* Only show when playing */
+        }
     </style>
 </head>
 
@@ -118,6 +157,21 @@
         </div>
         <div id="return-container">
             <button id="return-btn" class="level-btn">Back to Menu</button>
+        </div>
+
+        <!-- Editor UI -->
+        <button id="btn-copy-level">📋 Copy Level JSON</button>
+        <div id="editor-ui">
+            <h3>Edit Entity</h3>
+            <div class="editor-row"><label>X:</label><input type="number" id="edit-x" step="1"></div>
+            <div class="editor-row"><label>Y:</label><input type="number" id="edit-y" step="1"></div>
+            <div class="editor-row"><label>W:</label><input type="number" id="edit-w" step="1"></div>
+            <div class="editor-row"><label>H:</label><input type="number" id="edit-h" step="1"></div>
+            <div class="editor-row"><label>Angle:</label><input type="number" id="edit-angle" step="0.1"></div>
+            <div class="editor-actions">
+                <button id="btn-apply" class="editor-btn">Apply</button>
+                <button id="btn-close" class="editor-btn">Close</button>
+            </div>
         </div>
     </div>
     <canvas id="gameCanvas"></canvas>
@@ -634,25 +688,7 @@
 
             isCarInside(carPoly, targetPoly) {
                 for (const p of carPoly) {
-                    if (!this.isPointInConvexPoly(p, targetPoly)) return false;
-                }
-                return true;
-            }
-
-            isPointInConvexPoly(p, poly) {
-                // Cross product approach
-                // (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x)
-                let lastSign = 0;
-                for (let i = 0; i < poly.length; i++) {
-                    const p1 = poly[i];
-                    const p2 = poly[(i + 1) % poly.length];
-
-                    const val = (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x);
-                    if (val !== 0) {
-                        const sign = val > 0 ? 1 : -1;
-                        if (lastSign !== 0 && sign !== lastSign) return false;
-                        lastSign = sign;
-                    }
+                    if (!SAT.isPointInConvexPoly(p, targetPoly)) return false;
                 }
                 return true;
             }
@@ -732,6 +768,24 @@
                     if (p > max) max = p;
                 }
                 return { min, max };
+            },
+
+            isPointInConvexPoly(p, poly) {
+                // Cross product approach
+                // (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x)
+                let lastSign = 0;
+                for (let i = 0; i < poly.length; i++) {
+                    const p1 = poly[i];
+                    const p2 = poly[(i + 1) % poly.length];
+
+                    const val = (p2.x - p1.x) * (p.y - p1.y) - (p2.y - p1.y) * (p.x - p1.x);
+                    if (val !== 0) {
+                        const sign = val > 0 ? 1 : -1;
+                        if (lastSign !== 0 && sign !== lastSign) return false;
+                        lastSign = sign;
+                    }
+                }
+                return true;
             }
         };
 
@@ -758,6 +812,7 @@
              * Draws the current frame.
              * @param {GameEngine} game
              */
+             // TODO: Rename 'game' argument to 'engine' in a future refactor to avoid shadowing global variable.
             render(game) {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -765,26 +820,28 @@
                 if (game.currentLevel) {
                     // Draw Target
                     const target = game.currentLevel.target;
-                    this.ctx.save();
-                    this.ctx.translate(target.x, target.y);
-                    this.ctx.rotate(target.angle);
-                    this.ctx.strokeStyle = '#2ecc71';
-                    this.ctx.lineWidth = 4;
-                    this.ctx.setLineDash([10, 5]);
-                    this.ctx.strokeRect(-target.width / 2, -target.height / 2, target.width, target.height);
-                    // Semi-transparent fill
-                    this.ctx.fillStyle = 'rgba(46, 204, 113, 0.2)';
-                    this.ctx.fillRect(-target.width / 2, -target.height / 2, target.width, target.height);
-                    this.ctx.restore();
+                    this.drawRotatedRect(target.x, target.y, target.width, target.height, target.angle, 'rgba(46, 204, 113, 0.2)', '#2ecc71', [10, 5]);
 
                     // Draw Obstacles
-                    this.ctx.fillStyle = '#7f8c8d';
                     for (const obs of game.currentLevel.obstacles) {
-                        this.ctx.save();
-                        this.ctx.translate(obs.x, obs.y);
-                        this.ctx.rotate(obs.angle);
-                        this.ctx.fillRect(-obs.width / 2, -obs.height / 2, obs.width, obs.height);
-                        this.ctx.restore();
+                        this.drawRotatedRect(obs.x, obs.y, obs.width, obs.height, obs.angle, '#7f8c8d');
+                    }
+
+                    // Draw Start Position (Ghost Car)
+                    if (game.currentLevel.start) {
+                        const start = game.currentLevel.start;
+
+                        // Car dims from game config
+                        const ghostLength = game.length;
+                        const ghostWidth = game.width;
+                        const ghostWB = game.wheelBase;
+
+                        // Center of car relative to rear axle (start position)
+                        const centerDist = ghostWB / 2;
+                        const centerX = start.x + centerDist * Math.cos(start.heading || 0);
+                        const centerY = start.y + centerDist * Math.sin(start.heading || 0);
+
+                        this.drawRotatedRect(centerX, centerY, ghostLength, ghostWidth, start.heading || 0, 'rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.4)', [5, 5]);
                     }
                 }
 
@@ -830,6 +887,31 @@
                 // Front Wheels (At local x=wheelBase)
                 this.drawWheel(game.wheelBase, -axleY, wheelWidth, wheelHeight, game.steerAngle);
                 this.drawWheel(game.wheelBase, axleY, wheelWidth, wheelHeight, game.steerAngle);
+
+                this.ctx.restore();
+            }
+
+            /**
+             * Helper to draw a rotated rectangle.
+             */
+            drawRotatedRect(x, y, w, h, angle, fillStyle, strokeStyle = null, lineDash = []) {
+                this.ctx.save();
+                this.ctx.translate(x, y);
+                this.ctx.rotate(angle);
+
+                if (fillStyle) {
+                    this.ctx.fillStyle = fillStyle;
+                    this.ctx.fillRect(-w / 2, -h / 2, w, h);
+                }
+
+                if (strokeStyle) {
+                    this.ctx.strokeStyle = strokeStyle;
+                    this.ctx.lineWidth = fillStyle ? 4 : 2; // Default logic or param? Keeping simple
+                    if (strokeStyle === 'rgba(255, 255, 255, 0.4)') this.ctx.lineWidth = 2; // Ghost car specific hack or make generic?
+                    // Let's make it slightly more generic but simple for now
+                    this.ctx.setLineDash(lineDash);
+                    this.ctx.strokeRect(-w / 2, -h / 2, w, h);
+                }
 
                 this.ctx.restore();
             }
@@ -902,6 +984,146 @@
 
         returnBtn.onclick = () => {
             showMenu();
+        };
+
+        // --- Editor Logic ---
+        let selectedObject = null; // { type: 'obstacle'|'target'|'start', index?: number, obj: object }
+        const editorUi = document.getElementById('editor-ui');
+        const inpX = document.getElementById('edit-x');
+        const inpY = document.getElementById('edit-y');
+        const inpW = document.getElementById('edit-w');
+        const inpH = document.getElementById('edit-h');
+        const inpAngle = document.getElementById('edit-angle');
+        const btnApply = document.getElementById('btn-apply');
+        const btnClose = document.getElementById('btn-close');
+        const btnCopy = document.getElementById('btn-copy-level');
+
+        function showEditor(obj, type) {
+            selectedObject = { obj, type };
+            inpX.value = obj.x;
+            inpY.value = obj.y;
+            // Handle different object types
+            if (type === 'start') {
+                // Start has no width/height in data, but represented by car dims
+                inpW.value = engine.width; // Read-only ideally or just reference
+                inpH.value = engine.length;
+                inpW.disabled = true;
+                inpH.disabled = true;
+                inpAngle.value = obj.heading || 0;
+            } else {
+                inpW.value = obj.width;
+                inpH.value = obj.height;
+                inpW.disabled = false;
+                inpH.disabled = false;
+                inpAngle.value = obj.angle || 0;
+            }
+            editorUi.style.display = 'flex';
+        }
+
+        function hideEditor() {
+            editorUi.style.display = 'none';
+            selectedObject = null;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (gameState !== 'PLAYING') return;
+
+            // Allow normal interaction if editor is open? No, let's close it if clicking elsewhere
+            // But if we click ON the editor, this event won't trigger because editor is on top.
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const mouseVec = new Vector2(mouseX, mouseY);
+
+            // Hit Test Priority: Start > Target > Obstacles
+            // 1. Check Start (Ghost)
+            if (engine.currentLevel.start) {
+                const start = engine.currentLevel.start;
+                // Car polygon at start
+                const ghostWB = engine.wheelBase;
+                const centerDist = ghostWB / 2;
+                const centerX = start.x + centerDist * Math.cos(start.heading || 0);
+                const centerY = start.y + centerDist * Math.sin(start.heading || 0);
+                const startPoly = createPolygon(centerX, centerY, engine.length, engine.width, start.heading || 0);
+
+                if (SAT.isPointInConvexPoly(mouseVec, startPoly)) {
+                    showEditor(start, 'start');
+                    return;
+                }
+            }
+
+            // 2. Check Target
+            if (engine.currentLevel.target) {
+                const t = engine.currentLevel.target;
+                const tPoly = createPolygon(t.x, t.y, t.width, t.height, t.angle);
+                if (SAT.isPointInConvexPoly(mouseVec, tPoly)) {
+                    showEditor(t, 'target');
+                    return;
+                }
+            }
+
+            // 3. Check Obstacles
+            if (engine.currentLevel.obstacles) {
+                for (const obs of engine.currentLevel.obstacles) {
+                    const obsPoly = createPolygon(obs.x, obs.y, obs.width, obs.height, obs.angle);
+                    if (SAT.isPointInConvexPoly(mouseVec, obsPoly)) {
+                        showEditor(obs, 'obstacle');
+                        return;
+                    }
+                }
+            }
+
+            // Clicked nothing? Close editor
+            hideEditor();
+        });
+
+        btnApply.onclick = () => {
+            if (!selectedObject) return;
+            const obj = selectedObject.obj;
+
+            obj.x = parseFloat(inpX.value);
+            obj.y = parseFloat(inpY.value);
+
+            if (selectedObject.type === 'start') {
+                obj.heading = parseFloat(inpAngle.value);
+                // W/H ignored for start
+            } else {
+                obj.width = parseFloat(inpW.value);
+                obj.height = parseFloat(inpH.value);
+                obj.angle = parseFloat(inpAngle.value);
+            }
+            // Flash success?
+            btnApply.innerText = "Applied!";
+            setTimeout(() => btnApply.innerText = "Apply", 1000);
+        };
+
+        btnClose.onclick = hideEditor;
+
+        btnCopy.onclick = () => {
+            if (!engine.currentLevel) return;
+            const json = JSON.stringify(engine.currentLevel, null, 4);
+            navigator.clipboard.writeText(json).then(() => {
+                btnCopy.innerText = "Copied!";
+                setTimeout(() => btnCopy.innerText = "📋 Copy Level JSON", 2000);
+            }).catch(err => {
+                console.error('Failed to copy', err);
+                alert("Failed to copy to clipboard. Check console.");
+            });
+        };
+
+        // Show Copy button when playing
+        const originalStartLevel = startLevel;
+        startLevel = function(index) {
+            originalStartLevel(index);
+            btnCopy.style.display = 'block';
+        };
+
+        const originalShowMenu = showMenu;
+        showMenu = function() {
+            originalShowMenu();
+            btnCopy.style.display = 'none';
+            hideEditor();
         };
 
         // Bootstrap
