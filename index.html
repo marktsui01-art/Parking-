@@ -540,8 +540,9 @@
 
                 // Level Data
                 this.currentLevel = null;
-                this.crashed = false;
+                this.crashTimer = 0; // Timer for visual feedback
                 this.won = false;
+                this.score = 1000;
             }
 
             loadLevel(level) {
@@ -550,8 +551,9 @@
                 this.heading = level.start.heading || 0;
                 this.velocity = 0;
                 this.steerAngle = 0;
-                this.crashed = false;
+                this.crashTimer = 0;
                 this.won = false;
+                this.score = 1000;
             }
 
             /**
@@ -560,57 +562,66 @@
              * @param {object} input Input state { steer: number, throttle: number }
              */
             update(dt, input) {
-                if (this.crashed || this.won) return;
+                if (this.won) return;
+
+                // Store previous state for collision resolution
+                const prevPos = new Vector2(this.pos.x, this.pos.y);
+                const prevHeading = this.heading;
 
                 // 1. Update Steering Angle
-                // Smooth steering could be added, but for now direct mapping
                 this.steerAngle = input.steer * this.maxSteerAngle;
 
                 // 2. Update Velocity (Acceleration & Friction)
                 if (input.throttle !== 0) {
                     this.velocity += input.throttle * this.acceleration * dt;
                 } else {
-                    // Apply friction/drag when no input
-                    this.velocity *= Math.pow(this.friction, dt * 60); // Frame-rate independent-ish friction
+                    this.velocity *= Math.pow(this.friction, dt * 60);
                     if (Math.abs(this.velocity) < 0.1) this.velocity = 0;
                 }
 
                 // Clamp speed
                 this.velocity = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.velocity));
 
-                // 3. Ackermann Steering Kinematics (Bicycle Model)
-                // Reference point is now the REAR AXLE.
-                // dx = v * cos(theta)
-                // dy = v * sin(theta)
-                // dtheta = (v / L) * tan(delta)
-                // Because we are tracking the rear axle, there is no slip angle calculation needed for simple kinematics.
-
+                // 3. Movement
                 this.pos.x += this.velocity * Math.cos(this.heading) * dt;
                 this.pos.y += this.velocity * Math.sin(this.heading) * dt;
 
-                // Angular velocity depends on linear velocity
                 const angularVelocity = (this.velocity / this.wheelBase) * Math.tan(this.steerAngle);
                 this.heading += angularVelocity * dt;
 
-                // 4. Collision Detection
+                // 4. Collision Detection & Resolution
+                if (this.crashTimer > 0) this.crashTimer -= dt;
+
                 if (this.currentLevel) {
+                    let colliding = false;
                     const carPoly = this.getPolygon();
 
-                    // Obstacles
                     for (const obs of this.currentLevel.obstacles) {
                         const obsPoly = createPolygon(obs.x, obs.y, obs.width, obs.height, obs.angle);
                         if (SAT.checkCollision(carPoly, obsPoly)) {
-                            this.crashed = true;
-                            this.velocity = 0; // Stop immediately on crash
-                            return;
+                            colliding = true;
+                            break;
                         }
                     }
 
-                    // Win Condition (Speed near 0, inputs neutral, and fully contained in target)
+                    if (colliding) {
+                        // Resolve: Revert and stop
+                        this.pos = prevPos;
+                        this.heading = prevHeading;
+
+                        // Penalty only if we were actually moving
+                        if (Math.abs(this.velocity) > 1) {
+                            this.score = Math.max(0, this.score - 50);
+                            this.crashTimer = 0.5; // Flash for 500ms
+                        }
+                        this.velocity = 0;
+                    }
+
+                    // Win Condition
                     const isStationary = Math.abs(this.velocity) < 1;
                     const isInputNeutral = input.steer === 0 && input.throttle === 0;
 
-                    if (isStationary && isInputNeutral) {
+                    if (isStationary && isInputNeutral && !colliding) {
                         const target = this.currentLevel.target;
                         const targetPoly = createPolygon(target.x, target.y, target.width, target.height, target.angle);
 
@@ -791,7 +802,7 @@
                 // Draw Body
                 // Rectangle needs to be centered at (centerX, centerY)
                 this.ctx.fillStyle = '#3498db';
-                if (game.crashed) this.ctx.fillStyle = '#e74c3c'; // Red if crashed
+                if (game.crashTimer > 0) this.ctx.fillStyle = '#e74c3c'; // Red flash on crash
                 if (game.won) this.ctx.fillStyle = '#2ecc71'; // Green if won
 
                 // fillRect(x, y, w, h)
@@ -917,10 +928,13 @@
                 // Update Logic
                 engine.update(dt, input);
 
+                // Telemetry
+                const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
+                const scoreText = `Score: ${engine.score}`;
+                telemetry.innerText = `Pos: (${engine.pos.x.toFixed(0)}, ${engine.pos.y.toFixed(0)})\nHeading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°\nSpeed: ${vKmh} km/h\nSteer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°\n${scoreText}`;
+
                 // Check for Game Over conditions
-                if (engine.crashed) {
-                    showGameOver(false);
-                } else if (engine.won) {
+                if (engine.won) {
                     showGameOver(true);
                 }
             }
