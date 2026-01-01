@@ -451,9 +451,9 @@
             {
                 name: "Level 8: 45° Squeeze",
                 description: "Diagonal parking in a one-way aisle. The aisle is narrow, so you have to align perfectly before entering. Reverse in only!",
-                start: { x: 72, y: 400, heading: 0 },
-                // Target: 45 degrees. x=400, y=200.
-                target: { x: 400, y: 200, width: 50, height: 100, angle: -Math.PI / 4 },
+                start: { x: 72, y: 440, heading: 0 },
+                // Target: 45 degrees. Moved to bottom curb (y=540).
+                target: { x: 400, y: 540, width: 50, height: 100, angle: -Math.PI / 4 },
                 obstacles: [
                     // Bounds
                     { x: 400, y: 0, width: 800, height: 20, angle: 0 },
@@ -461,26 +461,23 @@
                     { x: 0, y: 300, width: 20, height: 600, angle: 0 },
                     { x: 800, y: 300, width: 20, height: 600, angle: 0 },
 
-                    // Aisle definition
-                    // Top wall/cars.
-                    // Neighbor cars at 45 deg.
-                    // Gap 3m = 60px.
+                    // Neighbors (Aligned horizontally at y=540, spaced 60px)
                     // Left Neighbor
-                    { x: 400 - 42, y: 200 + 42, width: 38, height: 94, angle: -Math.PI / 4 },
+                    { x: 340, y: 540, width: 38, height: 94, angle: -Math.PI / 4 },
                     // Right Neighbor
-                    { x: 400 + 42, y: 200 - 42, width: 38, height: 94, angle: -Math.PI / 4 },
+                    { x: 460, y: 540, width: 38, height: 94, angle: -Math.PI / 4 },
 
-                    // Bottom Wall (constraining the aisle)
-                    // Spot is at y=200. Aisle width say 6m = 120px.
-                    // y = 200 + (length projection) + 120.
-                    // Let's put a wall at y=450.
-                    { x: 400, y: 500, width: 800, height: 20, angle: 0 },
+                    // Constraining Wall (Top of Aisle)
+                    // Spots are at y=540 (Bottom). Aisle is above.
+                    // Top of spots approx y=487. Aisle width ~100px.
+                    // Wall at y=380.
+                    { x: 400, y: 380, width: 800, height: 20, angle: 0 },
                 ]
             },
             {
                 name: "Level 9: Constrained 90°",
                 description: "Wide spot, but a wall opposite limits your turning radius. You'll need to use the full width of the aisle to get this right.",
-                start: { x: 72, y: 400, heading: 0 },
+                start: { x: 72, y: 300, heading: 0 },
                 // Target: Vertical. Wider spot (60px instead of 50px).
                 target: { x: 500, y: 200, width: 60, height: 100, angle: 0 },
                 obstacles: [
