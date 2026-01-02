@@ -667,7 +667,12 @@
 
                 // Dimensions for collision
                 this.width = config.width || 38; // ~1.9m
-                this.length = config.length || 94; // ~4.7m
+                const totalLength = config.length || 94; // ~4.7m
+
+                // Refactored for independent overhangs (default to symmetrical)
+                this.frontOverhang = config.frontOverhang !== undefined ? config.frontOverhang : (totalLength - this.wheelBase) / 2;
+                this.rearOverhang = config.rearOverhang !== undefined ? config.rearOverhang : (totalLength - this.wheelBase) / 2;
+                this.length = this.frontOverhang + this.wheelBase + this.rearOverhang;
 
                 // Level Data
                 this.currentLevel = null;
@@ -776,16 +781,15 @@
              * @returns {Vector2[]} Array of vertices
              */
             getPolygon() {
-                // We need to calculate the center of the car based on the Rear Axle position (this.pos)
-                // Car Center = Rear Axle + (WheelBase / 2) * HeadingVector
-                // Wait, simply: Center is forward by wheelBase/2 from rear axle.
-
                 const cos = Math.cos(this.heading);
                 const sin = Math.sin(this.heading);
 
-                const centerDist = this.wheelBase / 2;
-                const centerX = this.pos.x + centerDist * cos;
-                const centerY = this.pos.y + centerDist * sin;
+                // Calculate the center of the car body relative to the Rear Axle position (this.pos)
+                // Back of car is at -rearOverhang, Front of car is at wheelBase + frontOverhang
+                const bodyCenterDist = (this.wheelBase + this.frontOverhang - this.rearOverhang) / 2;
+
+                const centerX = this.pos.x + bodyCenterDist * cos;
+                const centerY = this.pos.y + bodyCenterDist * sin;
                 const center = new Vector2(centerX, centerY);
 
                 const hw = this.width / 2;
