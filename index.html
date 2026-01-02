@@ -462,6 +462,7 @@
                     { x: 760, y: 280, width: 94, height: 38, angle: 0 },
                 ]
             },
+
             {
                 name: "Level 7: The Spiral",
                 description: "A multi-story garage ramp scenario. Access the spot via the outside ramp. Shortcuts blocked! (Fixed: Wider aisle, spot closer to turn)",
@@ -541,42 +542,89 @@
                 ]
             },
             {
-                name: "Level 10: Harder core Parallel",
-                description: "A harder level 6 (shorter spot)",
+                name: "Level 10: Long Spot, Tight Road",
+                description: "The road is narrow (2.6m), but the spot is huge (6.2m). Practice staying close to the curb without hitting the other side.",
                 // Scale: 20px = 1m
-                // Start: x=72 (rear axle). y=220 (further up/left relative to driver)
-                start: { x: 72, y: 220, heading: 0 },
-                // Target: x=500. y=170 (closer to top curb). Width 6.5m=130px gap.
-                // Spot size: 6.5m x 2.2m = 130px x 44px
-                target: { x: 500, y: 170, width: 110, height: 44, angle: 0 },
+                start: { x: 72, y: 205, heading: 0 },
+                // Target: Gap 124px (6.2m)
+                target: { x: 500, y: 170, width: 120, height: 44, angle: 0 },
                 obstacles: [
-                    // Bounds
                     { x: 400, y: 0, width: 800, height: 20, angle: 0 },
                     { x: 400, y: 600, width: 800, height: 20, angle: 0 },
                     { x: 0, y: 300, width: 20, height: 600, angle: 0 },
                     { x: 800, y: 300, width: 20, height: 600, angle: 0 },
-
-                    // Top Curb
                     { x: 400, y: 130, width: 800, height: 20, angle: 0 },
 
-                    // Parked cars on Target Side (Top)
-                    // y = 170, width = 38 (1.9m)
-                    { x: 396, y: 170, width: 94, height: 38, angle: 0 },
-                    { x: 604, y: 170, width: 94, height: 38, angle: 0 },
+                    // 124px gap
+                    { x: 391, y: 170, width: 94, height: 38, angle: 0 },
+                    { x: 609, y: 170, width: 94, height: 38, angle: 0 },
 
-                    // Parked cars on Opposite Side (Bottom)
-                    // y = 280, width = 38 (1.9m)
-                    // Road Clearance Calculation:
-                    // Center to Center = 280 - 170 = 110px (5.5m)
-                    // Edge to Edge = 110 - 38 = 72px (3.6m total clearance)
-                    // Car width = 1.9m. Remaining space for swing = 3.6m - 1.9m = 1.7m (Very tight!)
-                    { x: 100, y: 280, width: 94, height: 38, angle: 0 },
-                    { x: 210, y: 280, width: 94, height: 38, angle: 0 },
-                    { x: 320, y: 280, width: 94, height: 38, angle: 0 },
-                    { x: 430, y: 280, width: 94, height: 38, angle: 0 },
-                    { x: 540, y: 280, width: 94, height: 38, angle: 0 },
-                    { x: 650, y: 280, width: 94, height: 38, angle: 0 },
-                    { x: 760, y: 280, width: 94, height: 38, angle: 0 },
+                    // Narrow road: 2.6m = 52px edge-to-edge
+                    // y = 170 + 52 + 38 = 260
+                    { x: 100, y: 260, width: 94, height: 38, angle: 0 },
+                    { x: 210, y: 260, width: 94, height: 38, angle: 0 },
+                    { x: 320, y: 260, width: 94, height: 38, angle: 0 },
+                    { x: 430, y: 260, width: 94, height: 38, angle: 0 },
+                    { x: 540, y: 260, width: 94, height: 38, angle: 0 },
+                    { x: 650, y: 260, width: 94, height: 38, angle: 0 },
+                    { x: 760, y: 260, width: 94, height: 38, angle: 0 },
+                ]
+            },
+            {
+                name: "Level 11: Tight Spot, Wide Road",
+                description: "The spot is elitely small (5.4m), but you have all the room in the world to swing (5.0m). Focus on your entry angle.",
+                // Scale: 20px = 1m
+                start: { x: 72, y: 250, heading: 0 },
+                // Target: Gap 108px (5.4m)
+                target: { x: 500, y: 170, width: 104, height: 44, angle: 0 },
+                obstacles: [
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 400, y: 130, width: 800, height: 20, angle: 0 },
+
+                    // 108px gap
+                    { x: 399, y: 170, width: 94, height: 38, angle: 0 },
+                    { x: 601, y: 170, width: 94, height: 38, angle: 0 },
+
+                    // Wide road: 5.0m = 100px edge-to-edge
+                    // y = 170 + 100 + 38 = 308
+                    { x: 100, y: 308, width: 94, height: 38, angle: 0 },
+                    { x: 210, y: 308, width: 94, height: 38, angle: 0 },
+                    { x: 320, y: 308, width: 94, height: 38, angle: 0 },
+                    { x: 430, y: 308, width: 94, height: 38, angle: 0 },
+                    { x: 540, y: 308, width: 94, height: 38, angle: 0 },
+                    { x: 650, y: 308, width: 94, height: 38, angle: 0 },
+                    { x: 760, y: 308, width: 94, height: 38, angle: 0 },
+                ]
+            },
+            {
+                name: "Level 12: Elite Challenge",
+                description: "The Final Boss. 5.4m gap and only 3.0m road clearance. You need a perfect steering lock and careful pivoting.",
+                // Scale: 20px = 1m
+                start: { x: 72, y: 220, heading: 0 },
+                // Target: x=500. Gap 108px (5.4m). Car is 4.8m. Total margin 60cm.
+                target: { x: 500, y: 170, width: 104, height: 44, angle: 0 },
+                obstacles: [
+                    { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+                    { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+                    { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+                    { x: 400, y: 130, width: 800, height: 20, angle: 0 },
+
+                    // 108px gap
+                    { x: 399, y: 170, width: 94, height: 38, angle: 0 },
+                    { x: 601, y: 170, width: 94, height: 38, angle: 0 },
+
+                    // Road Gap 60px (3.0m)
+                    { x: 100, y: 268, width: 94, height: 38, angle: 0 },
+                    { x: 210, y: 268, width: 94, height: 38, angle: 0 },
+                    { x: 320, y: 268, width: 94, height: 38, angle: 0 },
+                    { x: 430, y: 268, width: 94, height: 38, angle: 0 },
+                    { x: 540, y: 268, width: 94, height: 38, angle: 0 },
+                    { x: 650, y: 268, width: 94, height: 38, angle: 0 },
+                    { x: 760, y: 268, width: 94, height: 38, angle: 0 },
                 ]
             }
         ];
@@ -659,7 +707,7 @@
 
                 // Constants / Configuration
                 // Scale: ~20 pixels = 1 meter
-                this.wheelBase = config.wheelBase || 56; // ~2.8m
+                this.wheelBase = config.wheelBase || 57; // ~2.85m (BMW M3)
                 this.maxSteerAngle = config.maxSteerAngle || (40 * Math.PI / 180); // 40 degrees
                 this.maxSpeed = config.maxSpeed || 300; // 15 m/s = 54 km/h
                 this.acceleration = config.acceleration || 150;
@@ -667,12 +715,11 @@
 
                 // Dimensions for collision
                 this.width = config.width || 38; // ~1.9m
-                const totalLength = config.length || 94; // ~4.7m
 
-                // Refactored for independent overhangs (default to symmetrical)
-                this.frontOverhang = config.frontOverhang !== undefined ? config.frontOverhang : (totalLength - this.wheelBase) / 2;
-                this.rearOverhang = config.rearOverhang !== undefined ? config.rearOverhang : (totalLength - this.wheelBase) / 2;
-                this.length = this.frontOverhang + this.wheelBase + this.rearOverhang;
+                // BMW M3 G80 Overhangs
+                this.frontOverhang = config.frontOverhang !== undefined ? config.frontOverhang : 17; // 0.85m
+                this.rearOverhang = config.rearOverhang !== undefined ? config.rearOverhang : 22;  // 1.10m
+                this.length = this.frontOverhang + this.wheelBase + this.rearOverhang; // 96px = 4.8m
 
                 // Level Data
                 this.currentLevel = null;
