@@ -1,35 +1,13 @@
+import { Vector2 } from './src/Vector2.js';
+import { GameEngine } from './src/GameEngine.js';
 
-class Vector2 {
-    constructor(x, y) { this.x = x; this.y = y; }
-    add(v) { return new Vector2(this.x + v.x, this.y + v.y); }
-    sub(v) { return new Vector2(this.x - v.x, this.y - v.y); }
-    scale(s) { return new Vector2(this.x * s, this.y * s); }
-    rotate(angle) {
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        return new Vector2(this.x * cos - this.y * sin, this.x * sin + this.y * cos);
-    }
-}
-
-class GameEngine {
-    constructor(config = {}) {
-        this.pos = new Vector2(0, 0);
-        this.heading = 0;
-        this.velocity = 0;
-        this.steerAngle = 0;
-
-        // Scale: ~20 pixels = 1 meter
-        this.wheelBase = config.wheelBase || 56;
-        this.maxSteerAngle = config.maxSteerAngle || (30 * Math.PI / 180);
-        this.maxSpeed = config.maxSpeed || 300;
-        this.acceleration = config.acceleration || 150;
-        this.friction = config.friction || 0.98;
-        this.width = config.width || 38;
-        this.length = config.length || 94;
-    }
-}
+// The following lines are just to demonstrate usage since the class already has default params
+// that match the original script's "default config" or close to it.
+// However, the original script used hardcoded values in `analyze_radius.js` instead of importing.
+// Now we use the actual GameEngine class.
 
 const engine = new GameEngine();
+// The original script set these manually:
 engine.steerAngle = engine.maxSteerAngle;
 engine.velocity = 100;
 const dt = 0.01;
@@ -39,7 +17,12 @@ let maxDist = 0;
 // Run simulation
 const steps = 1000;
 for (let i = 0; i < steps; i++) {
-    // Physics update from index.html
+    // Physics update from index.html (now in GameEngine.update, but we want to simulate
+    // specifically the turning circle logic which assumes constant velocity/steer).
+    // GameEngine.update handles acceleration/friction which we might not want here?
+    // The original script manually integrated.
+
+    // Original manual integration:
     engine.pos.x += engine.velocity * Math.cos(engine.heading) * dt;
     engine.pos.y += engine.velocity * Math.sin(engine.heading) * dt;
     const angularVelocity = (engine.velocity / engine.wheelBase) * Math.tan(engine.steerAngle);
