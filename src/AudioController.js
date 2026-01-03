@@ -82,6 +82,13 @@ export class AudioController {
                 ];
                 this.baseFreq = 55;
                 break;
+            case 'ev': // Electric Vehicle (Microlino) - Sci-fi whine
+                harmonics = [
+                    { mult: 1.0, gain: 1.0 }, // Fundamental whine
+                    { mult: 3.0, gain: 0.1 }  // Slight harmonic
+                ];
+                this.baseFreq = 200; // Start higher
+                break;
             default: // i4 (Generic)
                 // 2nd order dominance (2 cylinders fire per rev)
                 harmonics = [
@@ -97,8 +104,12 @@ export class AudioController {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
-            // Sawtooth or triangle often better for engines than sine
-            osc.type = 'sawtooth';
+            // Sawtooth for engines, Sine for EV
+            if (this.engineType === 'ev') {
+                osc.type = 'sine';
+            } else {
+                osc.type = 'sawtooth';
+            }
 
             // Apply multiplier to base freq later in update
             osc.frequency.value = this.baseFreq * h.mult;
@@ -114,9 +125,7 @@ export class AudioController {
         });
 
         // Add a LowPass filter to dampen the sawtooth harshness
-        // Actually, let's insert a filter between masterGain and destination or individual gains
-        // For simplicity, I'll just use the raw sawtooth for now, maybe too harsh.
-        // Let's add a global lowpass filter.
+        // For EV, we might want less filtering or a BandPass, but LowPass is fine
         if (this.globalFilter) this.globalFilter.disconnect();
         this.globalFilter = this.ctx.createBiquadFilter();
         this.globalFilter.type = 'lowpass';
@@ -128,34 +137,61 @@ export class AudioController {
         this.globalFilter.connect(this.ctx.destination);
     }
 
-    update(speedRatio) {
+    update(speedRatio, throttle = 0) {
         if (!this.initialized || !this.ctx) return;
         if (this.ctx.state === 'suspended') {
              this.ctx.resume();
         }
 
-        // speedRatio: 0 to 1 (Ratio of max speed)
-        // Map speed to "RPM"
-        // Idle: 1.0 multiplier
-        // Redline: 4.0 multiplier (e.g. 800rpm to 3200rpm equivalent, or higher)
-        const rpmFactor = 1 + (Math.abs(speedRatio) * 3.0);
+        const absSpeed = Math.abs(speedRatio);
+        const absThrottle = Math.abs(throttle);
 
-        // Random fluctuation for idle (loping)
-        const idleFluctuation = (speedRatio < 0.05) ? (Math.random() * 0.05) : 0;
+        if (this.engineType === 'ev') {
+            // EV Logic: Pitch = Speed, Volume = Speed + Load
+            // Pitch scales linearly from base (0 speed) to high (max speed)
+            const currentFreq = this.baseFreq + (absSpeed * 600);
 
-        const currentFreq = this.baseFreq * (rpmFactor + idleFluctuation);
+            this.oscillators.forEach(item => {
+                item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.1);
+            });
 
-        this.oscillators.forEach(item => {
-            item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.1);
+            // EV is quiet at idle/stopped, louder with speed/load
+            // Load adds "whine intensity"
+            const vol = (absSpeed * 0.3) + (absThrottle * 0.2);
+            this.masterGain.gain.setTargetAtTime(Math.min(0.5, vol), this.ctx.currentTime, 0.1);
 
-            // Increase volume with RPM slightly
-            // Also open filter with RPM
-        });
+            // Filter open
+            this.globalFilter.frequency.setTargetAtTime(2000 + absSpeed * 2000, this.ctx.currentTime, 0.1);
 
-        if (this.globalFilter) {
-            // Open the filter as we speed up to let high harmonics through
-            const filterFreq = 400 + (Math.abs(speedRatio) * 2000);
-            this.globalFilter.frequency.setTargetAtTime(filterFreq, this.ctx.currentTime, 0.1);
+        } else {
+            // ICE Logic
+            // RPM = Idle + SpeedFactor
+            // Load affects volume and filter brightness
+
+            const rpmFactor = 1 + (absSpeed * 3.0);
+
+            // Random fluctuation for idle (loping)
+            const idleFluctuation = (absSpeed < 0.05) ? (Math.random() * 0.05) : 0;
+
+            const currentFreq = this.baseFreq * (rpmFactor + idleFluctuation);
+
+            this.oscillators.forEach(item => {
+                item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.1);
+            });
+
+            if (this.globalFilter) {
+                // Filter Freq: Base 400.
+                // Speed adds 1500.
+                // Load adds 2000 (Gives that "bwaaaa" intake sound opening up).
+                const filterFreq = 400 + (absSpeed * 1500) + (absThrottle * 2000);
+                this.globalFilter.frequency.setTargetAtTime(filterFreq, this.ctx.currentTime, 0.1);
+            }
+
+            // Volume: Base 0.1 (Idle).
+            // Speed adds 0.1.
+            // Load adds 0.2.
+            const targetVol = 0.1 + (absSpeed * 0.1) + (absThrottle * 0.2);
+            this.masterGain.gain.setTargetAtTime(Math.min(0.5, targetVol), this.ctx.currentTime, 0.1);
         }
     }
 

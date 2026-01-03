@@ -80,7 +80,7 @@ export const CAR_MODELS = {
         frontOverhang: 15,
         rearOverhang: 4,
         maxSteerAngle: 45 * Math.PI / 180,
-        engineConfig: { type: 'i4' } // Actually electric but user didn't ask for EV sound logic, stick to i4 or maybe silent? I'll use i4 for now as per instructions "We don't need to simulate gears... assume it'll drive around in 1st gear".
+        engineConfig: { type: 'ev' }
     },
     jimny: {
         // Dimensions (mm): Wheelbase: 2250, Width: 1645, Front Overhang: 615, Rear Overhang: 780, Total Length: 3645

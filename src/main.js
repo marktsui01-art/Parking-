@@ -309,7 +309,7 @@ function loop(now) {
 
         // Audio Update
         const speedRatio = engine.velocity / engine.maxSpeed;
-        audioController.update(speedRatio);
+        audioController.update(speedRatio, input.throttle);
 
         // Telemetry
         const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
