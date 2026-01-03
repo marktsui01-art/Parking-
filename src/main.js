@@ -27,6 +27,76 @@ const carSelect = document.getElementById('car-select');
 
 let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
 
+// Replay System
+let replayState = 'NONE'; // NONE, RECORDING, PLAYBACK
+let recordedInputs = [];
+let replayFrame = 0;
+let replayLevelIndex = 0;
+let replayCarModel = 'm3_g80';
+
+// Replay Public API
+window.startRecording = () => {
+    if (gameState !== 'PLAYING') return alert("Must be playing to record.");
+    replayState = 'RECORDING';
+    recordedInputs = [];
+    replayLevelIndex = LEVELS.indexOf(engine.currentLevel);
+    replayCarModel = currentCarKey;
+    console.log("Recording started...");
+};
+
+window.stopRecording = () => {
+    if (replayState !== 'RECORDING') return;
+    replayState = 'NONE';
+    console.log(`Recording stopped. ${recordedInputs.length} frames captured.`);
+};
+
+window.downloadReplay = () => {
+    if (recordedInputs.length === 0) return alert("No recording available.");
+
+    const replayData = {
+        levelIndex: replayLevelIndex,
+        carModel: replayCarModel,
+        inputs: recordedInputs
+    };
+
+    const blob = new Blob([JSON.stringify(replayData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `replay_level_${replayLevelIndex}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+window.loadReplay = (jsonString) => {
+    try {
+        const data = JSON.parse(jsonString);
+        if (!data.inputs || !Array.isArray(data.inputs)) throw new Error("Invalid replay format");
+
+        // Load correct car
+        if (data.carModel && CAR_MODELS[data.carModel]) {
+            currentCarKey = data.carModel;
+            engine.applyCarModel(CAR_MODELS[currentCarKey]);
+            // Update UI selector if possible (optional)
+            carSelect.value = currentCarKey;
+        }
+
+        // Load correct level
+        if (data.levelIndex !== undefined && LEVELS[data.levelIndex]) {
+            startLevel(data.levelIndex);
+        }
+
+        recordedInputs = data.inputs;
+        replayFrame = 0;
+        replayState = 'PLAYBACK';
+        console.log(`Replay loaded: ${recordedInputs.length} frames.`);
+
+    } catch (e) {
+        console.error(e);
+        alert("Failed to load replay: " + e.message);
+    }
+};
+
 // Level Manager Logic
 function initLevelChooser() {
     // Populate Car Select
@@ -69,6 +139,11 @@ function startLevel(index) {
     engine.loadLevel(level);
     gameState = 'PLAYING';
 
+    // Stop any active replay stuff
+    if (replayState !== 'RECORDING') {
+        replayState = 'NONE';
+    }
+
     // UI Updates
     levelChooser.style.display = 'none';
     messageArea.style.display = 'none';
@@ -78,6 +153,7 @@ function startLevel(index) {
 
 function showMenu() {
     gameState = 'MENU';
+    replayState = 'NONE';
     levelChooser.style.display = 'block';
     messageArea.style.display = 'none';
     returnContainer.style.display = 'none';
@@ -284,6 +360,66 @@ function showMenu() {
 initLevelChooser();
 showMenu();
 
+// --- UI Wiring for Replay ---
+const btnRecord = document.getElementById('btn-record');
+const btnStopRecord = document.getElementById('btn-stop-record');
+const btnUploadReplay = document.getElementById('btn-upload-replay');
+const fileInputReplay = document.getElementById('replay-file');
+const replayControls = document.getElementById('replay-controls');
+
+btnRecord.onclick = () => {
+    window.startRecording();
+    btnRecord.style.display = 'none';
+    btnStopRecord.style.display = 'inline-block';
+};
+
+btnStopRecord.onclick = () => {
+    window.stopRecording();
+    window.downloadReplay();
+    btnRecord.style.display = 'inline-block';
+    btnStopRecord.style.display = 'none';
+};
+
+btnUploadReplay.onclick = () => {
+    fileInputReplay.click();
+};
+
+fileInputReplay.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        window.loadReplay(evt.target.result);
+    };
+    reader.readAsText(file);
+    // Reset val so same file can be loaded again if needed
+    fileInputReplay.value = '';
+};
+
+// Hook into showMenu/startLevel to toggle UI visibility
+const _originalShowMenu = showMenu;
+showMenu = function () {
+    _originalShowMenu();
+    replayControls.style.display = 'none';
+};
+
+const _originalStartLevel = startLevel;
+startLevel = function (index) {
+    _originalStartLevel(index);
+    // If not playing a replay, show record button
+    if (replayState !== 'PLAYBACK') {
+        replayControls.style.display = 'block';
+        btnRecord.style.display = 'inline-block';
+        btnStopRecord.style.display = 'none';
+    } else {
+        replayControls.style.display = 'none';
+    }
+};
+
+// Re-bootstrap to ensure overridden functions are used
+initLevelChooser(); // Updates onclicks to use new startLevel
+showMenu();
+
 // Expose to window
 window.game = engine;
 // Also expose regression test runner
@@ -292,44 +428,58 @@ window.runRegressionTests = () => testTurningCircle(GameEngine);
 
 // Game Loop
 let lastTime = performance.now();
+let accumulator = 0;
+const FIXED_STEP = 1 / 60;
+const MAX_ACCUMULATOR = 0.2; // Prevent spiral of death
 
 function loop(now) {
-    const dt = (now - lastTime) / 1000;
+    let dt = (now - lastTime) / 1000;
+    if (dt > 1) dt = 1; // Cap large headers
     lastTime = now;
 
-    if (gameState === 'PLAYING') {
-        // Get Inputs
-        const input = {
-            steer: inputHandler.getSteer(),
-            throttle: inputHandler.getThrottle()
-        };
+    accumulator += dt;
+    if (accumulator > MAX_ACCUMULATOR) accumulator = MAX_ACCUMULATOR;
 
-        // Update Logic
-        engine.update(dt, input);
+    while (accumulator >= FIXED_STEP) {
+        if (gameState === 'PLAYING') {
+            let input = { steer: 0, throttle: 0 };
 
-        // Audio Update
-        const speedRatio = engine.velocity / engine.maxSpeed;
-        audioController.update(speedRatio, input.throttle);
+            if (replayState === 'PLAYBACK') {
+                if (replayFrame < recordedInputs.length) {
+                    input = recordedInputs[replayFrame];
+                    replayFrame++;
+                } else {
+                    // Replay ended
+                    replayState = 'NONE';
+                }
+            } else {
+                // Live Input
+                input = {
+                    steer: inputHandler.getSteer(),
+                    throttle: inputHandler.getThrottle()
+                };
+            }
 
-        // Telemetry
-        const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
-        const scoreText = `Score: ${engine.score}`;
-        telemetry.innerText = `Pos: (${engine.pos.x.toFixed(0)}, ${engine.pos.y.toFixed(0)})\nHeading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°\nSpeed: ${vKmh} km/h\nSteer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°\n${scoreText}`;
+            if (replayState === 'RECORDING') {
+                recordedInputs.push(input);
+            }
 
-        // Check for Game Over conditions
-        if (engine.won) {
-            showGameOver(true);
+            // Update Logic
+            engine.update(FIXED_STEP, input);
+
+            // Audio Update
+            const speedRatio = engine.velocity / engine.maxSpeed;
+            audioController.update(speedRatio, input.throttle);
+
+            // Check for Game Over conditions
+            if (engine.won) {
+                showGameOver(true);
+            }
+        } else {
+            // Stop audio if not playing
+            audioController.stop();
         }
-    } else {
-        // Stop audio if not playing (optional, or keep idle)
-        // For now, let's stop it or keep it idle?
-        // User said "idle noise when it is not moving".
-        // If we are in MENU, maybe stop.
-        // Actually, if we just pause updates, it will keep playing the last tone.
-        // Better to stop.
-        if (gameState !== 'PLAYING') {
-           audioController.stop();
-        }
+        accumulator -= FIXED_STEP;
     }
 
     // Render
@@ -337,11 +487,15 @@ function loop(now) {
 
     // Telemetry Update
     if (gameState === 'PLAYING') {
+        const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
+        const scoreText = `Score: ${engine.score}`;
+
         telemetry.innerText = `Level: ${engine.currentLevel ? engine.currentLevel.name : 'None'}
 Pos: (${engine.pos.x.toFixed(1)}, ${engine.pos.y.toFixed(1)})
 Heading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°
-Speed: ${engine.velocity.toFixed(1)} px/s
-Steer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°`;
+Speed: ${vKmh} km/h (${engine.velocity.toFixed(1)} px/s)
+Steer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°
+${scoreText}`;
     } else {
         telemetry.innerText = `State: ${gameState}`;
     }
