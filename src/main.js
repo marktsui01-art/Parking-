@@ -4,6 +4,7 @@ import { InputHandler } from './InputHandler.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
 import { LEVELS } from './levels.js';
 import { SAT } from './SAT.js';
+import { AudioController } from './AudioController.js';
 
 let currentCarKey = 'm3_g80';
 
@@ -12,6 +13,7 @@ const canvas = document.getElementById('gameCanvas');
 const engine = new GameEngine();
 const inputHandler = new InputHandler();
 const renderer = new CanvasRenderer(canvas);
+const audioController = new AudioController();
 const telemetry = document.getElementById('telemetry');
 
 // UI Elements
@@ -39,7 +41,9 @@ function initLevelChooser() {
 
     carSelect.onchange = (e) => {
         currentCarKey = e.target.value;
-        engine.applyCarModel(CAR_MODELS[currentCarKey]);
+        const model = CAR_MODELS[currentCarKey];
+        engine.applyCarModel(model);
+        audioController.setEngineType(model.engineConfig);
     };
 
     levelList.innerHTML = '';
@@ -53,6 +57,14 @@ function initLevelChooser() {
 }
 
 function startLevel(index) {
+    // Attempt to init audio context on user gesture
+    audioController.init();
+
+    // Set initial engine type if not set
+    if (CAR_MODELS[currentCarKey]) {
+        audioController.setEngineType(CAR_MODELS[currentCarKey].engineConfig);
+    }
+
     const level = LEVELS[index];
     engine.loadLevel(level);
     gameState = 'PLAYING';
@@ -295,6 +307,10 @@ function loop(now) {
         // Update Logic
         engine.update(dt, input);
 
+        // Audio Update
+        const speedRatio = engine.velocity / engine.maxSpeed;
+        audioController.update(speedRatio);
+
         // Telemetry
         const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
         const scoreText = `Score: ${engine.score}`;
@@ -303,6 +319,16 @@ function loop(now) {
         // Check for Game Over conditions
         if (engine.won) {
             showGameOver(true);
+        }
+    } else {
+        // Stop audio if not playing (optional, or keep idle)
+        // For now, let's stop it or keep it idle?
+        // User said "idle noise when it is not moving".
+        // If we are in MENU, maybe stop.
+        // Actually, if we just pause updates, it will keep playing the last tone.
+        // Better to stop.
+        if (gameState !== 'PLAYING') {
+           audioController.stop();
         }
     }
 
