@@ -28,18 +28,22 @@ export function simulateReplay(replayData) {
 
     // 3. Run Loop
     let crashed = false;
-    for (const input of replayData.inputs) {
-        // Stop if won (optional, but replay might continue after win?)
-        // The game loop usually stops updating if won, but let's see GameEngine.js
-        // GameEngine.update returns early if (this.won).
+    let firstCrashFrame = -1;
+    let crashCount = 0;
 
-        // We use the EXACT same fixed step
+    for (let i = 0; i < replayData.inputs.length; i++) {
+        const input = replayData.inputs[i];
+        const prevTimer = engine.crashTimer;
         engine.update(FIXED_STEP, input);
 
-        // Check crash state (engine.crashTimer > 0 means a collision occurred recently)
-        // Note: Engine resets velocity on crash, so we can detect it by checking score drop or crashTimer.
-        if (engine.crashTimer > 0) {
-            crashed = true;
+        // Check if a crash occurred this frame
+        // The engine sets crashTimer to 0.5 on crash
+        if (engine.crashTimer > prevTimer) {
+            crashCount++;
+            if (!crashed) {
+                crashed = true;
+                firstCrashFrame = i;
+            }
         }
     }
 
@@ -48,7 +52,9 @@ export function simulateReplay(replayData) {
         score: engine.score,
         finalPos: engine.pos,
         finalHeading: engine.heading,
-        crashed: crashed
+        crashed: crashed,
+        firstCrashFrame: firstCrashFrame,
+        crashCount: crashCount
     };
 }
 
@@ -70,7 +76,7 @@ if (process.argv[1] === import.meta.filename) {
         console.log("---------------------------------------------------");
         console.log("SIMULATION RESULT:");
         console.log(`Won: ${result.won ? "YES" : "NO"}`);
-        console.log(`Crashed: ${result.crashed ? "YES" : "NO"}`);
+        console.log(`Crashed: ${result.crashed ? "YES" : "NO"} ${result.crashed ? `(First: Frame ${result.firstCrashFrame}, Total: ${result.crashCount})` : ""}`);
         console.log(`Final Score: ${result.score}`);
         console.log(`Final Pos: (${result.finalPos.x.toFixed(2)}, ${result.finalPos.y.toFixed(2)})`);
         console.log("---------------------------------------------------");
@@ -103,7 +109,7 @@ export function optimizeReplay(initialReplayData, iterations = 1000) {
     const calculateFitness = (result) => {
         const dx = result.finalPos.x - target.x;
         const dy = result.finalPos.y - target.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
         let fitness = result.score;
         if (result.won) {
@@ -111,42 +117,52 @@ export function optimizeReplay(initialReplayData, iterations = 1000) {
         }
         // Penalize distance heavily if not won
         if (!result.won) {
-            fitness -= dist * 10;
+            fitness -= dist * 20;
         }
 
-        // Penalize crashing extra (score handles some, but let's be strict)
-        if (result.crashed) {
-            fitness -= 5000;
-        }
+        // Penalize EACH crash individually (even if score is already 0)
+        // This ensures the optimizer prefers fewer crashes.
+        fitness -= result.crashCount * 2000;
 
         return fitness;
     };
 
     let bestFitness = calculateFitness(bestResult);
 
-    console.log(`Starting Optimization. Initial Fitness: ${bestFitness.toFixed(2)} (Won: ${bestResult.won})`);
+    console.log(`Starting Optimization. Initial Fitness: ${bestFitness.toFixed(2)} (Won: ${bestResult.won}, Crashes: ${bestResult.crashCount})`);
 
     for (let i = 0; i < iterations; i++) {
         // Create candidate
         const candidateReplay = JSON.parse(JSON.stringify(bestReplay));
 
         // MUTATION:
-        // Pick a random frame, change steer or throttle slightly
-        const numMutations = Math.floor(Math.random() * 5) + 1; // Change 1 to 5 frames
+        const numMutations = Math.floor(Math.random() * 5) + 1;
 
-        for (let m=0; m<numMutations; m++) {
-            const frameIdx = Math.floor(Math.random() * candidateReplay.inputs.length);
+        for (let m = 0; m < numMutations; m++) {
+            let frameIdx;
+
+            // If it crashed, 50% chance to mutate near the crash point
+            if (bestResult.crashed && Math.random() > 0.5) {
+                // Focus on frames leading up to the crash (e.g., 60 frames / 1s before)
+                const windowSize = 60;
+                const startFrame = Math.max(0, bestResult.firstCrashFrame - windowSize);
+                // Mutate anything from 1s before the crash up to the crash itself
+                frameIdx = startFrame + Math.floor(Math.random() * (bestResult.firstCrashFrame - startFrame + 1));
+            } else {
+                // Random mutation anywhere
+                frameIdx = Math.floor(Math.random() * candidateReplay.inputs.length);
+            }
+
             const input = candidateReplay.inputs[frameIdx];
 
             if (Math.random() > 0.5) {
                 // Mutate Steer
-                // Steer is usually -1 to 1.
-                input.steer += (Math.random() - 0.5) * 0.2;
+                input.steer += (Math.random() - 0.5) * 0.4;
                 if (input.steer > 1) input.steer = 1;
                 if (input.steer < -1) input.steer = -1;
             } else {
                 // Mutate Throttle
-                input.throttle += (Math.random() - 0.5) * 0.2;
+                input.throttle += (Math.random() - 0.5) * 0.4;
                 if (input.throttle > 1) input.throttle = 1;
                 if (input.throttle < -1) input.throttle = -1;
             }
@@ -160,7 +176,7 @@ export function optimizeReplay(initialReplayData, iterations = 1000) {
             bestFitness = fitness;
             bestReplay = candidateReplay;
             bestResult = result;
-            console.log(`[${i}] Improved! Fitness: ${bestFitness.toFixed(2)} (Won: ${bestResult.won})`);
+            console.log(`[${i}] Improved! Fitness: ${bestFitness.toFixed(2)} (Won: ${bestResult.won}, Crashes: ${bestResult.crashCount})`);
             if (bestResult.won && !bestResult.crashed) {
                 // We could stop early if we just want A win, but maybe we want BEST win?
                 // Let's continue for now.
@@ -177,7 +193,7 @@ if (process.argv[1] === import.meta.filename && process.argv[3] === '--optimize'
     const json = fs.readFileSync(replayFile, 'utf8');
     const replayData = JSON.parse(json);
 
-    const optimized = optimizeReplay(replayData, 2000); // 2000 iterations
+    const optimized = optimizeReplay(replayData, 20000); // 20000 iterations
 
     const outFile = replayFile.replace('.json', '_optimized.json');
     fs.writeFileSync(outFile, JSON.stringify(optimized, null, 2));
