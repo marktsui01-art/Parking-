@@ -490,11 +490,14 @@ function loop(now) {
         const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
         const scoreText = `Score: ${engine.score}`;
 
+        const rpmTxt = `RPM: ${audioController.currentRPM}`;
+
         telemetry.innerText = `Level: ${engine.currentLevel ? engine.currentLevel.name : 'None'}
 Pos: (${engine.pos.x.toFixed(1)}, ${engine.pos.y.toFixed(1)})
 Heading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°
 Speed: ${vKmh} km/h (${engine.velocity.toFixed(1)} px/s)
 Steer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°
+${rpmTxt}
 ${scoreText}`;
     } else {
         telemetry.innerText = `State: ${gameState}`;
