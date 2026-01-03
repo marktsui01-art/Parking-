@@ -204,9 +204,19 @@
                 </select>
             </div>
             <div id="level-list"></div>
+
+            <hr style="border-color: #444; margin: 20px 0;">
+            <h3>Replay Tools</h3>
+            <input type="file" id="replay-file" style="display: none;" accept=".json">
+            <button id="btn-upload-replay" class="level-btn" style="background: #8e44ad;">📂 Load Replay</button>
         </div>
         <div id="return-container">
             <button id="return-btn" class="level-btn">Back to Menu</button>
+        </div>
+
+        <div id="replay-controls" style="position: absolute; top: 10px; right: 10px; pointer-events: auto; display: none;">
+            <button id="btn-record" style="padding: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">🔴 Record</button>
+            <button id="btn-stop-record" style="padding: 10px; background: #c0392b; color: white; border: none; border-radius: 4px; cursor: pointer; display:none;">⏹ Stop & Save</button>
         </div>
 
         <!-- Editor UI -->
