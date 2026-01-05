@@ -1,3 +1,102 @@
+export const ENGINE_PRESETS = {
+    i4: {
+        type: 'ice',
+        baseFreq: 20,
+        oscType: 'sawtooth',
+        harmonics: [
+            { mult: 2.0, gain: 0.8 },
+            { mult: 1.0, gain: 0.4 },
+            { mult: 4.0, gain: 0.2 }
+        ],
+        params: {
+            rpm: { min: 900, range: 6.0 },
+            filter: { base: 300, speedCoef: 800, throttleCoef: 1500, max: 6000, Q: 2 },
+            noise: { filterBase: 40, filterSpeedCoef: 100, gainSpeedCoef: 0.25, gainThrottleCoef: 0.25, maxGain: 0.5 },
+            sub: { freqMult: 0.5, baseGain: 0.1, throttleGain: 0.4 },
+            exhaust: { baseGain: 0.2, throttleGain: 0.3, speedGain: 0.1, maxGain: 0.6 },
+            distortion: { amount: 15 }
+        }
+    },
+    i6: {
+        type: 'ice',
+        baseFreq: 18,
+        oscType: 'sawtooth',
+        harmonics: [
+            { mult: 1.0, gain: 0.5 },
+            { mult: 3.0, gain: 0.8 },
+            { mult: 6.0, gain: 0.3 },
+            { mult: 1.5, gain: 0.4 },
+            { mult: 4.5, gain: 0.2 }
+        ],
+        params: {
+            rpm: { min: 900, range: 6.0 },
+            filter: { base: 300, speedCoef: 800, throttleCoef: 1500, max: 6000, Q: 2 },
+            noise: { filterBase: 40, filterSpeedCoef: 100, gainSpeedCoef: 0.25, gainThrottleCoef: 0.25, maxGain: 0.5 },
+            sub: { freqMult: 0.5, baseGain: 0.1, throttleGain: 0.4 },
+            exhaust: { baseGain: 0.2, throttleGain: 0.3, speedGain: 0.1, maxGain: 0.6 },
+            distortion: { amount: 15 }
+        }
+    },
+    v8: {
+        type: 'ice',
+        baseFreq: 16,
+        oscType: 'sawtooth',
+        harmonics: [
+            { mult: 1.0, gain: 0.7 },
+            { mult: 2.0, gain: 0.6 },
+            { mult: 4.0, gain: 0.8 },
+            { mult: 0.5, gain: 0.4 },
+            { mult: 8.0, gain: 0.1 }
+        ],
+        params: {
+            rpm: { min: 900, range: 6.0 },
+            filter: { base: 300, speedCoef: 800, throttleCoef: 1500, max: 6000, Q: 2 },
+            noise: { filterBase: 40, filterSpeedCoef: 100, gainSpeedCoef: 0.25, gainThrottleCoef: 0.25, maxGain: 0.5 },
+            sub: { freqMult: 0.5, baseGain: 0.1, throttleGain: 0.4 },
+            exhaust: { baseGain: 0.2, throttleGain: 0.3, speedGain: 0.1, maxGain: 0.6 },
+            distortion: { amount: 15 }
+        }
+    },
+    flat6: {
+        type: 'ice',
+        baseFreq: 17,
+        oscType: 'triangle',
+        harmonics: [
+            { mult: 3.0, gain: 0.6 },
+            { mult: 1.5, gain: 0.6 },
+            { mult: 1.0, gain: 0.4 },
+            { mult: 6.0, gain: 0.2 },
+            { mult: 0.75, gain: 0.2 }
+        ],
+        params: {
+            rpm: { min: 900, range: 6.0 },
+            filter: { base: 300, speedCoef: 800, throttleCoef: 1500, max: 6000, Q: 2 },
+            noise: { filterBase: 40, filterSpeedCoef: 100, gainSpeedCoef: 0.25, gainThrottleCoef: 0.25, maxGain: 0.5 },
+            sub: { freqMult: 0.5, baseGain: 0.1, throttleGain: 0.4 },
+            exhaust: { baseGain: 0.2, throttleGain: 0.3, speedGain: 0.1, maxGain: 0.6 },
+            distortion: { amount: 15 }
+        }
+    },
+    ev: {
+        type: 'ev',
+        baseFreq: 200,
+        oscType: 'sine',
+        harmonics: [
+            { mult: 1.0, gain: 0.8 },
+            { mult: 2.0, gain: 0.2 }
+        ],
+        params: {
+            // EV Specific params
+            rpm: { min: 0, range: 0 },
+            filter: { base: 2000, speedCoef: 2000, throttleCoef: 0, max: 20000, Q: 1 }, // Used for high pitch filter
+            noise: { filterBase: 0, filterSpeedCoef: 0, gainSpeedCoef: 0, gainThrottleCoef: 0, maxGain: 0 }, // Often silent
+            sub: { freqMult: 0, baseGain: 0, throttleGain: 0 },
+            exhaust: { baseGain: 0, throttleGain: 0, speedGain: 0, maxGain: 0 },
+            distortion: { amount: 0 }
+        }
+    }
+};
+
 export class AudioController {
     constructor() {
         this.ctx = null;
@@ -9,11 +108,23 @@ export class AudioController {
         this.subOsc = null;
         this.subGain = null;
         this.oscillators = [];
-        this.engineType = 'i4'; // Default
-        this.baseFreq = 15; // Hz at idle fundamental
+
+        this.analyser = null;
+
+        // Default Config
+        this.config = JSON.parse(JSON.stringify(ENGINE_PRESETS.i4));
+
+        // Runtime state
         this.currentRPM = 900;
         this.initialized = false;
-        this.config = {};
+
+        // Layer Gains (0.0 to 1.0)
+        this.layerGains = {
+            mechanical: 1.0, // Oscillators
+            noise: 1.0,      // Rumble
+            sub: 1.0,        // Sub-bass
+            exhaust: 1.0     // Wet reverb
+        };
     }
 
     init() {
@@ -27,9 +138,13 @@ export class AudioController {
 
         this.ctx = new AudioContext();
 
+        // 0. Analyser for Visualization
+        this.analyser = this.ctx.createAnalyser();
+        this.analyser.fftSize = 2048;
+
         // 1. Distortion
         this.distortion = this.ctx.createWaveShaper();
-        this.distortion.curve = this.makeDistortionCurve(15);
+        this.updateDistortionCurve();
         this.distortion.oversample = '4x';
 
         // 2. Master Gain
@@ -38,9 +153,9 @@ export class AudioController {
 
         // 3. Reverb / Exhaust Resonance (Convolution)
         this.reverb = this.ctx.createConvolver();
-        this.reverb.buffer = this.createExhaustImpulse(0.1, 0.5); // 100ms short metallic decay
+        this.reverb.buffer = this.createExhaustImpulse(0.1, 0.5);
 
-        // 4. Sub-Bass Layer for physical "oomph"
+        // 4. Sub-Bass Layer
         this.subGain = this.ctx.createGain();
         this.subGain.gain.value = 0;
 
@@ -75,23 +190,26 @@ export class AudioController {
 
         this.dryGain.connect(this.masterGain);
         this.wetGain.connect(this.masterGain);
+        this.subGain.connect(this.masterGain);
 
-        this.masterGain.connect(this.ctx.destination);
+        // Final Output
+        this.masterGain.connect(this.analyser);
+        this.analyser.connect(this.ctx.destination);
 
         this.initialized = true;
 
-        // Start initial engine sound (idle)
+        // Start initial engine sound
         this.setupEngineSound();
     }
 
     createExhaustImpulse(duration, decay) {
+        if (!this.ctx) return null;
         const sampleRate = this.ctx.sampleRate;
         const length = sampleRate * duration;
         const impulse = this.ctx.createBuffer(2, length, sampleRate);
         for (let i = 0; i < 2; i++) {
             const channelData = impulse.getChannelData(i);
             for (let j = 0; j < length; j++) {
-                // White noise with exponential decay
                 channelData[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay);
             }
         }
@@ -110,6 +228,12 @@ export class AudioController {
         return curve;
     }
 
+    updateDistortionCurve() {
+        if (this.distortion && this.config.params && this.config.params.distortion) {
+            this.distortion.curve = this.makeDistortionCurve(this.config.params.distortion.amount);
+        }
+    }
+
     setupNoiseSource() {
         const bufferSize = 2 * this.ctx.sampleRate;
         const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -123,9 +247,8 @@ export class AudioController {
         this.noise.loop = true;
 
         this.noiseGain = this.ctx.createGain();
-        this.noiseGain.gain.value = 0; // Starts silent
+        this.noiseGain.gain.value = 0;
 
-        // Filter for the noise (exhaust rumble vs valve clatter)
         this.noiseFilter = this.ctx.createBiquadFilter();
         this.noiseFilter.type = 'lowpass';
         this.noiseFilter.frequency.value = 100;
@@ -137,93 +260,46 @@ export class AudioController {
     }
 
     setEngineType(config) {
-        if (config && config.type) {
-            this.engineType = config.type;
-        } else {
-            this.engineType = 'i4'; // Default
+        let presetKey = 'i4';
+        if (config && config.type && ENGINE_PRESETS[config.type]) {
+            presetKey = config.type;
         }
+
+        // Deep copy preset to active config
+        this.config = JSON.parse(JSON.stringify(ENGINE_PRESETS[presetKey]));
 
         // Re-setup if already initialized
         if (this.initialized) {
+            this.updateDistortionCurve();
             this.setupEngineSound();
         }
     }
 
-    setupEngineSound() {
-        // Stop existing oscillators
-        this.stop();
+    setLayerGain(layer, value) {
+        if (this.layerGains.hasOwnProperty(layer)) {
+            this.layerGains[layer] = Math.max(0, Math.min(1, value));
+            // Apply immediate gain update where possible?
+            // Most gains are modulated in update(), so the value will pick up next frame.
+            // But for static logic (dryGain/wetGain mix), we might want to update.
+        }
+    }
 
+    setupEngineSound() {
+        this.stop();
         if (!this.ctx) return;
 
-        // Define harmonics based on engine type
-        // Fundamental frequency base: ~80-100Hz for idle
-        let harmonics = [];
-
-        switch (this.engineType) {
-            case 'i6': // Inline 6 - Smooth but powerful
-                harmonics = [
-                    { mult: 1.0, gain: 0.5 },   // Fundamental "Body"
-                    { mult: 3.0, gain: 0.8 },   // Main Firing
-                    { mult: 6.0, gain: 0.3 },   // Smooth singing
-                    { mult: 1.5, gain: 0.4 },   // Balanced sub-rumble
-                    { mult: 4.5, gain: 0.2 }
-                ];
-                this.baseFreq = 18;
-                break;
-            case 'v8': // V8 - The big muscle
-                harmonics = [
-                    { mult: 1.0, gain: 0.7 },   // Massive fundamental body
-                    { mult: 2.0, gain: 0.6 },   // Low end "Gub-Gub"
-                    { mult: 4.0, gain: 0.8 },   // Main firing
-                    { mult: 0.5, gain: 0.4 },   // Sub-harmonic "Shake"
-                    { mult: 8.0, gain: 0.1 }
-                ];
-                this.baseFreq = 16;
-                break;
-            case 'flat6': // Boxer 6 - Mechanical and raspy
-                harmonics = [
-                    { mult: 3.0, gain: 0.6 },
-                    { mult: 1.5, gain: 0.6 },   // Pulse
-                    { mult: 1.0, gain: 0.4 },   // Body
-                    { mult: 6.0, gain: 0.2 },
-                    { mult: 0.75, gain: 0.2 }
-                ];
-                this.baseFreq = 17;
-                break;
-            case 'ev':
-                harmonics = [
-                    { mult: 1.0, gain: 0.8 },
-                    { mult: 2.0, gain: 0.2 }
-                ];
-                this.baseFreq = 200;
-                break;
-            default: // i4
-                harmonics = [
-                    { mult: 2.0, gain: 0.8 },
-                    { mult: 1.0, gain: 0.4 },
-                    { mult: 4.0, gain: 0.2 }
-                ];
-                this.baseFreq = 20;
-                break;
-        }
+        // Use config
+        const { harmonics, baseFreq, oscType } = this.config;
 
         this.oscillators = harmonics.map(h => {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
 
-            if (this.engineType === 'ev') {
-                osc.type = 'sine';
-            } else if (this.engineType === 'flat6') {
-                osc.type = 'triangle';
-            } else {
-                osc.type = 'sawtooth';
-            }
-
-            osc.frequency.value = this.baseFreq * h.mult;
+            osc.type = oscType || 'sawtooth';
+            osc.frequency.value = baseFreq * h.mult;
             gain.gain.value = h.gain;
 
             osc.connect(gain);
-            // CONNECT TO DISTORTION for harmonics
             gain.connect(this.distortion);
             osc.start();
 
@@ -231,27 +307,25 @@ export class AudioController {
         });
 
         // Setup Sub-Bass layer
-        if (this.engineType !== 'ev') {
+        if (this.config.type !== 'ev') {
             this.subOsc = this.ctx.createOscillator();
             this.subOsc.type = 'sine';
-            this.subOsc.frequency.value = this.baseFreq * 0.5;
+            this.subOsc.frequency.value = baseFreq * (this.config.params.sub.freqMult || 0.5);
             this.subOsc.connect(this.subGain);
-            this.subGain.connect(this.masterGain);
             this.subOsc.start();
         }
 
-        // Refine filtering with Resonance (Q)
+        // Global Filter
         if (this.globalFilter) this.globalFilter.disconnect();
         this.globalFilter = this.ctx.createBiquadFilter();
         this.globalFilter.type = 'lowpass';
-        this.globalFilter.Q.value = 2; // Add some "Growl" at the cutoff
-        this.globalFilter.frequency.value = 300;
+        this.globalFilter.Q.value = this.config.params.filter.Q || 2;
+        this.globalFilter.frequency.value = this.config.params.filter.base || 300;
 
-        // Distortion -> MasterGain is already connected in init
-        // We just need to ensure masterGain is connected to Destination or the filter
+        // Reconnect Master Gain to Filter
         this.masterGain.disconnect();
         this.masterGain.connect(this.globalFilter);
-        this.globalFilter.connect(this.ctx.destination);
+        this.globalFilter.connect(this.analyser);
     }
 
     update(speedRatio, throttle = 0) {
@@ -262,74 +336,95 @@ export class AudioController {
 
         const absSpeed = Math.abs(speedRatio);
         const absThrottle = Math.abs(throttle);
+        const p = this.config.params;
 
-        if (this.engineType === 'ev') {
-            // EV Logic: Pitch = Speed, Volume = Speed + Load
-            const currentFreq = this.baseFreq + (absSpeed * 600);
+        if (this.config.type === 'ev') {
+            // EV Logic
+            const currentFreq = this.config.baseFreq + (absSpeed * 600); // This 600 could be config too but keep simple for now
             this.oscillators.forEach(item => {
                 item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.1);
+                item.gain.gain.setTargetAtTime(item.baseGain * this.layerGains.mechanical, this.ctx.currentTime, 0.1);
             });
 
             const vol = (absSpeed * 0.3) + (absThrottle * 0.2);
             this.masterGain.gain.setTargetAtTime(Math.min(0.5, vol), this.ctx.currentTime, 0.1);
-            this.globalFilter.frequency.setTargetAtTime(2000 + absSpeed * 2000, this.ctx.currentTime, 0.1);
+
+            // Filter
+            const fBase = p.filter.base;
+            const fSpeed = p.filter.speedCoef;
+            this.globalFilter.frequency.setTargetAtTime(fBase + absSpeed * fSpeed, this.ctx.currentTime, 0.1);
+
             if (this.noiseGain) this.noiseGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
 
         } else {
-            // ICE Logic - Muscular
-            const rpmFactor = 1 + (absSpeed * 6.0); // 1.0 to 7.0 range
-            this.currentRPM = Math.floor(rpmFactor * 900);
+            // ICE Logic
+            const rpmFactor = 1 + (absSpeed * p.rpm.range);
+            this.currentRPM = Math.floor(rpmFactor * p.rpm.min);
 
             const idleFluctuation = (absSpeed < 0.05) ? (Math.random() * 0.02) : 0;
-            const currentFreq = this.baseFreq * (rpmFactor + idleFluctuation);
+            const currentFreq = this.config.baseFreq * (rpmFactor + idleFluctuation);
 
             this.oscillators.forEach(item => {
-                // Harmonic Roll-off: Higher harmonics lose gain as fundamental gets faster
-                // This prevents the "whine" at high RPM
+                // Harmonic Roll-off
                 let gainScale = 1.0;
                 if (item.mult > 4) {
                     gainScale = Math.max(0.1, 1.0 - (absSpeed * 0.8));
                 }
-                item.gain.gain.setTargetAtTime(item.baseGain * gainScale, this.ctx.currentTime, 0.1);
+                // Apply Layer Gain
+                const finalGain = item.baseGain * gainScale * this.layerGains.mechanical;
+                item.gain.gain.setTargetAtTime(finalGain, this.ctx.currentTime, 0.1);
                 item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.05);
             });
 
             if (this.globalFilter) {
-                // Growly resonant filter - move slower than pitch
-                const baseFilter = 300 + (absSpeed * 800);
-                const loadFilter = absThrottle * 1500;
-                this.globalFilter.frequency.setTargetAtTime(Math.min(6000, baseFilter + loadFilter), this.ctx.currentTime, 0.1);
+                const baseFilter = p.filter.base + (absSpeed * p.filter.speedCoef);
+                const loadFilter = absThrottle * p.filter.throttleCoef;
+                this.globalFilter.frequency.setTargetAtTime(Math.min(p.filter.max, baseFilter + loadFilter), this.ctx.currentTime, 0.1);
+                this.globalFilter.Q.value = p.filter.Q || 2;
             }
 
-            // Move resonators based on frequency to clear "harsh" zones
             if (this.resonator1) {
+                // Hardcoded logic for resonator movement kept for now, could be parameterized later
                 this.resonator1.frequency.setTargetAtTime(800 + (absSpeed * 1200), this.ctx.currentTime, 0.1);
             }
 
-            // Noise for "Texture/Weight" (rumble)
+            // Noise
             if (this.noiseGain) {
-                const nVol = (absSpeed * 0.25) + (absThrottle * 0.25);
-                this.noiseGain.gain.setTargetAtTime(Math.min(0.5, nVol), this.ctx.currentTime, 0.05);
-                this.noiseFilter.frequency.setTargetAtTime(40 + (absSpeed * 100), this.ctx.currentTime, 0.1);
+                const nVol = (absSpeed * p.noise.gainSpeedCoef) + (absThrottle * p.noise.gainThrottleCoef);
+                const finalNoiseGain = Math.min(p.noise.maxGain, nVol) * this.layerGains.noise;
+                this.noiseGain.gain.setTargetAtTime(finalNoiseGain, this.ctx.currentTime, 0.05);
+                this.noiseFilter.frequency.setTargetAtTime(p.noise.filterBase + (absSpeed * p.noise.filterSpeedCoef), this.ctx.currentTime, 0.1);
             }
 
             if (this.subOsc) {
-                this.subOsc.frequency.setTargetAtTime(currentFreq * 0.5, this.ctx.currentTime, 0.05);
-                // Sub kicks in more under load
-                const sVol = 0.1 + (absThrottle * 0.4);
+                this.subOsc.frequency.setTargetAtTime(currentFreq * p.sub.freqMult, this.ctx.currentTime, 0.05);
+                const sVol = (p.sub.baseGain + (absThrottle * p.sub.throttleGain)) * this.layerGains.sub;
                 this.subGain.gain.setTargetAtTime(sVol, this.ctx.currentTime, 0.1);
             }
 
-            // Exhaust Resonance (Convolver) Wet Mix
+            // Exhaust (Wet Mix)
             if (this.wetGain) {
-                // More resonance under load for "tubular" pipe sound
-                const rVol = 0.2 + (absThrottle * 0.3) + (absSpeed * 0.1);
-                this.wetGain.gain.setTargetAtTime(Math.min(0.6, rVol), this.ctx.currentTime, 0.1);
+                const rVol = (p.exhaust.baseGain + (absThrottle * p.exhaust.throttleGain) + (absSpeed * p.exhaust.speedGain)) * this.layerGains.exhaust;
+                this.wetGain.gain.setTargetAtTime(Math.min(p.exhaust.maxGain, rVol), this.ctx.currentTime, 0.1);
             }
 
+            // Dry Mix (part of Exhaust/Mechanical blend)
+            if (this.dryGain) {
+                // Keep dry gain mostly static or related to mechanical
+                this.dryGain.gain.setTargetAtTime(0.8 * this.layerGains.mechanical, this.ctx.currentTime, 0.1);
+            }
+
+            // Master Volume
+            // Note: masterGain logic in original was mixing speed/throttle.
+            // We should ensure this doesn't clip if layerGains are high.
+            // For now, respect p.master logic if it existed, or use hardcoded similar logic.
             const targetVol = 0.2 + (absSpeed * 0.25) + (absThrottle * 0.45);
             this.masterGain.gain.setTargetAtTime(Math.min(0.9, targetVol), this.ctx.currentTime, 0.05);
         }
+    }
+
+    getAnalyser() {
+        return this.analyser;
     }
 
     stop() {
