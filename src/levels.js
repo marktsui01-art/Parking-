@@ -6,7 +6,7 @@ export const LEVELS = [
         name: "Level 1: The Basics",
         description: "Park the car in the green box.",
         start: { x: 72, y: 300, heading: 0 },
-        target: { x: 600, y: 300, width: 100, height: 50, angle: 0 },
+        target: { x: 600, y: 300, width: 110, height: 50, angle: 0 },
         obstacles: [
             // Walls around the world
             { x: 400, y: 0, width: 800, height: 20, angle: 0 }, // Top
@@ -19,7 +19,7 @@ export const LEVELS = [
         name: "Level 2: The Alley",
         description: "Navigate through the narrow path.",
         start: { x: 72, y: 300, heading: 0 },
-        target: { x: 700, y: 300, width: 100, height: 50, angle: 0 },
+        target: { x: 700, y: 300, width: 110, height: 50, angle: 0 },
         obstacles: [
             // Bounds
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
@@ -55,7 +55,7 @@ export const LEVELS = [
         // 20px = 1m
         start: { x: 72, y: 300, heading: 0 },
         // Target: 2.5m x 5m = 50px x 100px (Vertical)
-        target: { x: 600, y: 300, width: 50, height: 100, angle: 0 },
+        target: { x: 600, y: 300, width: 50, height: 110, angle: 0 },
         obstacles: [
             // Bounds
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
@@ -79,7 +79,7 @@ export const LEVELS = [
         // 20px = 1m
         start: { x: 72, y: 400, heading: 0 },
         // Target: 6m long = 120px. Width 2.5m = 50px.
-        target: { x: 500, y: 200, width: 102, height: 42, angle: 0 }, // slightly larger for tolerance
+        target: { x: 500, y: 200, width: 110, height: 42, angle: 0 }, // slightly larger for tolerance
         obstacles: [
             // Bounds
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
@@ -171,7 +171,7 @@ export const LEVELS = [
         description: "Diagonal parking in a one-way aisle. The aisle is narrow, so you have to align perfectly before entering. Reverse in only!",
         start: { x: 72, y: 440, heading: 0 },
         // Target: 45 degrees. Moved to bottom curb (y=540).
-        target: { x: 400, y: 540, width: 50, height: 100, angle: -Math.PI / 4 },
+        target: { x: 400, y: 540, width: 50, height: 110, angle: -Math.PI / 4 },
         obstacles: [
             // Bounds
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
@@ -197,7 +197,7 @@ export const LEVELS = [
         description: "Wide spot, but a wall opposite limits your turning radius. You'll need to use the full width of the aisle to get this right.",
         start: { x: 72, y: 290, heading: 0 },
         // Target: Vertical. Wider spot (60px instead of 50px).
-        target: { x: 500, y: 200, width: 50, height: 100, angle: 0 },
+        target: { x: 500, y: 200, width: 50, height: 110, angle: 0 },
         obstacles: [
             // Bounds
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
@@ -251,7 +251,7 @@ export const LEVELS = [
         // Scale: 20px = 1m
         start: { x: 72, y: 250, heading: 0 },
         // Target: Gap 108px (5.4m)
-        target: { x: 500, y: 170, width: 104, height: 44, angle: 0 },
+        target: { x: 500, y: 170, width: 110, height: 44, angle: 0 },
         obstacles: [
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
             { x: 400, y: 600, width: 800, height: 20, angle: 0 },
@@ -280,7 +280,7 @@ export const LEVELS = [
         // Scale: 20px = 1m
         start: { x: 72, y: 220, heading: 0 },
         // Target: x=500. Gap 108px (5.4m). Car is 4.8m. Total margin 60cm.
-        target: { x: 500, y: 170, width: 104, height: 44, angle: 0 },
+        target: { x: 500, y: 170, width: 110, height: 44, angle: 0 },
         obstacles: [
             { x: 400, y: 0, width: 800, height: 20, angle: 0 },
             { x: 400, y: 600, width: 800, height: 20, angle: 0 },
