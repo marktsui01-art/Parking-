@@ -3,44 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Engine Sound Tuner</title>
+    <title>Engine Sound Tuner - Component Refactor</title>
     <style>
-        body { font-family: monospace; background: #222; color: #eee; display: flex; flex-direction: column; margin: 0; height: 100vh; overflow: hidden; }
-        header { padding: 10px; background: #333; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
-        h1 { margin: 0; font-size: 1.2rem; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #eee; display: flex; flex-direction: column; margin: 0; height: 100vh; overflow: hidden; }
+        header { padding: 15px; background: #252525; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; }
+        h1 { margin: 0; font-size: 1.1rem; letter-spacing: 1px; color: #4f8; }
+        
         .main-container { display: flex; flex: 1; overflow: hidden; }
-        .controls { width: 400px; overflow-y: auto; padding: 10px; border-right: 1px solid #444; background: #2a2a2a; }
-        .visualizer-area { flex: 1; display: flex; flex-direction: column; padding: 10px; background: #000; }
-        canvas { width: 100%; height: 300px; background: #111; border: 1px solid #333; }
+        .controls { width: 420px; overflow-y: auto; padding: 15px; border-right: 2px solid #333; background: #222; scrollbar-width: thin; }
+        .visualizer-area { flex: 1; display: flex; flex-direction: column; padding: 20px; background: #000; position: relative; }
+        canvas { width: 100%; height: 250px; background: #050505; border: 1px solid #333; border-radius: 8px; }
 
-        .panel { margin-bottom: 15px; border: 1px solid #444; padding: 10px; border-radius: 4px; background: #333; }
-        .panel h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #aaa; text-transform: uppercase; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .panel { margin-bottom: 20px; border: 1px solid #333; padding: 12px; border-radius: 8px; background: #2a2a2a; }
+        .panel h3 { margin: -12px -12px 10px -12px; font-size: 0.75rem; color: #888; text-transform: uppercase; background: #333; padding: 6px 12px; border-radius: 8px 8px 0 0; }
 
-        .control-row { display: flex; align-items: center; margin-bottom: 5px; font-size: 0.8rem; }
-        .control-row label { flex: 1; }
-        .control-row input[type="range"] { flex: 2; }
-        .control-row input[type="number"] { width: 60px; background: #444; border: 1px solid #555; color: white; }
-        .control-row span { width: 40px; text-align: right; margin-left: 5px; }
+        .control-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.85rem; }
+        .control-row label { flex: 1; color: #ccc; }
+        .control-row input[type="range"] { flex: 2; height: 4px; accent-color: #4f8; }
+        .control-row input[type="number"] { width: 70px; background: #111; border: 1px solid #444; color: #4f8; padding: 2px 5px; border-radius: 4px; }
+        .control-row span { width: 45px; text-align: right; font-family: monospace; color: #4f8; }
 
-        .harmonic-row { display: flex; gap: 5px; margin-bottom: 5px; }
-        .harmonic-row input { width: 100%; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        button { background: #333; color: #eee; border: 1px solid #444; cursor: pointer; padding: 8px; font-size: 0.8rem; border-radius: 4px; transition: all 0.2s; }
+        button:hover { background: #444; border-color: #555; }
+        button.active { background: #1a1; color: white; border-color: #2c2; box-shadow: 0 0 10px rgba(0,255,0,0.2); }
+        button.scenario { background: #345; border-color: #456; }
+        button.scenario:active { transform: scale(0.95); }
 
-        button { background: #444; color: #fff; border: 1px solid #666; cursor: pointer; padding: 5px 10px; font-family: inherit; }
-        button:hover { background: #555; }
-        button.active { background: #4a6; border-color: #6c8; }
+        .simulation-hero { background: #111; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+        .hero-stats { display: flex; justify-content: space-around; font-family: 'Courier New', Courier, monospace; color: #4f8; font-size: 1.4rem; font-weight: bold; }
+        .hero-stats div { text-align: center; }
+        .hero-stats span { display: block; font-size: 0.6rem; color: #666; text-transform: uppercase; margin-bottom: 4px; }
 
-        .simulation-info { font-size: 1.5rem; color: #4f8; text-align: center; margin: 10px 0; }
+        .harmonic-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
+        .harmonic-row input { background: #111; border: 1px solid #444; color: #ddd; padding: 4px; width: 100%; border-radius: 4px; }
+        .btn-del { width: 30px; color: #f44; border-color: #633; }
 
-        /* Specific Styles */
-        #json-output { width: 100%; height: 100px; background: #111; color: #0f0; border: 1px solid #444; font-size: 0.7rem; }
+        textarea { width: 100%; height: 200px; background: #050505; color: #0f0; border: 1px solid #333; font-family: 'Consolas', monospace; font-size: 0.75rem; padding: 10px; border-radius: 8px; margin-top: 10px; }
+
+        .vtec-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #333; margin-left: 10px; border: 1px solid #444; transition: 0.1s; }
+        .vtec-indicator.on { background: #f00; box-shadow: 0 0 15px #f00; border-color: #f66; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>Engine Audio Tuner</h1>
+    <h1>PHYSICAL ENGINE TUNER v2.0 <div id="vtec-light" class="vtec-indicator"></div></h1>
     <div>
-        <button id="btn-export">Copy JSON</button>
+        <button id="btn-export">Export Config</button>
         <button id="btn-import">Load JSON</button>
     </div>
 </header>
@@ -48,117 +58,124 @@
 <div class="main-container">
     <div class="controls">
 
-        <!-- Simulation Control -->
+        <!-- SIMULATION CONTROL -->
         <div class="panel">
-            <h3>Simulation</h3>
-            <button id="btn-ignition" style="width:100%">START ENGINE</button>
-            <div class="simulation-info">
-                <div id="rpm-display">RPM: 0</div>
-                <div id="speed-display">0 km/h</div>
+            <h3>Simulation & Scenarios</h3>
+            <button id="btn-ignition" style="width:100%; font-weight:bold; margin-bottom:12px;">START ENGINE</button>
+            <div class="simulation-hero">
+                <div class="hero-stats">
+                    <div><span>RPM</span><span id="rpm-display">0</span></div>
+                    <div><span>Speed</span><span id="speed-display">0.0</span></div>
+                </div>
             </div>
+            
+            <div class="btn-group">
+                <button class="scenario" id="btn-scen-rev">GENEROUS REV</button>
+                <button class="scenario" id="btn-scen-brake">ENGINE BRAKING</button>
+            </div>
+
             <div class="control-row">
                 <label>Throttle</label>
                 <input type="range" id="throttle-slider" min="0" max="1" step="0.01" value="0">
                 <span id="throttle-val">0%</span>
             </div>
-             <div class="control-row">
-                <label>Auto-Rev</label>
-                <input type="checkbox" id="chk-autorev">
-            </div>
         </div>
 
-        <!-- Preset Loader -->
+        <!-- ENGINE PRESET -->
         <div class="panel">
-            <h3>Engine Preset</h3>
-            <select id="preset-select" style="width:100%; padding:5px; background:#444; color:#fff; border:1px solid #555;">
-                <option value="i4">Inline 4</option>
-                <option value="i6">Inline 6</option>
-                <option value="v8">V8</option>
-                <option value="flat6">Flat 6</option>
-                <option value="ev">Electric</option>
+            <h3>Engine Architecture</h3>
+            <select id="preset-select" style="width:100%; padding:10px; background:#111; color:#fff; border:1px solid #444; border-radius:4px;">
+                <option value="i4">Standard Inline 4</option>
+                <option value="civic_vtec">Honda B16 (VTEC)</option>
+                <option value="i6">BMW Straight 6</option>
+                <option value="v8">Muscle V8</option>
+                <option value="flat6">Porsche Flat 6 (VarioCam)</option>
+                <option value="ev">Electric Drive</option>
             </select>
         </div>
 
-        <!-- Mixer -->
+        <!-- MECHANICAL LAYER -->
         <div class="panel">
-            <h3>Mixer</h3>
+            <h3>1. Mechanical (Internal)</h3>
             <div class="control-row">
-                <label>Mechanical</label>
-                <input type="range" class="layer-gain" data-layer="mechanical" min="0" max="1" step="0.05" value="1">
+                <label>Friction Gain</label>
+                <input type="range" class="param-slider" data-path="params.mechanical.frictionGain" min="0" max="1" step="0.01">
             </div>
             <div class="control-row">
-                <label>Exhaust (Wet)</label>
-                <input type="range" class="layer-gain" data-layer="exhaust" min="0" max="1" step="0.05" value="1">
+                <label>Valve Gain</label>
+                <input type="range" class="param-slider" data-path="params.mechanical.valveGain" min="0" max="1" step="0.01">
             </div>
-             <div class="control-row">
-                <label>Sub-Bass</label>
-                <input type="range" class="layer-gain" data-layer="sub" min="0" max="1" step="0.05" value="1">
-            </div>
-             <div class="control-row">
-                <label>Noise/Rumble</label>
-                <input type="range" class="layer-gain" data-layer="noise" min="0" max="1" step="0.05" value="1">
+            <div class="control-row">
+                <label>Block Filter</label>
+                <input type="range" class="param-slider" data-path="params.mechanical.filterBase" min="200" max="5000" step="10">
             </div>
         </div>
 
-        <!-- Base Parameters -->
-        <div class="panel" id="params-container">
-            <h3>Core Parameters</h3>
+        <!-- INTAKE LAYER -->
+        <div class="panel">
+            <h3>2. Intake (Induction)</h3>
             <div class="control-row">
-                <label>Base Freq (Hz)</label>
-                <input type="number" id="inp-basefreq" value="20">
+                <label>Primary Gain</label>
+                <input type="range" class="param-slider" data-path="params.intake.gain" min="0" max="2" step="0.05">
             </div>
             <div class="control-row">
-                <label>Oscillator</label>
-                <select id="inp-osctype" style="background:#444; color:white; border:none;">
-                    <option value="sawtooth">Sawtooth</option>
-                    <option value="sine">Sine</option>
-                    <option value="triangle">Triangle</option>
-                    <option value="square">Square</option>
-                </select>
+                <label>VTEC Scream</label>
+                <input type="range" class="param-slider" data-path="params.intake.screamGain" min="0" max="1" step="0.05">
             </div>
             <div class="control-row">
-                <label>Distortion</label>
-                <input type="range" id="inp-distortion" min="0" max="100" value="15">
+                <label>Induction Freq</label>
+                <input type="range" class="param-slider" data-path="params.intake.filterBase" min="100" max="2000" step="10">
             </div>
         </div>
 
-        <!-- Harmonics Editor -->
+        <!-- EXHAUST LAYER -->
         <div class="panel">
-            <h3>Harmonics</h3>
-            <div id="harmonics-list">
-                <!-- Injected via JS -->
+            <h3>3. Exhaust (Combustion)</h3>
+            <div class="control-row">
+                <label>Exhaust Volume</label>
+                <input type="range" class="param-slider" data-path="params.exhaust.gain" min="0" max="2" step="0.05">
             </div>
-            <button id="btn-add-harmonic">+ Add Harmonic</button>
+            <div class="control-row">
+                <label>Pipe Resonance</label>
+                <input type="range" class="param-slider" data-path="params.exhaust.resonance" min="0" max="1" step="0.01">
+            </div>
+            <div class="control-row">
+                <label>Distortion (Muscle)</label>
+                <input type="range" class="param-slider" data-path="params.exhaust.distortion" min="0" max="100" step="1">
+            </div>
         </div>
 
-        <!-- Filter Params (Simplified view) -->
+        <!-- VTEC/REDFILL PARAMS -->
         <div class="panel">
-            <h3>Global Filter</h3>
+            <h3>Variable Timing & Redline</h3>
             <div class="control-row">
-                <label>Base Cutoff</label>
-                <input type="range" class="param-slider" data-path="params.filter.base" min="100" max="1000" value="300">
-            </div>
-            <div class="control-row">
-                <label>Speed Mod</label>
-                <input type="range" class="param-slider" data-path="params.filter.speedCoef" min="0" max="2000" value="800">
+                <label>Redline (RPM)</label>
+                <input type="number" class="param-slider" data-path="params.redline" min="1000" max="18000">
             </div>
             <div class="control-row">
-                <label>Throttle Mod</label>
-                <input type="range" class="param-slider" data-path="params.filter.throttleCoef" min="0" max="3000" value="1500">
+                <label>VTEC Threshold</label>
+                <input type="number" class="param-slider" data-path="params.vtec.rpm" min="0" max="10000">
             </div>
-             <div class="control-row">
-                <label>Resonance (Q)</label>
-                <input type="range" class="param-slider" data-path="params.filter.Q" min="0" max="20" step="0.1" value="2">
+            <div class="control-row">
+                <label>Freq Shift %</label>
+                <input type="range" class="param-slider" data-path="params.vtec.freqShift" min="1.0" max="1.5" step="0.01">
             </div>
+        </div>
+
+        <!-- HARMONICS LIST -->
+        <div class="panel">
+            <h3>Harmonic Signature</h3>
+            <div id="harmonics-list"></div>
+            <button id="btn-add-harmonic" style="width:100%; margin-top:5px;">+ Add Harmonic Layer</button>
         </div>
 
     </div>
 
     <div class="visualizer-area">
-        <canvas id="viz-canvas" width="800" height="300"></canvas>
-        <div style="margin-top:10px;">
-            <label>JSON Config:</label>
-            <textarea id="json-io" style="width:100%; height:150px; background:#111; color:#0f0; border:1px solid #444; font-family:monospace; font-size:0.7rem;"></textarea>
+        <canvas id="viz-canvas" width="800" height="250"></canvas>
+        <div style="flex:1; display:flex; flex-direction:column;">
+            <label style="color:#888; font-size:0.7rem;">TUNER SCHEMA (JSON)</label>
+            <textarea id="json-io"></textarea>
         </div>
     </div>
 </div>

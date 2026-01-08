@@ -10,6 +10,8 @@ export const CAR_MODELS = {
         frontOverhang: 17,
         rearOverhang: 22,
         maxSteerAngle: 40 * Math.PI / 180,
+        acceleration: 180,
+        maxSpeed: 350,
         engineConfig: { type: 'i6', redline: 7200 }
     },
     g31_xdrive: {
@@ -20,6 +22,8 @@ export const CAR_MODELS = {
         frontOverhang: 17,
         rearOverhang: 22,
         maxSteerAngle: 35 * Math.PI / 180,
+        acceleration: 150,
+        maxSpeed: 310,
         engineConfig: { type: 'i6', redline: 6800 }
     },
     e91_touring: {
@@ -30,6 +34,8 @@ export const CAR_MODELS = {
         frontOverhang: 15,
         rearOverhang: 20,
         maxSteerAngle: 42 * Math.PI / 180,
+        acceleration: 160,
+        maxSpeed: 320,
         engineConfig: { type: 'i6', redline: 7000 }
     },
     mini_5d: {
@@ -40,6 +46,8 @@ export const CAR_MODELS = {
         frontOverhang: 16,
         rearOverhang: 13,
         maxSteerAngle: 40 * Math.PI / 180,
+        acceleration: 130,
+        maxSpeed: 270,
         engineConfig: { type: 'i4', redline: 6500 }
     },
     jazz_mk1: {
@@ -50,6 +58,8 @@ export const CAR_MODELS = {
         frontOverhang: 14,
         rearOverhang: 14,
         maxSteerAngle: 42 * Math.PI / 180,
+        acceleration: 100,
+        maxSpeed: 240,
         engineConfig: { type: 'i4', redline: 6800 }
     },
     civic_eg: {
@@ -60,7 +70,9 @@ export const CAR_MODELS = {
         frontOverhang: 16,
         rearOverhang: 14,
         maxSteerAngle: 38 * Math.PI / 180,
-        engineConfig: { type: 'i4', redline: 8200, vtecRPM: 5800 }
+        acceleration: 145,
+        maxSpeed: 290,
+        engineConfig: { type: 'civic_vtec' }
     },
     cayman_987: {
         // Dimensions (mm): Wheelbase: 2415, Width: 1801, Front Overhang: 954, Rear Overhang: 978, Total Length: 4347
@@ -70,7 +82,9 @@ export const CAR_MODELS = {
         frontOverhang: 19,
         rearOverhang: 20,
         maxSteerAngle: 35 * Math.PI / 180,
-        engineConfig: { type: 'flat6', redline: 7400, liftRPM: 4500 }
+        acceleration: 175,
+        maxSpeed: 340,
+        engineConfig: { type: 'flat6' }
     },
     microlino: {
         // Dimensions (mm): Wheelbase: 1566, Width: 1473, Front Overhang: 743, Rear Overhang: 210, Total Length: 2519
@@ -80,6 +94,8 @@ export const CAR_MODELS = {
         frontOverhang: 15,
         rearOverhang: 4,
         maxSteerAngle: 45 * Math.PI / 180,
+        acceleration: 60,
+        maxSpeed: 100,
         engineConfig: { type: 'ev' }
     },
     jimny: {
@@ -90,6 +106,8 @@ export const CAR_MODELS = {
         frontOverhang: 12,
         rearOverhang: 16,
         maxSteerAngle: 35 * Math.PI / 180,
+        acceleration: 80,
+        maxSpeed: 210,
         engineConfig: { type: 'i4', redline: 6000 }
     },
     landcruiser_300: {
@@ -100,6 +118,8 @@ export const CAR_MODELS = {
         frontOverhang: 19,
         rearOverhang: 24,
         maxSteerAngle: 30 * Math.PI / 180,
+        acceleration: 110,
+        maxSpeed: 250,
         engineConfig: { type: 'v8', redline: 5500 }
     }
 };
@@ -169,6 +189,10 @@ export class GameEngine {
         this.frontOverhang = modelSpec.frontOverhang;
         this.rearOverhang = modelSpec.rearOverhang;
         this.length = this.frontOverhang + this.wheelBase + this.rearOverhang;
+
+        // Physics overrides
+        if (modelSpec.acceleration) this.acceleration = modelSpec.acceleration;
+        if (modelSpec.maxSpeed) this.maxSpeed = modelSpec.maxSpeed;
     }
 
     loadLevel(level) {
