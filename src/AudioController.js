@@ -265,8 +265,14 @@ export class AudioController {
             presetKey = config.type;
         }
 
-        // Deep copy preset to active config
+        // Initialize from preset
         this.config = JSON.parse(JSON.stringify(ENGINE_PRESETS[presetKey]));
+
+        // Merge in specific overrides (like redline, vtecRPM, etc)
+        if (config) {
+            Object.assign(this.config, config);
+        }
+        this.engineType = this.config.type || presetKey;
 
         // Re-setup if already initialized
         if (this.initialized) {
@@ -278,9 +284,6 @@ export class AudioController {
     setLayerGain(layer, value) {
         if (this.layerGains.hasOwnProperty(layer)) {
             this.layerGains[layer] = Math.max(0, Math.min(1, value));
-            // Apply immediate gain update where possible?
-            // Most gains are modulated in update(), so the value will pick up next frame.
-            // But for static logic (dryGain/wetGain mix), we might want to update.
         }
     }
 
@@ -340,7 +343,7 @@ export class AudioController {
 
         if (this.config.type === 'ev') {
             // EV Logic
-            const currentFreq = this.config.baseFreq + (absSpeed * 600); // This 600 could be config too but keep simple for now
+            const currentFreq = this.config.baseFreq + (absSpeed * 600);
             this.oscillators.forEach(item => {
                 item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.1);
                 item.gain.gain.setTargetAtTime(item.baseGain * this.layerGains.mechanical, this.ctx.currentTime, 0.1);
@@ -357,43 +360,61 @@ export class AudioController {
             if (this.noiseGain) this.noiseGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
 
         } else {
-            // ICE Logic
-            const rpmFactor = 1 + (absSpeed * p.rpm.range);
-            this.currentRPM = Math.floor(rpmFactor * p.rpm.min);
+            // ICE Logic - Muscular & Realistic Redline
+            const idleRPM = p.rpm.min;
+            const redline = this.config.redline || 6500;
+            const rpmRange = redline - idleRPM;
+
+            // rpmFactor: 1.0 (Idle) to Max (Redline)
+            const speedRatioClamped = Math.min(1.0, absSpeed);
+            this.currentRPM = Math.floor(idleRPM + (speedRatioClamped * rpmRange));
+            const rpmFactor = this.currentRPM / idleRPM;
 
             const idleFluctuation = (absSpeed < 0.05) ? (Math.random() * 0.02) : 0;
             const currentFreq = this.config.baseFreq * (rpmFactor + idleFluctuation);
 
+            // VTEC / Lift Check
+            const vtecActive = (this.config.vtecRPM && this.currentRPM >= this.config.vtecRPM) ||
+                (this.config.liftRPM && this.currentRPM >= this.config.liftRPM);
+
             this.oscillators.forEach(item => {
-                // Harmonic Roll-off
+                // Harmonic Roll-off: Less aggressive to keep high frequencies
                 let gainScale = 1.0;
                 if (item.mult > 4) {
-                    gainScale = Math.max(0.1, 1.0 - (absSpeed * 0.8));
+                    // Above VTEC, we BOOST high harmonics for the "scream"
+                    if (vtecActive) {
+                        gainScale = 1.2;
+                    } else {
+                        gainScale = Math.max(0.3, 1.0 - (absSpeed * 0.5));
+                    }
                 }
                 // Apply Layer Gain
                 const finalGain = item.baseGain * gainScale * this.layerGains.mechanical;
-                item.gain.gain.setTargetAtTime(finalGain, this.ctx.currentTime, 0.1);
+                item.gain.gain.setTargetAtTime(finalGain, this.ctx.currentTime, 0.05);
                 item.osc.frequency.setTargetAtTime(currentFreq * item.mult, this.ctx.currentTime, 0.05);
             });
 
             if (this.globalFilter) {
-                const baseFilter = p.filter.base + (absSpeed * p.filter.speedCoef);
+                // Brighter filter, especially in VTEC
+                const vtecBoost = vtecActive ? 1500 : 0;
+                const baseFilter = p.filter.base + (absSpeed * p.filter.speedCoef) + vtecBoost;
                 const loadFilter = absThrottle * p.filter.throttleCoef;
-                this.globalFilter.frequency.setTargetAtTime(Math.min(p.filter.max, baseFilter + loadFilter), this.ctx.currentTime, 0.1);
-                this.globalFilter.Q.value = p.filter.Q || 2;
+                this.globalFilter.frequency.setTargetAtTime(Math.min(8000, baseFilter + loadFilter), this.ctx.currentTime, 0.05);
             }
 
+            // Move resonators based on frequency
             if (this.resonator1) {
-                // Hardcoded logic for resonator movement kept for now, could be parameterized later
-                this.resonator1.frequency.setTargetAtTime(800 + (absSpeed * 1200), this.ctx.currentTime, 0.1);
+                this.resonator1.frequency.setTargetAtTime(1000 + (absSpeed * 1500), this.ctx.currentTime, 0.1);
             }
 
-            // Noise
+            // Noise for "Mechanical Hiss / Scream"
             if (this.noiseGain) {
+                // More noise at high speed/load
                 const nVol = (absSpeed * p.noise.gainSpeedCoef) + (absThrottle * p.noise.gainThrottleCoef);
                 const finalNoiseGain = Math.min(p.noise.maxGain, nVol) * this.layerGains.noise;
                 this.noiseGain.gain.setTargetAtTime(finalNoiseGain, this.ctx.currentTime, 0.05);
-                this.noiseFilter.frequency.setTargetAtTime(p.noise.filterBase + (absSpeed * p.noise.filterSpeedCoef), this.ctx.currentTime, 0.1);
+                // Allow more high freq noise back in with speed
+                this.noiseFilter.frequency.setTargetAtTime(p.noise.filterBase + (absSpeed * 3000), this.ctx.currentTime, 0.1);
             }
 
             if (this.subOsc) {
@@ -402,24 +423,19 @@ export class AudioController {
                 this.subGain.gain.setTargetAtTime(sVol, this.ctx.currentTime, 0.1);
             }
 
-            // Exhaust (Wet Mix)
+            // Exhaust Resonance (Convolver)
             if (this.wetGain) {
                 const rVol = (p.exhaust.baseGain + (absThrottle * p.exhaust.throttleGain) + (absSpeed * p.exhaust.speedGain)) * this.layerGains.exhaust;
                 this.wetGain.gain.setTargetAtTime(Math.min(p.exhaust.maxGain, rVol), this.ctx.currentTime, 0.1);
             }
 
-            // Dry Mix (part of Exhaust/Mechanical blend)
+            // Dry Mix
             if (this.dryGain) {
-                // Keep dry gain mostly static or related to mechanical
                 this.dryGain.gain.setTargetAtTime(0.8 * this.layerGains.mechanical, this.ctx.currentTime, 0.1);
             }
 
-            // Master Volume
-            // Note: masterGain logic in original was mixing speed/throttle.
-            // We should ensure this doesn't clip if layerGains are high.
-            // For now, respect p.master logic if it existed, or use hardcoded similar logic.
-            const targetVol = 0.2 + (absSpeed * 0.25) + (absThrottle * 0.45);
-            this.masterGain.gain.setTargetAtTime(Math.min(0.9, targetVol), this.ctx.currentTime, 0.05);
+            const targetVol = 0.2 + (absSpeed * 0.3) + (absThrottle * 0.4);
+            this.masterGain.gain.setTargetAtTime(Math.min(0.85, targetVol), this.ctx.currentTime, 0.05);
         }
     }
 

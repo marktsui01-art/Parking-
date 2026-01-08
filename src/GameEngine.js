@@ -10,7 +10,7 @@ export const CAR_MODELS = {
         frontOverhang: 17,
         rearOverhang: 22,
         maxSteerAngle: 40 * Math.PI / 180,
-        engineConfig: { type: 'i6' }
+        engineConfig: { type: 'i6', redline: 7200 }
     },
     g31_xdrive: {
         // Dimensions (mm): Wheelbase: 2975, Width: 1868, Front Overhang: 865, Rear Overhang: 1103, Total Length: 4943
@@ -20,7 +20,7 @@ export const CAR_MODELS = {
         frontOverhang: 17,
         rearOverhang: 22,
         maxSteerAngle: 35 * Math.PI / 180,
-        engineConfig: { type: 'i6' }
+        engineConfig: { type: 'i6', redline: 6800 }
     },
     e91_touring: {
         // Dimensions (mm): Wheelbase: 2760, Width: 1817, Front Overhang: 755, Rear Overhang: 1005, Total Length: 4520
@@ -30,7 +30,7 @@ export const CAR_MODELS = {
         frontOverhang: 15,
         rearOverhang: 20,
         maxSteerAngle: 42 * Math.PI / 180,
-        engineConfig: { type: 'i6' }
+        engineConfig: { type: 'i6', redline: 7000 }
     },
     mini_5d: {
         // Dimensions (mm): Wheelbase: 2567, Width: 1727, Front Overhang: 778, Rear Overhang: 660, Total Length: 4005
@@ -40,7 +40,7 @@ export const CAR_MODELS = {
         frontOverhang: 16,
         rearOverhang: 13,
         maxSteerAngle: 40 * Math.PI / 180,
-        engineConfig: { type: 'i4' }
+        engineConfig: { type: 'i4', redline: 6500 }
     },
     jazz_mk1: {
         // Dimensions (mm): Wheelbase: 2450, Width: 1675, Front Overhang: 700, Rear Overhang: 680, Total Length: 3830
@@ -50,7 +50,7 @@ export const CAR_MODELS = {
         frontOverhang: 14,
         rearOverhang: 14,
         maxSteerAngle: 42 * Math.PI / 180,
-        engineConfig: { type: 'i4' }
+        engineConfig: { type: 'i4', redline: 6800 }
     },
     civic_eg: {
         // Dimensions (mm): Wheelbase: 2570, Width: 1695, Front Overhang: 785, Rear Overhang: 715, Total Length: 4070
@@ -60,7 +60,7 @@ export const CAR_MODELS = {
         frontOverhang: 16,
         rearOverhang: 14,
         maxSteerAngle: 38 * Math.PI / 180,
-        engineConfig: { type: 'i4' }
+        engineConfig: { type: 'i4', redline: 8200, vtecRPM: 5800 }
     },
     cayman_987: {
         // Dimensions (mm): Wheelbase: 2415, Width: 1801, Front Overhang: 954, Rear Overhang: 978, Total Length: 4347
@@ -70,7 +70,7 @@ export const CAR_MODELS = {
         frontOverhang: 19,
         rearOverhang: 20,
         maxSteerAngle: 35 * Math.PI / 180,
-        engineConfig: { type: 'flat6' }
+        engineConfig: { type: 'flat6', redline: 7400, liftRPM: 4500 }
     },
     microlino: {
         // Dimensions (mm): Wheelbase: 1566, Width: 1473, Front Overhang: 743, Rear Overhang: 210, Total Length: 2519
@@ -90,7 +90,7 @@ export const CAR_MODELS = {
         frontOverhang: 12,
         rearOverhang: 16,
         maxSteerAngle: 35 * Math.PI / 180,
-        engineConfig: { type: 'i4' }
+        engineConfig: { type: 'i4', redline: 6000 }
     },
     landcruiser_300: {
         // Dimensions (mm): Wheelbase: 2850, Width: 1985, Front Overhang: 930, Rear Overhang: 1220, Total Length: 5000
@@ -100,7 +100,7 @@ export const CAR_MODELS = {
         frontOverhang: 19,
         rearOverhang: 24,
         maxSteerAngle: 30 * Math.PI / 180,
-        engineConfig: { type: 'v8' }
+        engineConfig: { type: 'v8', redline: 5500 }
     }
 };
 
@@ -155,9 +155,9 @@ export class GameEngine {
         if (config.carModel) {
             this.applyCarModel(config.carModel);
         } else {
-             // Fallback or let the caller call applyCarModel explicitly.
-             // To match original behavior which auto-loaded 'm3_g80':
-             this.applyCarModel(CAR_MODELS['m3_g80']);
+            // Fallback or let the caller call applyCarModel explicitly.
+            // To match original behavior which auto-loaded 'm3_g80':
+            this.applyCarModel(CAR_MODELS['m3_g80']);
         }
     }
 
