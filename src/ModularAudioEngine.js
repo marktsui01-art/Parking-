@@ -174,9 +174,18 @@ export const MODULAR_PATCH_PRESETS = {
         baseRPM: 900,
         redlineRPM: 7400,
         cylinders: 6,
-        masterGain: 0.75,
+        masterGain: 0.80,
         nodes: [
-            // 1. Acoustic Sources (Split 3-cyl bank 1.5E + Primary 6-cyl 3.0E + Upper orders + Intake air)
+            // 1. Acoustic Sources: 1.0x Block + 1.5x Bank + 3.0x Primary + 4.5x/6.0x Smooth Overtones + Turbulent Gas Noise
+            {
+                id: 'osc_block10',
+                type: 'oscillator',
+                name: 'Crank & Block 1.0x (Sub Body)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.55, throttleModGain: 0.25, rpmModGain: 0.15 }
+            },
             {
                 id: 'osc_bank15',
                 type: 'oscillator',
@@ -184,7 +193,7 @@ export const MODULAR_PATCH_PRESETS = {
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.5, freqHz: 100, detune: -4, gain: 0.50, throttleModGain: 0.20, rpmModGain: -0.15 }
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.5, freqHz: 100, detune: -4, gain: 0.65, throttleModGain: 0.30, rpmModGain: 0.10 }
             },
             {
                 id: 'osc_fire30',
@@ -193,7 +202,7 @@ export const MODULAR_PATCH_PRESETS = {
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 3.0, freqHz: 100, detune: 0, gain: 0.60, throttleModGain: 0.35, rpmModGain: 0.20 }
+                params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 3.0, freqHz: 100, detune: 0, gain: 0.55, throttleModGain: 0.35, rpmModGain: 0.15 }
             },
             {
                 id: 'osc_bank45',
@@ -202,109 +211,108 @@ export const MODULAR_PATCH_PRESETS = {
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 4.5, freqHz: 100, detune: 3, gain: 0.22, throttleModGain: 0.15, rpmModGain: 0.25 }
+                params: { waveform: 'sine', freqMode: 'harmonic', mult: 4.5, freqHz: 100, detune: 3, gain: 0.20, throttleModGain: 0.15, rpmModGain: 0.15 }
             },
             {
                 id: 'osc_wail60',
                 type: 'oscillator',
-                name: 'Secondary Firing 6.0x (Wail)',
+                name: 'Secondary Firing 6.0x (Smooth)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.20, throttleModGain: 0.30, rpmModGain: 0.35 }
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.18, throttleModGain: 0.25, rpmModGain: 0.25 }
             },
             {
                 id: 'noise_intake',
                 type: 'noise',
-                name: 'Intake Induction Air (Pink)',
+                name: 'Combustion & Air Turbulence (Brown)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { noiseType: 'pink', gain: 0.03, throttleModGain: 0.38, rpmModGain: 0.15 }
+                params: { noiseType: 'brown', gain: 0.12, throttleModGain: 0.38, rpmModGain: 0.15 }
             },
-            // 2. Exhaust Nonlinear Saturation Stage
+            // 2. Warm Nonlinear Saturation & Short Pipe Waveguide Resonator
             {
                 id: 'shaper_exh',
                 type: 'waveshaper',
-                name: 'Header Collector Saturation',
+                name: 'Header Collector Warm Saturation',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { curveType: 'soft_tanh', drive: 18, mix: 0.85, outputGain: 0.48 }
+                params: { curveType: 'soft_tanh', drive: 12, mix: 0.75, outputGain: 0.42 }
             },
-            // 3. Exhaust Series Formant Chain + Load Lowpass
+            {
+                id: 'delay_pipe',
+                type: 'delay',
+                name: 'Exhaust Pipe Waveguide (2.6ms)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { delayMs: 2.6, feedback: -0.28, mix: 0.30 }
+            },
+            // 3. Full-Bodied Cavity Formants (Deep Chest + Lower-Mid Body + Gentle Throat)
             {
                 id: 'flt_f1_boom',
                 type: 'filter',
-                name: 'Formant F1: Muffler Box (185Hz)',
+                name: 'Formant F1: Chest & Muffler (145Hz)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { filterType: 'peaking', frequency: 185, Q: 2.2, filterGain: 6.5, rpmModFreq: 0, throttleModFreq: 0, outGain: 1.0 }
+                params: { filterType: 'peaking', frequency: 145, Q: 1.3, filterGain: 6.5, rpmModFreq: 35, throttleModFreq: 0, outGain: 1.0 }
             },
             {
-                id: 'flt_scoop',
+                id: 'flt_f2_body',
                 type: 'filter',
-                name: 'Anti-Boxiness Scoop (330Hz)',
+                name: 'Formant F2: Warm Boxer Body (275Hz)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { filterType: 'peaking', frequency: 330, Q: 2.5, filterGain: -4.5, rpmModFreq: 0, throttleModFreq: 0, outGain: 1.0 }
-            },
-            {
-                id: 'flt_f2_hollow',
-                type: 'filter',
-                name: 'Formant F2: Boxer Hollow (480Hz)',
-                enabled: true,
-                bypass: false,
-                solo: false,
-                params: { filterType: 'peaking', frequency: 480, Q: 3.0, filterGain: 5.5, rpmModFreq: 0, throttleModFreq: 0, outGain: 1.0 }
+                params: { filterType: 'peaking', frequency: 275, Q: 1.4, filterGain: 5.5, rpmModFreq: 75, throttleModFreq: 40, outGain: 1.0 }
             },
             {
                 id: 'flt_f3_wail',
                 type: 'filter',
-                name: 'Formant F3: Flat-6 Wail (1150Hz)',
+                name: 'Formant F3: Boxer Throat (680Hz)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { filterType: 'peaking', frequency: 1150, Q: 4.2, filterGain: 8.5, rpmModFreq: 0, throttleModFreq: 0, outGain: 1.0 }
+                params: { filterType: 'peaking', frequency: 680, Q: 1.8, filterGain: 3.5, rpmModFreq: 220, throttleModFreq: 150, outGain: 1.0 }
             },
+            // 4. Cascaded 4th-Order (-24 dB/oct) Butterworth Lowpass Pair for Rounded Waveforms
             {
                 id: 'flt_exh_lp',
                 type: 'filter',
-                name: 'Exhaust Load Lowpass',
+                name: 'Primary Load Lowpass (Stage 1)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { filterType: 'lowpass', frequency: 260, Q: 0.8, filterGain: 0, rpmModFreq: 950, throttleModFreq: 1250, outGain: 0.75 }
+                params: { filterType: 'lowpass', frequency: 240, Q: 0.7, filterGain: 0, rpmModFreq: 420, throttleModFreq: 550, outGain: 1.0 }
             },
-            // 4. Parallel Behind-the-Head Intake Plenum Resonator
             {
-                id: 'flt_intake_plenum',
+                id: 'flt_exh_lp2',
                 type: 'filter',
-                name: 'Intake Plenum Formant (1050Hz)',
+                name: 'Secondary Rounding Lowpass (Stage 2)',
                 enabled: true,
                 bypass: false,
                 solo: false,
-                params: { filterType: 'bandpass', frequency: 1050, Q: 4.5, filterGain: 0, rpmModFreq: 300, throttleModFreq: 400, outGain: 0.42 }
+                params: { filterType: 'lowpass', frequency: 360, Q: 0.7, filterGain: 0, rpmModFreq: 640, throttleModFreq: 750, outGain: 0.85 }
             }
         ],
         connections: [
-            // Exhaust Harmonic Sources -> Collector Saturation -> Series Formants -> Load Lowpass -> Master
+            // All sources + brown turbulence feed into Collector Saturation -> Pipe Waveguide -> Body Formants -> Dual -24dB/oct Lowpass -> Master
+            { from: 'osc_block10', to: 'shaper_exh' },
             { from: 'osc_bank15', to: 'shaper_exh' },
             { from: 'osc_fire30', to: 'shaper_exh' },
             { from: 'osc_bank45', to: 'shaper_exh' },
             { from: 'osc_wail60', to: 'shaper_exh' },
-            { from: 'shaper_exh', to: 'flt_f1_boom' },
-            { from: 'flt_f1_boom', to: 'flt_scoop' },
-            { from: 'flt_scoop', to: 'flt_f2_hollow' },
-            { from: 'flt_f2_hollow', to: 'flt_f3_wail' },
+            { from: 'noise_intake', to: 'shaper_exh' },
+            { from: 'shaper_exh', to: 'delay_pipe' },
+            { from: 'delay_pipe', to: 'flt_f1_boom' },
+            { from: 'flt_f1_boom', to: 'flt_f2_body' },
+            { from: 'flt_f2_body', to: 'flt_f3_wail' },
             { from: 'flt_f3_wail', to: 'flt_exh_lp' },
-            { from: 'flt_exh_lp', to: 'master' },
-            // Parallel Intake Induction Branch -> Master
-            { from: 'noise_intake', to: 'flt_intake_plenum' },
-            { from: 'osc_fire30', to: 'flt_intake_plenum' },
-            { from: 'flt_intake_plenum', to: 'master' }
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
         ]
     }
 };

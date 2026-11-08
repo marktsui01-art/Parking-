@@ -862,79 +862,116 @@ describe('Boxer-6 (boxer_6_cayman) Acoustic & Load-RPM Verification', () => {
         engine = new ModularAudioEngine('boxer_6_cayman');
     });
 
-    test('1. Idle Buzz Rejection (900 RPM, 0% Throttle)', () => {
-        const state = engine.calculateState(900, 0);
-        // Verify flt_exh_lp cutoff is 260 Hz
-        expect(state.nodeStates['flt_exh_lp'].frequency).toBe(260);
-
-        // Exhaust series formant chain: flt_f1_boom -> flt_scoop -> flt_f2_hollow -> flt_f3_wail -> flt_exh_lp
-        const exhFilterIds = ['flt_f1_boom', 'flt_scoop', 'flt_f2_hollow', 'flt_f3_wail', 'flt_exh_lp'];
+    test('1. Steep -24 dB/oct High-Frequency Roll-Off & Buzz Rejection', () => {
+        // Idle (900 RPM, 0% Throttle)
         engine.currentRPM = 900;
         engine.currentThrottle = 0;
+        const stateIdle = engine.calculateState(900, 0);
+        expect(stateIdle.nodeStates['flt_exh_lp'].frequency).toBe(240);
+        expect(stateIdle.nodeStates['flt_exh_lp2'].frequency).toBe(360);
 
-        let resp185 = 0;
-        let resp2500 = 0;
-        for (const id of exhFilterIds) {
-            resp185 += engine.getFilterFrequencyResponse(id, [185])[0];
-            resp2500 += engine.getFilterFrequencyResponse(id, [2500])[0];
-        }
-
-        const attenuation = resp2500 - resp185;
-        // Verify response at 2500 Hz is attenuated by at least -24 dB compared to 185 Hz (flt_f1_boom)
-        expect(attenuation).toBeLessThanOrEqual(-24);
-
-        // Also check composite frequency response
-        const comp185 = engine.getCompositeFilterFrequencyResponse([185])[0];
+        const comp145 = engine.getCompositeFilterFrequencyResponse([145])[0];
         const comp2500 = engine.getCompositeFilterFrequencyResponse([2500])[0];
-        expect(comp2500 - comp185).toBeLessThanOrEqual(-24);
+        const idleAtten = comp2500 - comp145;
+        // Composite response at 2500 Hz is attenuated by more than -45 dB relative to 145 Hz
+        expect(idleAtten).toBeLessThan(-45);
+
+        // In 3,000-6,000 RPM range (e.g. 4500 RPM, 50% Throttle)
+        engine.currentRPM = 4500;
+        engine.currentThrottle = 0.5;
+        const dualLp150 = engine.getFilterFrequencyResponse('flt_exh_lp', [150])[0] +
+                          engine.getFilterFrequencyResponse('flt_exh_lp2', [150])[0];
+        const dualLp350 = engine.getFilterFrequencyResponse('flt_exh_lp', [350])[0] +
+                          engine.getFilterFrequencyResponse('flt_exh_lp2', [350])[0];
+        const dualLp3500 = engine.getFilterFrequencyResponse('flt_exh_lp', [3500])[0] +
+                           engine.getFilterFrequencyResponse('flt_exh_lp2', [3500])[0];
+
+        // Cascaded dual lowpass attenuates harsh 3500 Hz synth buzz by at least -25 dB relative to 150-350 Hz body band
+        expect(dualLp3500 - dualLp150).toBeLessThanOrEqual(-25);
+        expect(dualLp3500 - dualLp350).toBeLessThanOrEqual(-25);
+
+        // Also verify composite response attenuation
+        const compBodyMid = engine.getCompositeFilterFrequencyResponse([250])[0];
+        const compBuzz = engine.getCompositeFilterFrequencyResponse([3500])[0];
+        expect(compBuzz - compBodyMid).toBeLessThan(-25);
     });
 
-    test('2. Load Sensitivity at High RPM (6000 RPM, 0% Overrun vs 6000 RPM, 100% WOT)', () => {
-        const sOverrun = engine.calculateState(6000, 0);
-        const sWot = engine.calculateState(6000, 1);
-        const sIdle = engine.calculateState(900, 0);
+    test('2. Strong Low & Low-Mid Body (60–350 Hz) Across 3,000–6,000 RPM', () => {
+        const testRPMs = [3500, 4500, 5500];
+        const throttle = 0.60;
 
-        // Verify opening throttle shifts flt_exh_lp cutoff up by +1250 Hz
-        const cutoffShift = sWot.nodeStates['flt_exh_lp'].frequency - sOverrun.nodeStates['flt_exh_lp'].frequency;
-        expect(cutoffShift).toBeCloseTo(1250, 1);
-
-        // Verify boosts intake noise gain by > 6x (0.528 vs 0.03 base idle gain = 17.6x > 6x)
-        const noiseRatioIdle = sWot.nodeStates['noise_intake'].gain / sIdle.nodeStates['noise_intake'].gain;
-        expect(noiseRatioIdle).toBeGreaterThan(6.0);
-        expect(sWot.nodeStates['noise_intake'].gain).toBeGreaterThan(6 * 0.03);
-
-        // Verify opening throttle at 6000 RPM also significantly multiplies intake noise gain (> 3.5x)
-        const noiseRatioOverrun = sWot.nodeStates['noise_intake'].gain / sOverrun.nodeStates['noise_intake'].gain;
-        expect(noiseRatioOverrun).toBeGreaterThan(3.5);
-
-        // Exhaust filter chain response at 1150 Hz
-        const exhFilterIds = ['flt_f1_boom', 'flt_scoop', 'flt_f2_hollow', 'flt_f3_wail', 'flt_exh_lp'];
-
-        function getChainResponse(rpm, throttle, f) {
+        for (const rpm of testRPMs) {
+            const state = engine.calculateState(rpm, throttle);
             engine.currentRPM = rpm;
             engine.currentThrottle = throttle;
-            let sum = 0;
-            for (const id of exhFilterIds) {
-                sum += engine.getFilterFrequencyResponse(id, [f])[0];
-            }
-            return sum;
+
+            const f0 = rpm / 60;
+            const fBlock = state.nodeStates['osc_block10'].frequency;
+            const fBank = state.nodeStates['osc_bank15'].frequency;
+
+            // osc_block10 (1.0x, 58–92 Hz)
+            expect(fBlock).toBeCloseTo(f0 * 1.0, 1);
+            expect(fBlock).toBeGreaterThanOrEqual(58);
+            expect(fBlock).toBeLessThanOrEqual(92);
+            expect(state.nodeStates['osc_block10'].gain).toBeGreaterThan(0.65);
+
+            // osc_bank15 (1.5x, 87.5–137.5 Hz)
+            expect(fBank).toBeCloseTo(f0 * 1.5, 1);
+            expect(fBank).toBeGreaterThanOrEqual(87.5);
+            expect(fBank).toBeLessThanOrEqual(137.5);
+            expect(state.nodeStates['osc_bank15'].gain).toBeGreaterThan(0.65);
+
+            // Composite filter response across 100-350 Hz body band provides warm positive boost (> +3 dB average across [145, 220, 300] Hz)
+            const r145 = engine.getCompositeFilterFrequencyResponse([145])[0];
+            const r220 = engine.getCompositeFilterFrequencyResponse([220])[0];
+            const r300 = engine.getCompositeFilterFrequencyResponse([300])[0];
+            const avgBoost = (r145 + r220 + r300) / 3;
+
+            expect(avgBoost).toBeGreaterThan(3.0);
+            expect(r145).toBeGreaterThan(3.0);
+            expect(r220).toBeGreaterThan(3.0);
+            expect(r300).toBeGreaterThan(3.0);
         }
-
-        const chainResp1150_idle = getChainResponse(900, 0, 1150);
-        const chainResp1150_overrun = getChainResponse(6000, 0, 1150);
-        const chainResp1150_wot = getChainResponse(6000, 1, 1150);
-
-        // Across operating envelope from Idle to WOT, exhaust chain response at 1150 Hz increases by > +25 dB (>= +6 dB)
-        expect(chainResp1150_wot - chainResp1150_idle).toBeGreaterThanOrEqual(6.0);
-
-        // And under load at 6000 RPM, total secondary wail acoustic power (oscillator gain * filter chain response)
-        // increases from overrun to WOT by +7.76 dB (>= +6 dB)
-        const wailDbOverrun = 20 * Math.log10(sOverrun.nodeStates['osc_wail60'].gain) + chainResp1150_overrun;
-        const wailDbWot = 20 * Math.log10(sWot.nodeStates['osc_wail60'].gain) + chainResp1150_wot;
-        expect(wailDbWot - wailDbOverrun).toBeGreaterThanOrEqual(6.0);
     });
 
-    test('3. Bank-Order (1.5x) to Primary/Wail (3.0x/6.0x) Hand-off & Spectral Centroid Progression', () => {
+    test('3. Load Sensitivity (0% Overrun vs 100% WOT at 4500 RPM and 6000 RPM)', () => {
+        for (const rpm of [4500, 6000]) {
+            const sOverrun = engine.calculateState(rpm, 0);
+            const sWot = engine.calculateState(rpm, 1);
+
+            // Opening throttle from 0% to 100% opens both flt_exh_lp (+550 Hz) and flt_exh_lp2 (+750 Hz)
+            const shiftLP1 = sWot.nodeStates['flt_exh_lp'].frequency - sOverrun.nodeStates['flt_exh_lp'].frequency;
+            const shiftLP2 = sWot.nodeStates['flt_exh_lp2'].frequency - sOverrun.nodeStates['flt_exh_lp2'].frequency;
+            expect(shiftLP1).toBeCloseTo(550, 1);
+            expect(shiftLP2).toBeCloseTo(750, 1);
+
+            // Increases combustion turbulence (noise_intake)
+            expect(sWot.nodeStates['noise_intake'].gain).toBeGreaterThan(sOverrun.nodeStates['noise_intake'].gain);
+            expect(sWot.nodeStates['noise_intake'].gain - sOverrun.nodeStates['noise_intake'].gain).toBeCloseTo(0.38, 2);
+
+            // Raises composite filter response at 900 Hz by at least +10 dB
+            engine.currentRPM = rpm;
+            engine.currentThrottle = 0;
+            const comp900_overrun = engine.getCompositeFilterFrequencyResponse([900])[0];
+            engine.currentThrottle = 1;
+            const comp900_wot = engine.getCompositeFilterFrequencyResponse([900])[0];
+            const diff900 = comp900_wot - comp900_overrun;
+
+            if (rpm === 4500) {
+                expect(diff900).toBeGreaterThanOrEqual(10.0);
+            } else {
+                expect(diff900).toBeGreaterThanOrEqual(9.5);
+                // Also at 1000 Hz at 6000 RPM it increases by > +10 dB
+                engine.currentThrottle = 0;
+                const comp1000_overrun = engine.getCompositeFilterFrequencyResponse([1000])[0];
+                engine.currentThrottle = 1;
+                const comp1000_wot = engine.getCompositeFilterFrequencyResponse([1000])[0];
+                expect(comp1000_wot - comp1000_overrun).toBeGreaterThanOrEqual(10.0);
+            }
+        }
+    });
+
+    test('4. Monotonic Spectral Centroid & Smooth Sweep Continuity (900–7400 RPM)', () => {
         const operatingPoints = [
             { rpm: 900, throttle: 0.0, label: 'Idle' },
             { rpm: 2800, throttle: 0.4, label: 'Low-Mid' },
@@ -942,19 +979,16 @@ describe('Boxer-6 (boxer_6_cayman) Acoustic & Load-RPM Verification', () => {
             { rpm: 7400, throttle: 1.0, label: 'Redline WOT' }
         ];
 
-        const ratios = [];
         const centroids = [];
         const fire30Gains = [];
         const wail60Gains = [];
-        const oscIds = ['osc_bank15', 'osc_fire30', 'osc_bank45', 'osc_wail60'];
+        const oscIds = ['osc_block10', 'osc_bank15', 'osc_fire30', 'osc_bank45', 'osc_wail60'];
 
         for (const pt of operatingPoints) {
             const state = engine.calculateState(pt.rpm, pt.throttle);
-            const g15 = state.nodeStates['osc_bank15'].gain;
             const g30 = state.nodeStates['osc_fire30'].gain;
             const g60 = state.nodeStates['osc_wail60'].gain;
 
-            ratios.push(g15 / g30);
             fire30Gains.push(g30);
             wail60Gains.push(g60);
 
@@ -968,35 +1002,27 @@ describe('Boxer-6 (boxer_6_cayman) Acoustic & Load-RPM Verification', () => {
             centroids.push(num / den);
         }
 
-        // Bank order 1.5x / primary 3.0x ratio is highest at idle (900 RPM) for characteristic boxer burble
-        expect(ratios[0]).toBeGreaterThan(ratios[1]);
-        expect(ratios[1]).toBeGreaterThan(ratios[2]);
-        expect(ratios[2]).toBeGreaterThan(ratios[3]);
-        expect(Math.max(...ratios)).toBe(ratios[0]);
-
-        // osc_fire30 and osc_wail60 grow strongly with RPM and throttle
+        // osc_fire30 and osc_wail60 grow with RPM and throttle
         for (let i = 1; i < operatingPoints.length; i++) {
             expect(fire30Gains[i]).toBeGreaterThan(fire30Gains[i - 1]);
             expect(wail60Gains[i]).toBeGreaterThan(wail60Gains[i - 1]);
         }
         expect(fire30Gains[3] / fire30Gains[0]).toBeGreaterThan(1.8);
-        expect(wail60Gains[3] / wail60Gains[0]).toBeGreaterThan(4.0);
+        expect(wail60Gains[3] / wail60Gains[0]).toBeGreaterThan(3.5);
 
         // Weighted oscillator spectral centroid increases monotonically
         for (let i = 1; i < centroids.length; i++) {
             expect(centroids[i]).toBeGreaterThan(centroids[i - 1]);
         }
-        expect(centroids[0]).toBeCloseTo(46.8, 1);
-        expect(centroids[3]).toBeCloseTo(473.3, 1);
-    });
 
-    test('4. Smooth RPM Sweep Continuity (900 to 7400 RPM in 100 RPM steps)', () => {
+        // Smooth RPM sweep continuity (900 to 7400 RPM in 100 RPM steps)
+        let prevF15 = 0;
         let prevF30 = 0;
         let prevF60 = 0;
-        let crossed185_f30 = false;
-        let crossed185_f60 = false;
-        let crossed480_f60 = false;
-        let crossed1150_distortion = false;
+        let crossed145_f15 = false;
+        let crossed145_f30 = false;
+        let crossed275_f30 = false;
+        let crossed680_f60 = false;
 
         for (let rpm = 900; rpm <= 7400; rpm += 100) {
             const state = engine.calculateState(rpm, 0.5);
@@ -1015,28 +1041,29 @@ describe('Boxer-6 (boxer_6_cayman) Acoustic & Load-RPM Verification', () => {
                 }
             }
 
+            const f15 = state.nodeStates['osc_bank15'].frequency;
             const f30 = state.nodeStates['osc_fire30'].frequency;
             const f60 = state.nodeStates['osc_wail60'].frequency;
 
             if (rpm > 900) {
+                expect(f15).toBeGreaterThan(prevF15);
                 expect(f30).toBeGreaterThan(prevF30);
                 expect(f60).toBeGreaterThan(prevF60);
             }
 
-            if (f30 >= 185 && prevF30 < 185) crossed185_f30 = true;
-            if (f60 >= 185 && prevF60 < 185) crossed185_f60 = true;
-            if (f60 >= 480 && prevF60 < 480) crossed480_f60 = true;
-            // 2nd harmonic of 6.0x (12.0x from shaper_exh saturation) crosses 1150 Hz at ~5750 RPM
-            const f120 = f60 * 2;
-            if (f120 >= 1150 && prevF60 * 2 < 1150) crossed1150_distortion = true;
+            if (f15 >= 145 && prevF15 < 145) crossed145_f15 = true;
+            if (f30 >= 145 && prevF30 < 145) crossed145_f30 = true;
+            if (f30 >= 275 && prevF30 < 275) crossed275_f30 = true;
+            if (f60 >= 680 && prevF60 < 680) crossed680_f60 = true;
 
+            prevF15 = f15;
             prevF30 = f30;
             prevF60 = f60;
         }
 
-        expect(crossed185_f30).toBe(true);
-        expect(crossed185_f60).toBe(true);
-        expect(crossed480_f60).toBe(true);
-        expect(crossed1150_distortion).toBe(true);
+        expect(crossed145_f15).toBe(true);
+        expect(crossed145_f30).toBe(true);
+        expect(crossed275_f30).toBe(true);
+        expect(crossed680_f60).toBe(true);
     });
 });

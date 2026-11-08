@@ -350,10 +350,10 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         const presetSelect = page.locator('#preset-select');
         await presetSelect.selectOption('boxer_6_cayman');
 
-        // Verify patch name and node count (12 nodes)
+        // Verify patch name and node count (13 nodes)
         const patchName = await page.evaluate(() => window.engine.patch.name);
         expect(patchName).toBe('Boxer-6 (987.2 Flat-6 Acoustic Model)');
-        await expect(page.locator('.node-card')).toHaveCount(12);
+        await expect(page.locator('.node-card')).toHaveCount(13);
 
         // Start Audio
         const btnIgnition = page.locator('#btn-ignition');
@@ -386,10 +386,15 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
 
                 let peak = 0;
                 let sumSq = 0;
+                let maxSlew = 0;
                 for (let i = 0; i < timeData.length; i++) {
                     const absVal = Math.abs(timeData[i]);
                     if (absVal > peak) peak = absVal;
                     sumSq += absVal * absVal;
+                    if (i > 0) {
+                        const slew = Math.abs(timeData[i] - timeData[i - 1]);
+                        if (slew > maxSlew) maxSlew = slew;
+                    }
                 }
                 const rms = Math.sqrt(sumSq / timeData.length);
                 const crestFactor = rms > 0 ? (peak / rms) : 0;
@@ -398,6 +403,8 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
                 analyser.getFloatFrequencyData(freqData);
 
                 const binWidth = (sampleRate / 2) / analyser.frequencyBinCount;
+                let bodyBandEnergy = 0;
+                let harshHighEnergy = 0;
                 let highBandEnergy = 0;
                 let numCentroid = 0;
                 let denCentroid = 0;
@@ -405,8 +412,16 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
                 for (let i = 0; i < freqData.length; i++) {
                     const binFreq = i * binWidth;
                     const linearMag = Math.pow(10, freqData[i] / 20);
+                    const power = linearMag * linearMag;
+
+                    if (binFreq >= 60 && binFreq <= 450) {
+                        bodyBandEnergy += power;
+                    }
+                    if (binFreq >= 2000 && binFreq <= 6000) {
+                        harshHighEnergy += power;
+                    }
                     if (binFreq >= 800 && binFreq <= 2500) {
-                        highBandEnergy += linearMag * linearMag;
+                        highBandEnergy += power;
                     }
                     if (binFreq >= 20 && binFreq <= 10000) {
                         numCentroid += binFreq * linearMag;
@@ -420,11 +435,20 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
                     peak,
                     rms,
                     crestFactor,
+                    maxSlew,
+                    bodyBandEnergy,
+                    harshHighEnergy,
+                    bodyToHighRatio: harshHighEnergy > 0 ? (bodyBandEnergy / harshHighEnergy) : Infinity,
                     highBandEnergy,
                     spectralCentroid
                 };
             });
         };
+
+        const fs = await import('fs');
+        if (!fs.existsSync('verification')) {
+            fs.mkdirSync('verification', { recursive: true });
+        }
 
         // State 1: Idle (900 RPM, 0% Throttle)
         await setOperatingCondition(900, 0);
@@ -432,46 +456,71 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         const telem1 = await getTelemetry();
         console.log('State 1 (Idle 900 RPM, 0%):', telem1);
 
-        // State 2: Low-Mid Pull (2800 RPM, 45% Throttle)
-        await setOperatingCondition(2800, 0.45);
+        // State 2: Mid-Pull (3500 RPM, 50% Throttle)
+        await setOperatingCondition(3500, 0.50);
         await page.screenshot({ path: 'verification/boxer6_2_mid.png', fullPage: true });
+        await page.screenshot({ path: 'verification/boxer6_3500rpm.png', fullPage: true });
         const telem2 = await getTelemetry();
-        console.log('State 2 (Low-Mid 2800 RPM, 45%):', telem2);
+        console.log('State 2 (Mid-Pull 3500 RPM, 50%):', telem2);
 
-        // State 3: High-RPM Overrun (6000 RPM, 0% Throttle)
-        await setOperatingCondition(6000, 0);
+        // State 3: High-RPM Overrun (5000 RPM, 0% Throttle)
+        await setOperatingCondition(5000, 0);
         await page.screenshot({ path: 'verification/boxer6_3_overrun.png', fullPage: true });
         const telem3_overrun = await getTelemetry();
-        console.log('State 3 (Overrun 6000 RPM, 0%):', telem3_overrun);
+        console.log('State 3 (Overrun 5000 RPM, 0%):', telem3_overrun);
 
-        // Additional point for load comparison: 6000 RPM, 100% Throttle
-        await setOperatingCondition(6000, 1.0);
-        const telem3_wot = await getTelemetry();
-        console.log('Load Comparison (6000 RPM, 100% WOT):', telem3_wot);
+        // State 4a: Upper-Mid Pull (5000 RPM, 75% Throttle)
+        await setOperatingCondition(5000, 0.75);
+        await page.screenshot({ path: 'verification/boxer6_5000rpm.png', fullPage: true });
+        const telem4_midpull = await getTelemetry();
+        console.log('State 4a (Upper-Mid Pull 5000 RPM, 75%):', telem4_midpull);
 
-        // State 4: Redline WOT Wail (7400 RPM, 100% Throttle)
+        // State 4b: Redline WOT Wail (7400 RPM, 100% Throttle)
         await setOperatingCondition(7400, 1.0);
         await page.screenshot({ path: 'verification/boxer6_4_wot.png', fullPage: true });
-        const telem4 = await getTelemetry();
-        console.log('State 4 (Redline WOT 7400 RPM, 100%):', telem4);
+        const telem4_wot = await getTelemetry();
+        console.log('State 4b (Redline WOT 7400 RPM, 100%):', telem4_wot);
 
-        // Verify all 4 states have healthy levels and realistic crest factor
-        for (const [idx, telem] of [telem1, telem2, telem3_overrun, telem4].entries()) {
-            expect(telem.peak).toBeGreaterThan(0.02);
-            expect(telem.peak).toBeLessThan(0.99);
-            expect(telem.rms).toBeGreaterThan(0.005);
-            expect(telem.crestFactor).toBeGreaterThanOrEqual(1.2);
-            expect(telem.crestFactor).toBeLessThanOrEqual(4.5);
+        // Copy screenshots to /media/documents/2025/gemini_scratch/audio_tuner_screenshots/
+        const destDir = '/media/documents/2025/gemini_scratch/audio_tuner_screenshots';
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
+        const screenshotFiles = [
+            'boxer6_1_idle.png',
+            'boxer6_2_mid.png',
+            'boxer6_3_overrun.png',
+            'boxer6_4_wot.png',
+            'boxer6_3500rpm.png',
+            'boxer6_5000rpm.png'
+        ];
+        for (const file of screenshotFiles) {
+            const srcPath = `verification/${file}`;
+            if (fs.existsSync(srcPath)) {
+                fs.copyFileSync(srcPath, `${destDir}/${file}`);
+            }
         }
 
-        // Spectral centroid and high-band energy comparisons:
-        // Redline WOT (7400 RPM, 100%) significantly higher than Idle (900 RPM, 0%)
-        expect(telem4.spectralCentroid).toBeGreaterThan(telem1.spectralCentroid);
-        expect(telem4.highBandEnergy).toBeGreaterThan(telem1.highBandEnergy);
+        // Verify healthy levels, crest factor, and waveform smoothness (no digital discontinuities)
+        const allTelems = [telem1, telem2, telem3_overrun, telem4_midpull, telem4_wot];
+        for (const telem of allTelems) {
+            expect(telem.peak).toBeGreaterThan(0.05);
+            expect(telem.peak).toBeLessThan(0.98);
+            expect(telem.crestFactor).toBeGreaterThanOrEqual(1.2);
+            expect(telem.crestFactor).toBeLessThanOrEqual(4.0);
+            // Slew rate check: sample-to-sample difference should be smooth (< 0.25)
+            expect(telem.maxSlew).toBeLessThan(0.25);
+        }
 
-        // 6000 RPM 100% WOT higher than 6000 RPM 0% Overrun
-        expect(telem3_wot.highBandEnergy).toBeGreaterThan(telem3_overrun.highBandEnergy);
-        expect(telem3_wot.spectralCentroid).toBeGreaterThan(telem3_overrun.spectralCentroid);
+        // Body Band Energy (60–450 Hz) vs Harsh High Band Energy (2000–6000 Hz)
+        // At 3500 RPM (50% throttle) and 5000 RPM (75% throttle):
+        // Body Band Energy is at least 10x greater than 2000–6000 Hz energy
+        expect(telem2.bodyToHighRatio).toBeGreaterThanOrEqual(10.0);
+        expect(telem4_midpull.bodyToHighRatio).toBeGreaterThanOrEqual(10.0);
+
+        // Verify load sensitivity and spectral progression
+        expect(telem4_midpull.highBandEnergy).toBeGreaterThan(telem3_overrun.highBandEnergy);
+        expect(telem4_wot.spectralCentroid).toBeGreaterThan(telem1.spectralCentroid);
 
         // Stop audio
         await btnIgnition.click();
