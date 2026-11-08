@@ -396,9 +396,6 @@ export class ModularAudioEngine {
             if (partialUpdate.params.noiseType !== undefined && partialUpdate.params.noiseType !== node.params.noiseType) {
                 structuralChange = true;
             }
-            if (partialUpdate.params.curveType !== undefined && partialUpdate.params.curveType !== node.params.curveType) {
-                structuralChange = true;
-            }
             if (partialUpdate.params.filterType !== undefined && partialUpdate.params.filterType !== node.params.filterType) {
                 structuralChange = true;
             }
@@ -406,6 +403,13 @@ export class ModularAudioEngine {
         }
 
         if (this.ctx) {
+            if (node.type === 'waveshaper' && partialUpdate.params && ('drive' in partialUpdate.params || 'curveType' in partialUpdate.params)) {
+                const live = this.audioNodes?.get(nodeId);
+                if (live?.shaperNode) {
+                    live.shaperNode.curve = this._generateWaveShaperCurve(node.params.curveType || 'soft_tanh', node.params.drive ?? 20);
+                }
+            }
+
             if (structuralChange) {
                 this.buildGraph();
             }
@@ -544,6 +548,146 @@ export class ModularAudioEngine {
     }
 
     /**
+     * Compute active nodes taking into account solo states and graph routing.
+     * When hasSolo is true:
+     * - An enabled node X has effectiveActive = true iff:
+     *   a) soloedIds.has(X.id) (the node itself is soloed), OR
+     *   b) Upstream feeder: There exists some S in soloedIds such that canReach(X.id, S) is true,
+     *      AND there is NO S_up in soloedIds such that canReach(S_up, S) is true
+     *      (unless canReach(X.id, S_up) or canReach(S_up, X.id) is also true so X is on the chain feeding S_up -> S), OR
+     *   c) Downstream carrier: There exists some S in soloedIds such that canReach(S, X.id) is true,
+     *      AND there is NO S_down in soloedIds such that canReach(S, S_down) is true
+     *      (unless canReach(X.id, S_down) or canReach(S_down, X.id) is also true so X is on the chain S -> S_down -> master).
+     * 
+     * @returns {Set<string>|null} Set of active node IDs, or null if no enabled node is soloed.
+     */
+    _computeActiveNodesWithSolo() {
+        const nodes = (this.patch && this.patch.nodes) ? this.patch.nodes : [];
+        const enabledNodes = nodes.filter(n => n.enabled !== false);
+        const soloedIds = new Set(enabledNodes.filter(n => n.solo === true).map(n => n.id));
+
+        if (soloedIds.size === 0) {
+            return null;
+        }
+
+        const enabledMap = new Map();
+        for (const node of enabledNodes) {
+            enabledMap.set(node.id, node);
+        }
+
+        // Build adjacency list among enabled nodes, ignoring 'master'
+        const adj = new Map();
+        for (const id of enabledMap.keys()) {
+            adj.set(id, new Set());
+        }
+
+        for (const conn of (this.patch.connections || [])) {
+            if (!conn || conn.from === 'master' || conn.to === 'master') continue;
+            if (enabledMap.has(conn.from) && enabledMap.has(conn.to)) {
+                adj.get(conn.from).add(conn.to);
+            }
+        }
+
+        // Reachability: downstream.get(u) = all enabled nodes reachable from u (path length >= 1)
+        const downstream = new Map();
+        for (const startId of enabledMap.keys()) {
+            const visited = new Set();
+            const queue = [...adj.get(startId)];
+            for (const v of queue) {
+                visited.add(v);
+            }
+            let head = 0;
+            while (head < queue.length) {
+                const curr = queue[head++];
+                for (const next of adj.get(curr)) {
+                    if (!visited.has(next)) {
+                        visited.add(next);
+                        queue.push(next);
+                    }
+                }
+            }
+            downstream.set(startId, visited);
+        }
+
+        const canReach = (fromId, toId) => {
+            const reach = downstream.get(fromId);
+            return reach ? reach.has(toId) : false;
+        };
+
+        const activeIds = new Set();
+
+        for (const node of enabledNodes) {
+            const xId = node.id;
+
+            // a) Node itself is soloed
+            if (soloedIds.has(xId)) {
+                activeIds.add(xId);
+                continue;
+            }
+
+            // b) Upstream feeder:
+            // There exists some S in soloedIds such that canReach(X.id, S) is true,
+            // AND there is NO S_up in soloedIds such that canReach(S_up, S) is true
+            // (unless canReach(X.id, S_up) or canReach(S_up, X.id) is also true)
+            let isUpstreamFeeder = false;
+            for (const sId of soloedIds) {
+                if (canReach(xId, sId)) {
+                    let blocked = false;
+                    for (const sUp of soloedIds) {
+                        if (sUp === sId) continue;
+                        if (canReach(sUp, sId)) {
+                            if (!canReach(xId, sUp) && !canReach(sUp, xId)) {
+                                blocked = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!blocked) {
+                        isUpstreamFeeder = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isUpstreamFeeder) {
+                activeIds.add(xId);
+                continue;
+            }
+
+            // c) Downstream carrier:
+            // There exists some S in soloedIds such that canReach(S, X.id) is true,
+            // AND there is NO S_down in soloedIds such that canReach(S, S_down) is true
+            // (unless canReach(X.id, S_down) or canReach(S_down, X.id) is also true)
+            let isDownstreamCarrier = false;
+            for (const sId of soloedIds) {
+                if (canReach(sId, xId)) {
+                    let blocked = false;
+                    for (const sDown of soloedIds) {
+                        if (sDown === sId) continue;
+                        if (canReach(sId, sDown)) {
+                            if (!canReach(xId, sDown) && !canReach(sDown, xId)) {
+                                blocked = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!blocked) {
+                        isDownstreamCarrier = true;
+                        break;
+                    }
+                }
+            }
+
+            if (isDownstreamCarrier) {
+                activeIds.add(xId);
+                continue;
+            }
+        }
+
+        return activeIds;
+    }
+
+    /**
      * Pure function (requires no AudioContext) that calculates the exact state
      * of every node in the patch for given RPM and throttle values.
      * 
@@ -563,14 +707,15 @@ export class ModularAudioEngine {
         const firingFreq = f0 * (cylinders / 2);
         const rpmNorm = Math.max(0, Math.min(1, (currentRPM - baseRPM) / Math.max(1, redlineRPM - baseRPM)));
 
-        const hasSolo = this.patch.nodes.some(n => n.solo === true && n.enabled !== false);
+        const activeSoloSet = this._computeActiveNodesWithSolo();
+        const hasSolo = activeSoloSet !== null;
         const nodeStates = {};
 
         for (const node of this.patch.nodes) {
             const isEnabled = node.enabled !== false;
             const isSoloed = !!node.solo;
             const isBypassed = !!node.bypass;
-            const effectiveActive = hasSolo ? (isEnabled && isSoloed) : isEnabled;
+            const effectiveActive = hasSolo ? (isEnabled && activeSoloSet.has(node.id)) : isEnabled;
             const p = node.params || {};
 
             const state = {
@@ -631,6 +776,7 @@ export class ModularAudioEngine {
                 state.delayTime = delayMs / 1000;
                 state.feedback = p.feedback !== undefined ? p.feedback : -0.5;
                 state.mix = isBypassed ? 0 : (p.mix !== undefined ? p.mix : 0.5);
+                state.outGain = effectiveActive ? 1.0 : 0;
             }
 
             nodeStates[node.id] = state;
@@ -796,6 +942,175 @@ export class ModularAudioEngine {
     }
 
     /**
+     * Map RBJ Audio EQ Cookbook dimensionless Q to Web Audio BiquadFilterNode Q value.
+     * In Web Audio API specification:
+     * - 'lowpass' and 'highpass' Q values are defined in decibels:
+     *   alpha = sin(w0) / (2 * 10^(Q_db / 20))
+     *   Hence Q_db = 20 * log10(Q_dimensionless).
+     * - 'bandpass', 'peaking', 'notch', and 'allpass' Q values are dimensionless.
+     *
+     * @param {string} filterType Filter type string (e.g. 'lowpass', 'highpass', 'peaking')
+     * @param {number} q Dimensionless RBJ quality factor
+     * @returns {number} Value to assign to Web Audio BiquadFilterNode.Q
+     */
+    _toWebAudioQ(filterType, q) {
+        const safeQ = Math.max(0.001, Number(q) || 1.0);
+        if (filterType === 'lowpass' || filterType === 'highpass') {
+            return 20 * Math.log10(safeQ);
+        }
+        return safeQ;
+    }
+
+    /**
+     * Compute composite frequency response across all active filter nodes in the graph,
+     * accounting for patch topology (series cascading vs. parallel summing).
+     *
+     * @param {Float32Array|number[]} freqHzArray Array of frequencies in Hz
+     * @returns {Float32Array} Composite magnitude response in dB
+     */
+    getCompositeFilterFrequencyResponse(freqHzArray) {
+        const floatArray = (freqHzArray instanceof Float32Array) ? freqHzArray : new Float32Array(freqHzArray);
+        const calcState = this.calculateState(this.currentRPM, this.currentThrottle);
+        const nodes = (this.patch && Array.isArray(this.patch.nodes)) ? this.patch.nodes : [];
+        const activeFilters = nodes.filter(n => n.type === 'filter' && calcState.nodeStates[n.id]?.active);
+
+        if (activeFilters.length === 0) {
+            return new Float32Array(floatArray.length).fill(0);
+        }
+
+        const g = new Map();
+        for (const F of activeFilters) {
+            const db = this.getFilterFrequencyResponse(F.id, floatArray);
+            const outGain = F.bypass ? 1.0 : (calcState.nodeStates[F.id]?.outGain ?? 1.0);
+            const g_F = new Float32Array(floatArray.length);
+            for (let i = 0; i < floatArray.length; i++) {
+                g_F[i] = outGain * Math.pow(10, db[i] / 20);
+            }
+            g.set(F.id, g_F);
+        }
+
+        const activeFilterIds = new Set(activeFilters.map(n => n.id));
+        const downstreamMap = new Map();
+        const upstreamMap = new Map();
+        for (const F of activeFilters) {
+            downstreamMap.set(F.id, new Set());
+            upstreamMap.set(F.id, new Set());
+        }
+
+        const connections = (this.patch && Array.isArray(this.patch.connections)) ? this.patch.connections : [];
+
+        for (const U of activeFilters) {
+            const visited = new Set();
+            const queue = [U.id];
+            visited.add(U.id);
+
+            while (queue.length > 0) {
+                const currId = queue.shift();
+                for (const conn of connections) {
+                    if (!conn || conn.from !== currId) continue;
+                    const nextId = conn.to;
+                    if (!nextId || nextId === 'master') continue;
+
+                    if (activeFilterIds.has(nextId)) {
+                        if (nextId !== U.id) {
+                            downstreamMap.get(U.id).add(nextId);
+                            upstreamMap.get(nextId).add(U.id);
+                        }
+                    } else {
+                        const nodeState = calcState.nodeStates[nextId];
+                        if (nodeState && nodeState.active && !visited.has(nextId)) {
+                            visited.add(nextId);
+                            queue.push(nextId);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Topological sort of active filters using Kahn's algorithm
+        const inDegree = new Map();
+        for (const F of activeFilters) {
+            inDegree.set(F.id, upstreamMap.get(F.id).size);
+        }
+
+        const queue = [];
+        for (const F of activeFilters) {
+            if (inDegree.get(F.id) === 0) {
+                queue.push(F.id);
+            }
+        }
+
+        const topoOrder = [];
+        while (queue.length > 0) {
+            const uId = queue.shift();
+            topoOrder.push(uId);
+
+            for (const vId of downstreamMap.get(uId)) {
+                const newDeg = inDegree.get(vId) - 1;
+                inDegree.set(vId, newDeg);
+                if (newDeg === 0) {
+                    queue.push(vId);
+                }
+            }
+        }
+
+        for (const F of activeFilters) {
+            if (!topoOrder.includes(F.id)) {
+                topoOrder.push(F.id);
+            }
+        }
+
+        // Propagate linear transfer magnitudes T through the active filters DAG
+        const T = new Map();
+        for (const nodeId of topoOrder) {
+            const upstream = Array.from(upstreamMap.get(nodeId) || []);
+            const g_F = g.get(nodeId);
+            const T_F = new Float32Array(floatArray.length);
+
+            if (upstream.length === 0) {
+                for (let i = 0; i < floatArray.length; i++) {
+                    T_F[i] = g_F[i];
+                }
+            } else {
+                for (let i = 0; i < floatArray.length; i++) {
+                    let sumUp = 0;
+                    for (const uId of upstream) {
+                        const T_u = T.get(uId);
+                        if (T_u) {
+                            sumUp += T_u[i];
+                        }
+                    }
+                    T_F[i] = sumUp * g_F[i];
+                }
+            }
+            T.set(nodeId, T_F);
+        }
+
+        // Sum T[F.id][i] across all terminal active filters (nodes with no downstream active filters)
+        let terminalFilters = activeFilters.filter(F => downstreamMap.get(F.id).size === 0);
+        if (terminalFilters.length === 0) {
+            terminalFilters = activeFilters;
+        }
+
+        const totalMag = new Float32Array(floatArray.length);
+        for (const F of terminalFilters) {
+            const T_F = T.get(F.id);
+            if (T_F) {
+                for (let i = 0; i < floatArray.length; i++) {
+                    totalMag[i] += T_F[i];
+                }
+            }
+        }
+
+        const compositeDb = new Float32Array(floatArray.length);
+        for (let i = 0; i < floatArray.length; i++) {
+            compositeDb[i] = 20 * Math.log10(Math.max(1e-6, totalMag[i]));
+        }
+
+        return compositeDb;
+    }
+
+    /**
      * Web Audio lifecycle initialization / start.
      */
     init() {
@@ -927,7 +1242,8 @@ export class ModularAudioEngine {
                 const biquad = this.ctx.createBiquadFilter();
                 biquad.type = p.filterType || 'peaking';
                 biquad.frequency.setValueAtTime(p.frequency ?? 500, this.ctx.currentTime);
-                biquad.Q.setValueAtTime(p.Q ?? 2.0, this.ctx.currentTime);
+                const webQ = this._toWebAudioQ(biquad.type, p.Q ?? 2.0);
+                biquad.Q.setValueAtTime(webQ, this.ctx.currentTime);
                 biquad.gain.setValueAtTime(p.filterGain ?? 6.0, this.ctx.currentTime);
 
                 const wetGain = this.ctx.createGain();
@@ -1086,7 +1402,8 @@ export class ModularAudioEngine {
                     live.gainNode.gain.setValueAtTime(st.gain, t);
                 } else if (node.type === 'filter') {
                     live.filterNode.frequency.setValueAtTime(st.frequency, t);
-                    live.filterNode.Q.setValueAtTime(st.Q, t);
+                    const webQ = this._toWebAudioQ(st.filterType, st.Q);
+                    live.filterNode.Q.setValueAtTime(webQ, t);
                     live.filterNode.gain.setValueAtTime(st.filterGain, t);
                     live.outGain.gain.setValueAtTime(st.outGain, t);
 
@@ -1108,6 +1425,7 @@ export class ModularAudioEngine {
                     live.feedbackNode.gain.setValueAtTime(st.feedback, t);
                     live.wetGain.gain.setValueAtTime(st.mix, t);
                     live.dryGain.gain.setValueAtTime(1 - st.mix, t);
+                    live.output.gain.setValueAtTime(st.outGain, t);
                 }
             }
         }

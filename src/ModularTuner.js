@@ -1024,7 +1024,6 @@ function renderSpectrumAndFilterResponse() {
     }
 
     const filterNodes = engine.patch.nodes.filter(n => n.type === 'filter' && n.enabled);
-    const compositeDb = new Float32Array(numPoints).fill(0);
 
     // Draw each active filter curve
     let filterColorIndex = 0;
@@ -1041,7 +1040,6 @@ function renderSpectrumAndFilterResponse() {
         for (let i = 0; i < numPoints; i++) {
             const x = freqToX(testFreqs[i]);
             const y = dbToY(responseDb[i]);
-            compositeDb[i] += responseDb[i];
 
             if (i === 0) spectrumCtx.moveTo(x, y);
             else spectrumCtx.lineTo(x, y);
@@ -1049,8 +1047,9 @@ function renderSpectrumAndFilterResponse() {
         spectrumCtx.stroke();
     }
 
-    // Composite Series Response Curve (yellow/amber curve) if multiple filters
+    // Composite Response Curve (yellow/amber curve) if multiple filters
     if (filterNodes.length > 1) {
+        const compositeDb = engine.getCompositeFilterFrequencyResponse(testFreqs);
         spectrumCtx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
         spectrumCtx.lineWidth = 1.5;
         spectrumCtx.setLineDash([2, 2]);

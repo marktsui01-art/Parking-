@@ -334,7 +334,7 @@ describe('ModularAudioEngine - calculateState Modulation Math', () => {
 });
 
 describe('ModularAudioEngine - Solo, Mute, and Bypass Logic', () => {
-    test('Soloing a node mutes non-soloed nodes', () => {
+    test('Soloing osc_1 in series_peaking_formants mutes sibling oscillators while keeping downstream chain active', () => {
         const engine = new ModularAudioEngine('series_peaking_formants');
         // Solo osc_1
         engine.updateNode('osc_1', { solo: true });
@@ -352,11 +352,69 @@ describe('ModularAudioEngine - Solo, Mute, and Bypass Logic', () => {
         expect(st.nodeStates['osc_3'].active).toBe(false);
         expect(st.nodeStates['osc_3'].gain).toBe(0);
 
+        // Downstream chain nodes must remain active
+        const downstreamIds = ['shaper_1', 'flt_f1', 'flt_f2', 'flt_f3', 'flt_load'];
+        for (const id of downstreamIds) {
+            expect(st.nodeStates[id].active).toBe(true);
+        }
+
         // Unsoloing restores normal state
         engine.updateNode('osc_1', { solo: false });
         const stRestored = engine.calculateState(3000, 0.5);
         expect(stRestored.hasSolo).toBe(false);
         expect(stRestored.nodeStates['osc_2'].gain).toBeGreaterThan(0);
+        expect(stRestored.nodeStates['osc_3'].gain).toBeGreaterThan(0);
+    });
+
+    test('Soloing flt_bp2 in parallel_bandpass_bank keeps upstream sources and flt_bp2 active while muting sibling filters', () => {
+        const engine = new ModularAudioEngine('parallel_bandpass_bank');
+        engine.updateNode('flt_bp2', { solo: true });
+
+        const st = engine.calculateState(3000, 0.5);
+        expect(st.hasSolo).toBe(true);
+
+        // Upstream sources must remain active
+        expect(st.nodeStates['osc_1'].active).toBe(true);
+        expect(st.nodeStates['osc_1'].gain).toBeGreaterThan(0);
+        expect(st.nodeStates['osc_2'].active).toBe(true);
+        expect(st.nodeStates['osc_2'].gain).toBeGreaterThan(0);
+        expect(st.nodeStates['noise_1'].active).toBe(true);
+        expect(st.nodeStates['noise_1'].gain).toBeGreaterThan(0);
+
+        // flt_bp2 is soloed and active
+        expect(st.nodeStates['flt_bp2'].active).toBe(true);
+        expect(st.nodeStates['flt_bp2'].outGain).toBeGreaterThan(0);
+
+        // Sibling filters flt_bp1 and flt_bp3 must be muted
+        expect(st.nodeStates['flt_bp1'].active).toBe(false);
+        expect(st.nodeStates['flt_bp1'].outGain).toBe(0);
+        expect(st.nodeStates['flt_bp3'].active).toBe(false);
+        expect(st.nodeStates['flt_bp3'].outGain).toBe(0);
+    });
+
+    test('Soloing both osc_1 and flt_bp2 in parallel_bandpass_bank isolates single path and mutes other sources and filters', () => {
+        const engine = new ModularAudioEngine('parallel_bandpass_bank');
+        engine.updateNode('osc_1', { solo: true });
+        engine.updateNode('flt_bp2', { solo: true });
+
+        const st = engine.calculateState(3000, 0.5);
+        expect(st.hasSolo).toBe(true);
+
+        // Only osc_1 and flt_bp2 remain active
+        expect(st.nodeStates['osc_1'].active).toBe(true);
+        expect(st.nodeStates['osc_1'].gain).toBeGreaterThan(0);
+        expect(st.nodeStates['flt_bp2'].active).toBe(true);
+        expect(st.nodeStates['flt_bp2'].outGain).toBeGreaterThan(0);
+
+        // osc_2, noise_1, flt_bp1, and flt_bp3 must be muted
+        expect(st.nodeStates['osc_2'].active).toBe(false);
+        expect(st.nodeStates['osc_2'].gain).toBe(0);
+        expect(st.nodeStates['noise_1'].active).toBe(false);
+        expect(st.nodeStates['noise_1'].gain).toBe(0);
+        expect(st.nodeStates['flt_bp1'].active).toBe(false);
+        expect(st.nodeStates['flt_bp1'].outGain).toBe(0);
+        expect(st.nodeStates['flt_bp3'].active).toBe(false);
+        expect(st.nodeStates['flt_bp3'].outGain).toBe(0);
     });
 
     test('Disabled node has active=false and gain=0', () => {
@@ -454,7 +512,141 @@ describe('ModularAudioEngine - Biquad Frequency Response & Filter Fallback', () 
     });
 });
 
+describe('ModularAudioEngine - Topology-Aware Composite Filter Response', () => {
+    test('Series chain composite dB response equals the sum of individual filter dB responses', () => {
+        const engine = new ModularAudioEngine('series_peaking_formants');
+        const testFreqs = new Float32Array([100, 160, 520, 800, 1250, 3000]);
+        const compositeDb = engine.getCompositeFilterFrequencyResponse(testFreqs);
+
+        const activeFilters = engine.patch.nodes.filter(n => n.type === 'filter' && n.enabled);
+        expect(activeFilters.length).toBe(4);
+
+        const individualDbs = activeFilters.map(f => engine.getFilterFrequencyResponse(f.id, testFreqs));
+
+        expect(compositeDb.length).toBe(testFreqs.length);
+        for (let i = 0; i < testFreqs.length; i++) {
+            let expectedSum = 0;
+            for (const indDb of individualDbs) {
+                expectedSum += indDb[i];
+            }
+            expect(compositeDb[i]).toBeCloseTo(expectedSum, 3);
+        }
+    });
+
+    test('Parallel bandpass bank preserves strong passband peaks > -6 dB instead of summing stopband attenuation', () => {
+        const engine = new ModularAudioEngine('parallel_bandpass_bank');
+        const centerFreqs = new Float32Array([220, 780, 1650]);
+        const compositeDb = engine.getCompositeFilterFrequencyResponse(centerFreqs);
+
+        // Verify that composite response at resonant center frequencies exhibits strong peaks (> -6 dB)
+        for (let i = 0; i < centerFreqs.length; i++) {
+            expect(compositeDb[i]).toBeGreaterThan(-6.0);
+        }
+
+        // Contrast with naive dB summing where stopbands add to <= -40 dB
+        const activeFilters = engine.patch.nodes.filter(n => n.type === 'filter' && n.enabled);
+        const individualDbs = activeFilters.map(f => engine.getFilterFrequencyResponse(f.id, centerFreqs));
+        for (let i = 0; i < centerFreqs.length; i++) {
+            let naiveSum = 0;
+            for (const indDb of individualDbs) {
+                naiveSum += indDb[i];
+            }
+            expect(naiveSum).toBeLessThan(-40);
+        }
+    });
+
+    test('Returns array of zeros when no active filters are present', () => {
+        const engine = new ModularAudioEngine('blank_canvas');
+        engine.updateNode('flt_1', { enabled: false });
+
+        const testFreqs = new Float32Array([100, 500, 1000]);
+        const compositeDb = engine.getCompositeFilterFrequencyResponse(testFreqs);
+
+        expect(compositeDb.length).toBe(testFreqs.length);
+        for (let i = 0; i < compositeDb.length; i++) {
+            expect(compositeDb[i]).toBe(0);
+        }
+    });
+
+    test('Propagates series reachability through intermediate non-filter nodes', () => {
+        const engine = new ModularAudioEngine('blank_canvas');
+        // flt_1 is lowpass at 1200 Hz
+        // Add a gain node and a second filter flt_2
+        const gainNode = engine.addNode('gain', { gain: 1.0 }, 'Inter Gain');
+        const flt2 = engine.addNode('filter', { filterType: 'highpass', frequency: 300, Q: 1.0 }, 'Post Highpass');
+
+        // Rewire: osc_1 -> flt_1 -> gainNode -> flt2 -> master
+        engine.disconnect('flt_1', 'master');
+        engine.connect('flt_1', gainNode.id);
+        engine.connect(gainNode.id, flt2.id);
+        engine.connect(flt2.id, 'master');
+
+        const testFreqs = new Float32Array([200, 600, 2000]);
+        const compositeDb = engine.getCompositeFilterFrequencyResponse(testFreqs);
+
+        const db1 = engine.getFilterFrequencyResponse('flt_1', testFreqs);
+        const db2 = engine.getFilterFrequencyResponse(flt2.id, testFreqs);
+
+        for (let i = 0; i < testFreqs.length; i++) {
+            expect(compositeDb[i]).toBeCloseTo(db1[i] + db2[i], 3);
+        }
+    });
+});
+
 describe('ModularAudioEngine - Web Audio Lifecycle & Mock Integration', () => {
+    class MockAudioNode {
+        constructor() {
+            const gain = { setValueAtTime: jest.fn((v) => { gain.value = v; }), value: 1 };
+            this.gain = gain;
+            const frequency = { setValueAtTime: jest.fn((v) => { frequency.value = v; }), value: 440 };
+            this.frequency = frequency;
+            const detune = { setValueAtTime: jest.fn((v) => { detune.value = v; }), value: 0 };
+            this.detune = detune;
+            const Q = { setValueAtTime: jest.fn((v) => { Q.value = v; }), value: 1 };
+            this.Q = Q;
+            const delayTime = { setValueAtTime: jest.fn((v) => { delayTime.value = v; }), value: 0 };
+            this.delayTime = delayTime;
+        }
+        connect = jest.fn();
+        disconnect = jest.fn();
+        start = jest.fn();
+        stop = jest.fn();
+    }
+
+    class MockBiquadFilter extends MockAudioNode {
+        getFrequencyResponse = jest.fn((freqs, magOutput, phaseOutput) => {
+            for (let i = 0; i < freqs.length; i++) {
+                magOutput[i] = 1.0; // 0 dB
+                phaseOutput[i] = 0;
+            }
+        });
+    }
+
+    class MockAudioContext {
+        currentTime = 0;
+        sampleRate = 48000;
+        state = 'running';
+        destination = new MockAudioNode();
+        createGain() { return new MockAudioNode(); }
+        createOscillator() { return new MockAudioNode(); }
+        createBiquadFilter() { return new MockBiquadFilter(); }
+        createWaveShaper() { return new MockAudioNode(); }
+        createDelay() { return new MockAudioNode(); }
+        createBufferSource() { return new MockAudioNode(); }
+        createAnalyser() {
+            const a = new MockAudioNode();
+            a.fftSize = 2048;
+            return a;
+        }
+        createBuffer(channels, length, sampleRate) {
+            return {
+                getChannelData: () => new Float32Array(length)
+            };
+        }
+        close = jest.fn().mockResolvedValue();
+        resume = jest.fn().mockResolvedValue();
+    }
+
     test('Gracefully handles init and stop in environments without native AudioContext', () => {
         const engine = new ModularAudioEngine('blank_canvas');
         expect(engine.isPlaying).toBe(false);
@@ -469,55 +661,6 @@ describe('ModularAudioEngine - Web Audio Lifecycle & Mock Integration', () => {
     });
 
     test('Integrates with Web Audio mock context if present', () => {
-        // Construct a mock AudioContext
-        class MockAudioNode {
-            constructor() {
-                this.gain = { setValueAtTime: jest.fn(), value: 1 };
-                this.frequency = { setValueAtTime: jest.fn(), value: 440 };
-                this.detune = { setValueAtTime: jest.fn(), value: 0 };
-                this.Q = { setValueAtTime: jest.fn(), value: 1 };
-                this.delayTime = { setValueAtTime: jest.fn(), value: 0 };
-            }
-            connect = jest.fn();
-            disconnect = jest.fn();
-            start = jest.fn();
-            stop = jest.fn();
-        }
-
-        class MockBiquadFilter extends MockAudioNode {
-            getFrequencyResponse = jest.fn((freqs, magOutput, phaseOutput) => {
-                for (let i = 0; i < freqs.length; i++) {
-                    magOutput[i] = 1.0; // 0 dB
-                    phaseOutput[i] = 0;
-                }
-            });
-        }
-
-        class MockAudioContext {
-            currentTime = 0;
-            sampleRate = 48000;
-            state = 'running';
-            destination = new MockAudioNode();
-            createGain() { return new MockAudioNode(); }
-            createOscillator() { return new MockAudioNode(); }
-            createBiquadFilter() { return new MockBiquadFilter(); }
-            createWaveShaper() { return new MockAudioNode(); }
-            createDelay() { return new MockAudioNode(); }
-            createBufferSource() { return new MockAudioNode(); }
-            createAnalyser() {
-                const a = new MockAudioNode();
-                a.fftSize = 2048;
-                return a;
-            }
-            createBuffer(channels, length, sampleRate) {
-                return {
-                    getChannelData: () => new Float32Array(length)
-                };
-            }
-            close = jest.fn().mockResolvedValue();
-            resume = jest.fn().mockResolvedValue();
-        }
-
         globalThis.AudioContext = MockAudioContext;
 
         const engine = new ModularAudioEngine('blank_canvas');
@@ -544,5 +687,170 @@ describe('ModularAudioEngine - Web Audio Lifecycle & Mock Integration', () => {
         expect(engine.ctx).toBeNull();
 
         delete globalThis.AudioContext;
+    });
+
+    test('Live WaveShaperNode drive curve regeneration updates curve in place when active', () => {
+        globalThis.AudioContext = MockAudioContext;
+        try {
+            const engine = new ModularAudioEngine('series_peaking_formants');
+            engine.init();
+
+            const shaperNodeObj = engine.audioNodes.get('shaper_1');
+            expect(shaperNodeObj).toBeDefined();
+            expect(shaperNodeObj.shaperNode).toBeDefined();
+
+            const initialCurve = shaperNodeObj.shaperNode.curve;
+            expect(initialCurve).toBeInstanceOf(Float32Array);
+            expect(initialCurve.length).toBe(2048);
+
+            // In soft_tanh with drive: 25, mid-range point (sample index 1228 corresponding to x ~ 0.2)
+            const testIndex = 1228;
+            const initialVal = initialCurve[testIndex];
+
+            // Keep reference to initial oscillator to confirm oscillators are not torn down/recreated
+            const initialOscNode = engine.audioNodes.get('osc_1')?.oscNode;
+            expect(initialOscNode).toBeDefined();
+
+            // Calling updateNode with drive: 80
+            engine.updateNode('shaper_1', { params: { drive: 80 } });
+
+            const updatedLiveShaper = engine.audioNodes.get('shaper_1');
+            expect(updatedLiveShaper).toBe(shaperNodeObj);
+
+            const updatedCurve = updatedLiveShaper.shaperNode.curve;
+            expect(updatedCurve).toBeInstanceOf(Float32Array);
+            expect(updatedCurve).not.toBe(initialCurve);
+            expect(updatedCurve.length).toBe(2048);
+
+            // With higher drive saturation (80 vs 25), the transfer curve saturates faster towards 1.0
+            expect(updatedCurve[testIndex]).toBeGreaterThan(initialVal);
+
+            // Confirm graph was not rebuilt (oscillator instance unchanged)
+            expect(engine.audioNodes.get('osc_1')?.oscNode).toBe(initialOscNode);
+
+            // Confirm patch node params reflect the update
+            const patchNode = engine.patch.nodes.find(n => n.id === 'shaper_1');
+            expect(patchNode.params.drive).toBe(80);
+
+            // Also test live curveType change in place
+            engine.updateNode('shaper_1', { params: { curveType: 'hard_clip' } });
+            const hardClipCurve = engine.audioNodes.get('shaper_1').shaperNode.curve;
+            expect(hardClipCurve).not.toBe(updatedCurve);
+            expect(hardClipCurve).toBeInstanceOf(Float32Array);
+            expect(engine.audioNodes.get('osc_1')?.oscNode).toBe(initialOscNode);
+
+            engine.stop();
+        } finally {
+            delete globalThis.AudioContext;
+        }
+    });
+
+    test('Muting a delay node sets outGain to 0 and updates live output gain to 0', () => {
+        globalThis.AudioContext = MockAudioContext;
+        try {
+            const engine = new ModularAudioEngine('comb_waveguide_lab');
+
+            // Verify state when enabled
+            let state = engine.calculateState(3000, 0.5);
+            expect(state.nodeStates['delay_1'].enabled).toBe(true);
+            expect(state.nodeStates['delay_1'].outGain).toBe(1);
+
+            // Verify state when muted (enabled: false)
+            engine.updateNode('delay_1', { enabled: false });
+            state = engine.calculateState(3000, 0.5);
+            expect(state.nodeStates['delay_1'].enabled).toBe(false);
+            expect(state.nodeStates['delay_1'].outGain).toBe(0);
+
+            // Verify state when re-enabled
+            engine.updateNode('delay_1', { enabled: true });
+            state = engine.calculateState(3000, 0.5);
+            expect(state.nodeStates['delay_1'].enabled).toBe(true);
+            expect(state.nodeStates['delay_1'].outGain).toBe(1);
+
+            // Initialize engine with mock AudioContext
+            engine.init();
+            const delayLive = engine.audioNodes.get('delay_1');
+            expect(delayLive).toBeDefined();
+            expect(delayLive.output.gain.value).toBe(1);
+
+            // Muting delay_1 while engine is active updates live output gain value to 0
+            engine.updateNode('delay_1', { enabled: false });
+            expect(engine.calculateState(3000, 0.5).nodeStates['delay_1'].outGain).toBe(0);
+            expect(delayLive.output.gain.value).toBe(0);
+            expect(delayLive.output.gain.setValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
+
+            // Re-enabling delay_1 restores live output gain value to 1
+            engine.updateNode('delay_1', { enabled: true });
+            expect(engine.calculateState(3000, 0.5).nodeStates['delay_1'].outGain).toBe(1);
+            expect(delayLive.output.gain.value).toBe(1);
+            expect(delayLive.output.gain.setValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
+
+            engine.stop();
+        } finally {
+            delete globalThis.AudioContext;
+        }
+    });
+
+    test('Consistent Q mapping between Web Audio BiquadFilterNode (dB for lowpass/highpass) and RBJ cookbook Q', () => {
+        globalThis.AudioContext = MockAudioContext;
+        try {
+            const engine = new ModularAudioEngine('blank_canvas');
+
+            // 1. Direct verification of _toWebAudioQ helper
+            // Lowpass and highpass: Q_dB = 20 * log10(Q)
+            expect(engine._toWebAudioQ('lowpass', 1.0)).toBeCloseTo(0, 5);
+            expect(engine._toWebAudioQ('lowpass', 0.70710678)).toBeCloseTo(-3.0103, 3);
+            expect(engine._toWebAudioQ('lowpass', 2.0)).toBeCloseTo(6.0206, 3);
+            expect(engine._toWebAudioQ('highpass', 1.0)).toBeCloseTo(0, 5);
+            expect(engine._toWebAudioQ('highpass', 2.0)).toBeCloseTo(6.0206, 3);
+
+            // Peaking and bandpass: dimensionless Q preserved directly
+            expect(engine._toWebAudioQ('peaking', 2.0)).toBe(2.0);
+            expect(engine._toWebAudioQ('peaking', 4.5)).toBe(4.5);
+            expect(engine._toWebAudioQ('bandpass', 3.0)).toBe(3.0);
+            expect(engine._toWebAudioQ('notch', 5.0)).toBe(5.0);
+
+            // 2. Integration in buildGraph() and update() with live filterNode
+            const fltLP = engine.addNode('filter', { filterType: 'lowpass', Q: 1.0, frequency: 1000 }, 'Test LP');
+            const fltHP = engine.addNode('filter', { filterType: 'highpass', Q: 2.0, frequency: 200 }, 'Test HP');
+            const fltPeak = engine.addNode('filter', { filterType: 'peaking', Q: 3.5, frequency: 800 }, 'Test Peak');
+            const fltBP = engine.addNode('filter', { filterType: 'bandpass', Q: 4.0, frequency: 1200 }, 'Test BP');
+
+            engine.connect('osc_1', fltLP.id);
+            engine.connect(fltLP.id, fltHP.id);
+            engine.connect(fltHP.id, fltPeak.id);
+            engine.connect(fltPeak.id, fltBP.id);
+            engine.connect(fltBP.id, 'master');
+
+            engine.init();
+
+            const lpLive = engine.audioNodes.get(fltLP.id);
+            const hpLive = engine.audioNodes.get(fltHP.id);
+            const peakLive = engine.audioNodes.get(fltPeak.id);
+            const bpLive = engine.audioNodes.get(fltBP.id);
+
+            // Verify buildGraph() converted Q values properly for Web Audio biquad
+            expect(lpLive.filterNode.Q.value).toBeCloseTo(0, 5); // 20 * log10(1.0) = 0 dB
+            expect(hpLive.filterNode.Q.value).toBeCloseTo(6.0206, 3); // 20 * log10(2.0) = 6.0206 dB
+            expect(peakLive.filterNode.Q.value).toBe(3.5); // Dimensionless Q
+            expect(bpLive.filterNode.Q.value).toBe(4.0); // Dimensionless Q
+
+            // Update Q via updateNode and update(rpm, throttle)
+            engine.updateNode(fltLP.id, { params: { Q: 0.70710678 } });
+            engine.updateNode(fltHP.id, { params: { Q: 4.0 } });
+            engine.updateNode(fltPeak.id, { params: { Q: 6.0 } });
+            engine.updateNode(fltBP.id, { params: { Q: 8.5 } });
+
+            engine.update(3000, 0.5);
+
+            expect(lpLive.filterNode.Q.value).toBeCloseTo(-3.0103, 3); // 20 * log10(0.70710678) = -3.0103 dB
+            expect(hpLive.filterNode.Q.value).toBeCloseTo(12.0412, 3); // 20 * log10(4.0) = 12.0412 dB
+            expect(peakLive.filterNode.Q.value).toBe(6.0); // Dimensionless Q
+            expect(bpLive.filterNode.Q.value).toBe(8.5); // Dimensionless Q
+
+            engine.stop();
+        } finally {
+            delete globalThis.AudioContext;
+        }
     });
 });
