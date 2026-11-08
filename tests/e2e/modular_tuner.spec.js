@@ -191,4 +191,155 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         expect(fs.existsSync('verification/modular_tuner.png')).toBe(true);
     });
 
+    test('Verifies harmonic multiplier slider (0.5-16.0 step 0.5) and logarithmic scale for freqHz and filter frequency sliders', async ({ page }) => {
+        await page.goto('/src/modular_tuner.html');
+
+        // 1. Oscillator mult slider attributes and readout
+        const multSlider = page.locator('input[data-node-id="osc_1"][data-param="mult"]');
+        await expect(multSlider).toBeVisible();
+        await expect(multSlider).toHaveAttribute('min', '0.5');
+        await expect(multSlider).toHaveAttribute('max', '16');
+        await expect(multSlider).toHaveAttribute('step', '0.5');
+
+        // Check readout format for default mult = 1.0 (should display '1.0x')
+        const multVal = page.locator('#param-val-osc_1-mult');
+        await expect(multVal).toHaveText('1.0x');
+
+        // Verify stepping behavior / readout update
+        await multSlider.fill('2.5');
+        await expect(multVal).toHaveText('2.5x');
+        const oscMult = await page.evaluate(() => {
+            const osc = window.engine.patch.nodes.find(n => n.id === 'osc_1');
+            return osc ? osc.params.mult : null;
+        });
+        expect(oscMult).toBe(2.5);
+
+        // 2. Oscillator freqHz slider attributes
+        const oscFreqSlider = page.locator('input[data-node-id="osc_1"][data-param="freqHz"]');
+        await expect(oscFreqSlider).toBeVisible();
+        await expect(oscFreqSlider).toHaveAttribute('data-scale', 'log');
+        await expect(oscFreqSlider).toHaveAttribute('min', '0');
+        await expect(oscFreqSlider).toHaveAttribute('max', '1000');
+        await expect(oscFreqSlider).toHaveAttribute('step', '1');
+
+        // 3. Filter frequency slider attributes
+        const filterFreqSlider = page.locator('input[data-node-id="flt_f1"][data-param="frequency"]');
+        await expect(filterFreqSlider).toBeVisible();
+        await expect(filterFreqSlider).toHaveAttribute('data-scale', 'log');
+        await expect(filterFreqSlider).toHaveAttribute('min', '0');
+        await expect(filterFreqSlider).toHaveAttribute('max', '1000');
+        await expect(filterFreqSlider).toHaveAttribute('step', '1');
+
+        // Set filter frequency slider to the midpoint (500 out of 1000, i.e. t = 0.5)
+        await filterFreqSlider.fill('500');
+
+        // The readout and data-hz should reflect the geometric mean sqrt(20 * 10000) = 447 Hz
+        await expect(filterFreqSlider).toHaveAttribute('data-hz', '447');
+        const filterVal = page.locator('#param-val-flt_f1-frequency');
+        await expect(filterVal).toHaveText('447 Hz');
+
+        // Cutoff frequency in window.engine.patch.nodes is 447 Hz instead of linear midpoint 5010 Hz
+        const engineCutoffFreq = await page.evaluate(() => {
+            const fltNode = window.engine.patch.nodes.find(n => n.id === 'flt_f1');
+            return fltNode ? fltNode.params.frequency : null;
+        });
+        expect(engineCutoffFreq).toBe(447);
+        expect(engineCutoffFreq).not.toBe(5010);
+
+        // 4. Filter Q slider attributes and midpoint logarithmic scaling
+        const filterQSlider = page.locator('input[data-node-id="flt_f1"][data-param="Q"]');
+        await expect(filterQSlider).toBeVisible();
+        await expect(filterQSlider).toHaveAttribute('data-scale', 'log');
+        await expect(filterQSlider).toHaveAttribute('min', '0');
+        await expect(filterQSlider).toHaveAttribute('max', '1000');
+        await expect(filterQSlider).toHaveAttribute('step', '1');
+
+        // Set filter Q slider to midpoint (500 out of 1000, t = 0.5)
+        await filterQSlider.fill('500');
+
+        // Midpoint: sqrt(0.1 * 25.0) = sqrt(2.5) ≈ 1.581 -> rounded to step 0.1 is 1.6
+        await expect(filterQSlider).toHaveAttribute('data-val', '1.6');
+        const filterQVal = page.locator('#param-val-flt_f1-Q');
+        await expect(filterQVal).toHaveText('1.6');
+
+        const engineQ = await page.evaluate(() => {
+            const fltNode = window.engine.patch.nodes.find(n => n.id === 'flt_f1');
+            return fltNode ? fltNode.params.Q : null;
+        });
+        expect(engineQ).toBe(1.6);
+    });
+
+    test('Verifies triggered oscilloscope rising zero-crossing sync on synthetic buffers and live rendering', async ({ page }) => {
+        await page.goto('/src/modular_tuner.html');
+
+        // 1. Verify findRisingZeroCrossing pure helper with synthetic waveform buffers
+        const testResults = await page.evaluate(() => {
+            // Flat buffer (all 128) -> no crossing, should return 0
+            const flatBuf = new Uint8Array(2048).fill(128);
+            const trigFlat = window.findRisingZeroCrossing(flatBuf);
+
+            // Synthetic buffer with rising crossing with hysteresis at index 15
+            // Noise near 128 at index 2 (127 -> 128) without hysteresis (indices 0, 1 are 127 > 126)
+            const synthBuf = new Uint8Array(2048).fill(128);
+            synthBuf[0] = 127;
+            synthBuf[1] = 127;
+            synthBuf[2] = 128;
+            // Valley below hysteresis threshold (<= 126) at index 12, then rising crossing at 15
+            synthBuf[12] = 110;
+            synthBuf[13] = 118;
+            synthBuf[14] = 126;
+            synthBuf[15] = 132;
+
+            const trigSynth = window.findRisingZeroCrossing(synthBuf);
+
+            // Fallback crossing: rising crossing from 127 to 129 at index 8 without hysteresis (no sample <= 126)
+            const fallbackBuf = new Uint8Array(2048).fill(127);
+            fallbackBuf[8] = 129;
+            const trigFallback = window.findRisingZeroCrossing(fallbackBuf);
+
+            return { trigFlat, trigSynth, trigFallback };
+        });
+
+        expect(testResults.trigFlat).toBe(0);
+        expect(testResults.trigSynth).toBe(15);
+        expect(testResults.trigFallback).toBe(8);
+
+        // 2. Start audio and verify oscilloscope status header badge and live rendering
+        const btnIgnition = page.locator('#btn-ignition');
+        await btnIgnition.click();
+        await expect(btnIgnition).toHaveClass(/active/);
+
+        // Verify scope header badge indicates triggered rising zero-crossing sync
+        const scopeStatus = page.locator('#scope-status');
+        await expect(scopeStatus).toBeVisible();
+        await expect(scopeStatus).toContainText('Trig: Rising Zero-Cross');
+
+        // Wait a few animation frames for live rendering
+        await page.waitForTimeout(250);
+
+        // Verify scope canvas renders active waveform pixels
+        const hasWaveformPixels = await page.evaluate(() => {
+            const canvas = document.getElementById('scope-canvas');
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Search for non-background pixels (trace color is #38d39f: g > 180, r < 100, b > 100)
+            let foundTrace = false;
+            for (let i = 0; i < imgData.data.length; i += 4) {
+                const r = imgData.data[i];
+                const g = imgData.data[i + 1];
+                const b = imgData.data[i + 2];
+                if (g > 180 && r < 100 && b > 100) {
+                    foundTrace = true;
+                    break;
+                }
+            }
+            return foundTrace;
+        });
+        expect(hasWaveformPixels).toBe(true);
+
+        // Stop audio
+        await btnIgnition.click();
+        await expect(btnIgnition).not.toHaveClass(/active/);
+    });
+
 });

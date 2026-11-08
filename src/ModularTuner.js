@@ -18,6 +18,7 @@ const sim = new EngineSim();
 if (typeof window !== 'undefined') {
     window.engine = engine;
     window.sim = sim;
+    window.findRisingZeroCrossing = findRisingZeroCrossing;
 }
 
 // --- DOM ELEMENTS ---
@@ -755,8 +756,8 @@ function buildNodeParameterControls(node, container) {
             'harmonic', 'fixed'
         ], false);
 
-        createSliderControl(container, node.id, 'mult', 'Harmonic Mult', p.mult ?? 1.0, 0.25, 16.0, 0.05, (v) => `${v.toFixed(2)}x`);
-        createSliderControl(container, node.id, 'freqHz', 'Fixed Frequency', p.freqHz ?? 100, 20, 4000, 1, (v) => `${Math.round(v)} Hz`);
+        createSliderControl(container, node.id, 'mult', 'Harmonic Mult', p.mult ?? 1.0, 0.5, 16.0, 0.5, (v) => `${Number(v).toFixed(1)}x`);
+        createSliderControl(container, node.id, 'freqHz', 'Fixed Frequency', p.freqHz ?? 100, 20, 4000, 1, (v) => `${Math.round(v)} Hz`, true);
         createSliderControl(container, node.id, 'detune', 'Detune (cts)', p.detune ?? 0, -1200, 1200, 1, (v) => `${Math.round(v)} cts`);
         createSliderControl(container, node.id, 'gain', 'Base Gain', p.gain ?? 0.5, 0, 2.0, 0.01, (v) => v.toFixed(2));
         createSliderControl(container, node.id, 'throttleModGain', 'Throttle -> Gain', p.throttleModGain ?? 0.0, -1.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
@@ -774,8 +775,8 @@ function buildNodeParameterControls(node, container) {
             'peaking', 'lowpass', 'highpass', 'bandpass', 'notch', 'lowshelf', 'highshelf', 'allpass'
         ], true);
 
-        createSliderControl(container, node.id, 'frequency', 'Cutoff / Center Freq', p.frequency ?? 500, 20, 10000, 5, (v) => `${Math.round(v)} Hz`);
-        createSliderControl(container, node.id, 'Q', 'Resonance (Q)', p.Q ?? 2.0, 0.1, 25.0, 0.1, (v) => v.toFixed(1));
+        createSliderControl(container, node.id, 'frequency', 'Cutoff / Center Freq', p.frequency ?? 500, 20, 10000, 5, (v) => `${Math.round(v)} Hz`, true);
+        createSliderControl(container, node.id, 'Q', 'Resonance (Q)', p.Q ?? 2.0, 0.1, 25.0, 0.1, (v) => v.toFixed(1), true);
         createSliderControl(container, node.id, 'filterGain', 'Filter Gain / Boost', p.filterGain ?? 6.0, -24.0, 24.0, 0.5, (v) => `${v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)} dB`);
         createSliderControl(container, node.id, 'rpmModFreq', 'RPM -> Freq Shift', p.rpmModFreq ?? 0, -2000, 4000, 20, (v) => (v > 0 ? `+${Math.round(v)} Hz` : `${Math.round(v)} Hz`));
         createSliderControl(container, node.id, 'throttleModFreq', 'Throttle -> Freq Shift', p.throttleModFreq ?? 0, -2000, 4000, 20, (v) => (v > 0 ? `+${Math.round(v)} Hz` : `${Math.round(v)} Hz`));
@@ -832,7 +833,7 @@ function createSelectControl(container, nodeId, paramKey, label, currentVal, opt
     container.appendChild(wrap);
 }
 
-function createSliderControl(container, nodeId, paramKey, label, currentVal, min, max, step, formatFn) {
+function createSliderControl(container, nodeId, paramKey, label, currentVal, min, max, step, formatFn, isLogScale = false) {
     const wrap = document.createElement('div');
     wrap.className = 'param-control';
 
@@ -854,19 +855,50 @@ function createSliderControl(container, nodeId, paramKey, label, currentVal, min
 
     const slider = document.createElement('input');
     slider.type = 'range';
-    slider.min = min;
-    slider.max = max;
-    slider.step = step;
-    slider.value = currentVal;
     slider.setAttribute('data-node-id', nodeId);
     slider.setAttribute('data-param', paramKey);
 
-    // Silky smooth live update on drag without re-rendering DOM
-    slider.addEventListener('input', (e) => {
-        const numVal = parseFloat(e.target.value);
-        valSpan.innerText = formatFn ? formatFn(numVal) : numVal;
-        engine.updateNode(nodeId, { params: { [paramKey]: numVal } });
-    });
+    if (isLogScale) {
+        slider.min = '0';
+        slider.max = '1000';
+        slider.step = '1';
+        const clampedVal = Math.max(min, Math.min(max, currentVal));
+        const pos = Math.round(1000 * (Math.log(clampedVal / min) / Math.log(max / min)));
+        slider.value = pos;
+        slider.setAttribute('data-scale', 'log');
+
+        const initVal = step >= 1
+            ? Math.round(currentVal)
+            : Number((Math.round(currentVal / step) * step).toFixed(2));
+        slider.setAttribute('data-hz', String(initVal));
+        slider.setAttribute('data-val', String(initVal));
+
+        slider.addEventListener('input', (e) => {
+            const t = parseFloat(e.target.value) / 1000;
+            const rawVal = min * Math.pow(max / min, t);
+            const numVal = step >= 1
+                ? Math.round(rawVal)
+                : Number((Math.round(rawVal / step) * step).toFixed(2));
+            slider.setAttribute('data-hz', String(numVal));
+            slider.setAttribute('data-val', String(numVal));
+            valSpan.innerText = formatFn ? formatFn(numVal) : numVal;
+            engine.updateNode(nodeId, { params: { [paramKey]: numVal } });
+        });
+    } else {
+        slider.min = min;
+        slider.max = max;
+        slider.step = step;
+        slider.value = currentVal;
+        slider.setAttribute('data-val', String(currentVal));
+
+        // Silky smooth live update on drag without re-rendering DOM
+        slider.addEventListener('input', (e) => {
+            const numVal = parseFloat(e.target.value);
+            slider.setAttribute('data-val', String(numVal));
+            valSpan.innerText = formatFn ? formatFn(numVal) : numVal;
+            engine.updateNode(nodeId, { params: { [paramKey]: numVal } });
+        });
+    }
 
     slider.addEventListener('change', () => {
         syncJsonTextarea();
@@ -1084,6 +1116,42 @@ function renderSpectrumAndFilterResponse() {
     }
 }
 
+/**
+ * Searches for the first rising zero-crossing around 8-bit center (128)
+ * in timeBuffer from index 1 up to maxSearchSamples (or half buffer length).
+ * 
+ * Uses a hysteresis check (timeBuffer[Math.max(0, i - 3)] <= 126) to reject
+ * noise near center, falling back to any rising crossing, or 0 if none found.
+ * 
+ * @param {Uint8Array|Array<number>} timeBuffer - 8-bit time-domain audio buffer [0..255]
+ * @param {number} [maxSearchSamples] - Max search limit (defaults to Math.floor(timeBuffer.length / 2))
+ * @returns {number} Trigger index
+ */
+function findRisingZeroCrossing(timeBuffer, maxSearchSamples) {
+    if (!timeBuffer || timeBuffer.length < 2) return 0;
+    const limit = Math.min(
+        timeBuffer.length - 1,
+        (typeof maxSearchSamples === 'number' && maxSearchSamples > 0)
+            ? maxSearchSamples
+            : Math.floor(timeBuffer.length / 2)
+    );
+
+    let firstAnyCrossing = 0;
+
+    for (let i = 1; i <= limit; i++) {
+        if (timeBuffer[i - 1] < 128 && timeBuffer[i] >= 128) {
+            if (firstAnyCrossing === 0) {
+                firstAnyCrossing = i;
+            }
+            if (timeBuffer[Math.max(0, i - 3)] <= 126) {
+                return i;
+            }
+        }
+    }
+
+    return firstAnyCrossing;
+}
+
 function renderOscilloscope() {
     const w = scopeCanvas.width;
     const h = scopeCanvas.height;
@@ -1097,6 +1165,15 @@ function renderOscilloscope() {
     scopeCtx.beginPath();
     scopeCtx.moveTo(0, h / 2);
     scopeCtx.lineTo(w, h / 2);
+    scopeCtx.stroke();
+
+    // Subtle trigger marker tick at x = 0, y = h / 2
+    scopeCtx.strokeStyle = 'rgba(56, 211, 159, 0.6)';
+    scopeCtx.lineWidth = 2;
+    scopeCtx.beginPath();
+    scopeCtx.moveTo(0, h / 2 - 5);
+    scopeCtx.lineTo(6, h / 2);
+    scopeCtx.lineTo(0, h / 2 + 5);
     scopeCtx.stroke();
 
     if (!isRunning || !engine.analyser) {
@@ -1113,22 +1190,23 @@ function renderOscilloscope() {
     const timeBuffer = new Uint8Array(engine.analyser.fftSize);
     engine.analyser.getByteTimeDomainData(timeBuffer);
 
+    const triggerIdx = findRisingZeroCrossing(timeBuffer, Math.floor(timeBuffer.length / 2));
+    const displayLen = Math.floor(timeBuffer.length / 2);
+
     scopeCtx.strokeStyle = '#38d39f';
     scopeCtx.lineWidth = 2.0;
     scopeCtx.shadowColor = 'rgba(56, 211, 159, 0.5)';
     scopeCtx.shadowBlur = 4;
     scopeCtx.beginPath();
 
-    const sliceW = w / timeBuffer.length;
-    let x = 0;
-    for (let i = 0; i < timeBuffer.length; i++) {
-        const v = timeBuffer[i] / 128.0; // [0..2], 1.0 is center
+    const sliceW = w / (displayLen > 1 ? (displayLen - 1) : 1);
+    for (let i = 0; i < displayLen; i++) {
+        const v = timeBuffer[triggerIdx + i] / 128.0; // [0..2], 1.0 is center
         const y = (v * h) / 2;
+        const x = i * sliceW;
 
         if (i === 0) scopeCtx.moveTo(x, y);
         else scopeCtx.lineTo(x, y);
-
-        x += sliceW;
     }
 
     scopeCtx.stroke();
@@ -1144,4 +1222,4 @@ if (typeof document !== 'undefined') {
     }
 }
 
-export { engine, sim, init };
+export { engine, sim, init, findRisingZeroCrossing };
