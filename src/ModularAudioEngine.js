@@ -314,6 +314,290 @@ export const MODULAR_PATCH_PRESETS = {
             { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
             { from: 'flt_exh_lp2', to: 'master' }
         ]
+    },
+
+    dodge_viper_v10: {
+        name: 'Dodge Viper V10 (8.4L Odd-Fire Side-Pipe)',
+        baseRPM: 750,
+        redlineRPM: 6200,
+        cylinders: 10,
+        masterGain: 0.80,
+        nodes: [
+            {
+                id: 'osc_block10',
+                type: 'oscillator',
+                name: 'Crank & 90° Odd-Fire Couple 1.0x',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.60, throttleModGain: 0.25, rpmModGain: 0.10 }
+            },
+            {
+                id: 'osc_oddfire15',
+                type: 'oscillator',
+                name: 'Odd-Fire Warble 1.5x (54°/90° Split)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.5, freqHz: 100, detune: -6, gain: 0.45, throttleModGain: 0.20, rpmModGain: 0.05 }
+            },
+            {
+                id: 'osc_bank25',
+                type: 'oscillator',
+                name: 'Divorced Side-Pipe Bank 2.5x (5-Cyl)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 2.5, freqHz: 100, detune: -3, gain: 0.72, throttleModGain: 0.35, rpmModGain: 0.15 }
+            },
+            {
+                id: 'osc_fire50',
+                type: 'oscillator',
+                name: 'Primary V10 Firing 5.0x',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 5.0, freqHz: 100, detune: 0, gain: 0.52, throttleModGain: 0.38, rpmModGain: 0.20 }
+            },
+            {
+                id: 'osc_over75',
+                type: 'oscillator',
+                name: 'Side-Pipe 3rd Harmonic 7.5x',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 7.5, freqHz: 100, detune: 4, gain: 0.18, throttleModGain: 0.25, rpmModGain: 0.22 }
+            },
+            {
+                id: 'noise_chuff',
+                type: 'noise',
+                name: '8.4L Displacement Chuff (Brown)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { noiseType: 'brown', gain: 0.15, throttleModGain: 0.42, rpmModGain: 0.15 }
+            },
+            {
+                id: 'shaper_sidepipe',
+                type: 'waveshaper',
+                name: 'Side-Pipe Collector Saturation',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { curveType: 'soft_tanh', drive: 15, mix: 0.80, outputGain: 0.40 }
+            },
+            {
+                id: 'delay_sidepipe',
+                type: 'delay',
+                name: 'Rocker Side-Pipe Waveguide (3.4ms)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { delayMs: 3.4, feedback: -0.32, mix: 0.34 }
+            },
+            {
+                id: 'flt_f1_thunder',
+                type: 'filter',
+                name: 'Formant F1: 8.4L Chest Thunder (115Hz)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'peaking', frequency: 115, Q: 1.3, filterGain: 7.0, rpmModFreq: 25, throttleModFreq: 15, outGain: 1.0 }
+            },
+            {
+                id: 'flt_f2_growl',
+                type: 'filter',
+                name: 'Formant F2: 5-Cyl Side-Pipe Growl (230Hz)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'peaking', frequency: 230, Q: 1.4, filterGain: 6.0, rpmModFreq: 55, throttleModFreq: 35, outGain: 1.0 }
+            },
+            {
+                id: 'flt_f3_bark',
+                type: 'filter',
+                name: 'Formant F3: Pushrod V10 Bark (540Hz)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'peaking', frequency: 540, Q: 1.7, filterGain: 3.5, rpmModFreq: 160, throttleModFreq: 140, outGain: 1.0 }
+            },
+            {
+                id: 'flt_exh_lp',
+                type: 'filter',
+                name: 'Primary Load Lowpass (Stage 1)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'lowpass', frequency: 195, Q: 0.7, filterGain: 0, rpmModFreq: 340, throttleModFreq: 480, outGain: 1.0 }
+            },
+            {
+                id: 'flt_exh_lp2',
+                type: 'filter',
+                name: 'Secondary Rounding Lowpass (Stage 2)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'lowpass', frequency: 290, Q: 0.7, filterGain: 0, rpmModFreq: 520, throttleModFreq: 660, outGain: 0.85 }
+            }
+        ],
+        connections: [
+            { from: 'osc_block10', to: 'shaper_sidepipe' },
+            { from: 'osc_oddfire15', to: 'shaper_sidepipe' },
+            { from: 'osc_bank25', to: 'shaper_sidepipe' },
+            { from: 'osc_fire50', to: 'shaper_sidepipe' },
+            { from: 'osc_over75', to: 'shaper_sidepipe' },
+            { from: 'noise_chuff', to: 'shaper_sidepipe' },
+            { from: 'shaper_sidepipe', to: 'delay_sidepipe' },
+            { from: 'delay_sidepipe', to: 'flt_f1_thunder' },
+            { from: 'flt_f1_thunder', to: 'flt_f2_growl' },
+            { from: 'flt_f2_growl', to: 'flt_f3_bark' },
+            { from: 'flt_f3_bark', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
+    },
+
+    f1_golden_era_v10: {
+        name: 'F1 Golden Era V10 (3.0L 19,000 RPM Acoustic Model)',
+        baseRPM: 4000,
+        redlineRPM: 19000,
+        cylinders: 10,
+        masterGain: 0.80,
+        nodes: [
+            {
+                id: 'osc_crank10',
+                type: 'oscillator',
+                name: 'Monocoque & Crank 1.0x (Body)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.42, throttleModGain: 0.20, rpmModGain: 0.10 }
+            },
+            {
+                id: 'osc_bank25',
+                type: 'oscillator',
+                name: '5-into-1 Bank Collector 2.5x',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 2.5, freqHz: 100, detune: -3, gain: 0.62, throttleModGain: 0.30, rpmModGain: 0.20 }
+            },
+            {
+                id: 'osc_fire50',
+                type: 'oscillator',
+                name: 'Primary V10 Scream 5.0x',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 5.0, freqHz: 100, detune: 0, gain: 0.65, throttleModGain: 0.40, rpmModGain: 0.30 }
+            },
+            {
+                id: 'osc_fifth75',
+                type: 'oscillator',
+                name: '3rd Bank Harmonic 7.5x (Musical 5th)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'sine', freqMode: 'harmonic', mult: 7.5, freqHz: 100, detune: 2, gain: 0.30, throttleModGain: 0.25, rpmModGain: 0.28 }
+            },
+            {
+                id: 'osc_shriek100',
+                type: 'oscillator',
+                name: 'Secondary V10 Harmonic 10.0x',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { waveform: 'triangle', freqMode: 'harmonic', mult: 10.0, freqHz: 100, detune: 0, gain: 0.24, throttleModGain: 0.28, rpmModGain: 0.32 }
+            },
+            {
+                id: 'noise_airbox',
+                type: 'noise',
+                name: 'Trumpet Airbox & Gas Velocity (Pink)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { noiseType: 'pink', gain: 0.10, throttleModGain: 0.32, rpmModGain: 0.18 }
+            },
+            {
+                id: 'shaper_inconel',
+                type: 'waveshaper',
+                name: 'Inconel Collector Saturation',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { curveType: 'soft_tanh', drive: 14, mix: 0.78, outputGain: 0.40 }
+            },
+            {
+                id: 'delay_megaphone',
+                type: 'delay',
+                name: 'Inconel Megaphone Waveguide (0.9ms)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { delayMs: 0.9, feedback: -0.35, mix: 0.35 }
+            },
+            {
+                id: 'flt_f1_body',
+                type: 'filter',
+                name: 'Formant F1: Pit-Lane & Collector Body (240Hz)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'peaking', frequency: 240, Q: 1.3, filterGain: 5.5, rpmModFreq: 180, throttleModFreq: 60, outGain: 1.0 }
+            },
+            {
+                id: 'flt_f2_horn',
+                type: 'filter',
+                name: 'Formant F2: 5-into-1 Bundle Resonance (720Hz)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'peaking', frequency: 720, Q: 1.5, filterGain: 6.5, rpmModFreq: 480, throttleModFreq: 220, outGain: 1.0 }
+            },
+            {
+                id: 'flt_f3_shriek',
+                type: 'filter',
+                name: 'Formant F3: Airbox & Megaphone Wail (1550Hz)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'peaking', frequency: 1550, Q: 1.8, filterGain: 5.5, rpmModFreq: 850, throttleModFreq: 450, outGain: 1.0 }
+            },
+            {
+                id: 'flt_exh_lp',
+                type: 'filter',
+                name: 'Primary Megaphone Lowpass (Stage 1)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'lowpass', frequency: 550, Q: 0.7, filterGain: 0, rpmModFreq: 1650, throttleModFreq: 1200, outGain: 1.0 }
+            },
+            {
+                id: 'flt_exh_lp2',
+                type: 'filter',
+                name: 'Secondary Rounding Lowpass (Stage 2)',
+                enabled: true,
+                bypass: false,
+                solo: false,
+                params: { filterType: 'lowpass', frequency: 800, Q: 0.7, filterGain: 0, rpmModFreq: 2100, throttleModFreq: 1400, outGain: 0.82 }
+            }
+        ],
+        connections: [
+            { from: 'osc_crank10', to: 'shaper_inconel' },
+            { from: 'osc_bank25', to: 'shaper_inconel' },
+            { from: 'osc_fire50', to: 'shaper_inconel' },
+            { from: 'osc_fifth75', to: 'shaper_inconel' },
+            { from: 'osc_shriek100', to: 'shaper_inconel' },
+            { from: 'noise_airbox', to: 'shaper_inconel' },
+            { from: 'shaper_inconel', to: 'delay_megaphone' },
+            { from: 'delay_megaphone', to: 'flt_f1_body' },
+            { from: 'flt_f1_body', to: 'flt_f2_horn' },
+            { from: 'flt_f2_horn', to: 'flt_f3_shriek' },
+            { from: 'flt_f3_shriek', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
     }
 };
 

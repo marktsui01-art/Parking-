@@ -109,6 +109,11 @@ function setupEventListeners() {
         if (MODULAR_PATCH_PRESETS[key]) {
             engine.loadPreset(key);
             activeWiringSource = null;
+            currentRPM = engine.patch.baseRPM || 900;
+            rpmSlider.min = Math.min(500, currentRPM);
+            rpmSlider.max = Math.max(9000, engine.patch.redlineRPM || 7500);
+            rpmSlider.value = currentRPM;
+            updateExciterReadouts();
             refreshAllUI();
         }
     });
@@ -328,6 +333,11 @@ function updateNodeStateBadges(calcState) {
 
 // --- FULL UI REFRESH ---
 function refreshAllUI() {
+    const baseRPM = engine.patch.baseRPM || 900;
+    const redlineRPM = engine.patch.redlineRPM || 7500;
+    rpmSlider.min = Math.min(500, baseRPM);
+    rpmSlider.max = Math.max(9000, redlineRPM);
+
     renderNodesRack();
     renderPatchBay();
     syncJsonTextarea();

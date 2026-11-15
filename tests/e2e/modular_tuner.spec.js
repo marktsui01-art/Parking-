@@ -527,4 +527,202 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         await expect(btnIgnition).not.toHaveClass(/active/);
     });
 
+    test('Verifies Dodge Viper V10 and F1 Golden Era V10 live Web Audio waveforms, spectral balance, and saves screenshots', async ({ page }) => {
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto('/src/modular_tuner.html');
+
+        const fs = await import('fs');
+        if (!fs.existsSync('verification')) {
+            fs.mkdirSync('verification', { recursive: true });
+        }
+        const destDir = '/media/documents/2025/gemini_scratch/audio_tuner_screenshots';
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
+
+        const presetSelect = page.locator('#preset-select');
+        const btnIgnition = page.locator('#btn-ignition');
+
+        // Helper to set operating condition
+        const setOperatingCondition = async (rpm, throttle) => {
+            await page.evaluate(({ r, t }) => {
+                const rSlider = document.getElementById('rpm-slider');
+                const tSlider = document.getElementById('throttle-slider');
+                rSlider.value = r;
+                rSlider.dispatchEvent(new Event('input'));
+                tSlider.value = t;
+                tSlider.dispatchEvent(new Event('input'));
+                window.engine.update(r, t);
+            }, { r: rpm, t: throttle });
+            await page.waitForTimeout(300);
+        };
+
+        // Helper to extract Web Audio telemetry from analyser
+        const getTelemetry = async () => {
+            return await page.evaluate(() => {
+                const analyser = window.engine.analyser;
+                const ctx = window.engine.ctx;
+                const sampleRate = ctx ? ctx.sampleRate : 48000;
+
+                const timeData = new Float32Array(analyser.fftSize);
+                analyser.getFloatTimeDomainData(timeData);
+
+                let peak = 0;
+                let sumSq = 0;
+                let maxSlew = 0;
+                for (let i = 0; i < timeData.length; i++) {
+                    const absVal = Math.abs(timeData[i]);
+                    if (absVal > peak) peak = absVal;
+                    sumSq += absVal * absVal;
+                    if (i > 0) {
+                        const slew = Math.abs(timeData[i] - timeData[i - 1]);
+                        if (slew > maxSlew) maxSlew = slew;
+                    }
+                }
+                const rms = Math.sqrt(sumSq / timeData.length);
+                const crestFactor = rms > 0 ? (peak / rms) : 0;
+
+                const freqData = new Float32Array(analyser.frequencyBinCount);
+                analyser.getFloatFrequencyData(freqData);
+
+                const binWidth = (sampleRate / 2) / analyser.frequencyBinCount;
+                let bodyBandEnergy = 0;
+                let harshHighEnergy = 0;
+                let highBandEnergy = 0;
+                let numCentroid = 0;
+                let denCentroid = 0;
+
+                for (let i = 0; i < freqData.length; i++) {
+                    const binFreq = i * binWidth;
+                    const linearMag = Math.pow(10, freqData[i] / 20);
+                    const power = linearMag * linearMag;
+
+                    if (binFreq >= 60 && binFreq <= 450) {
+                        bodyBandEnergy += power;
+                    }
+                    if (binFreq >= 2000 && binFreq <= 6000) {
+                        harshHighEnergy += power;
+                    }
+                    if (binFreq >= 800 && binFreq <= 2500) {
+                        highBandEnergy += power;
+                    }
+                    if (binFreq >= 20 && binFreq <= 10000) {
+                        numCentroid += binFreq * linearMag;
+                        denCentroid += linearMag;
+                    }
+                }
+
+                const spectralCentroid = denCentroid > 0 ? (numCentroid / denCentroid) : 0;
+
+                return {
+                    peak,
+                    rms,
+                    crestFactor,
+                    maxSlew,
+                    bodyBandEnergy,
+                    harshHighEnergy,
+                    bodyToHighRatio: harshHighEnergy > 0 ? (bodyBandEnergy / harshHighEnergy) : Infinity,
+                    highBandEnergy,
+                    spectralCentroid
+                };
+            });
+        };
+
+        // --- PART 1: DODGE VIPER V10 ---
+        await presetSelect.selectOption('dodge_viper_v10');
+        const viperPatchName = await page.evaluate(() => window.engine.patch.name);
+        expect(viperPatchName).toBe('Dodge Viper V10 (8.4L Odd-Fire Side-Pipe)');
+        await expect(page.locator('.node-card')).toHaveCount(13);
+
+        // Start Audio
+        await btnIgnition.click();
+        await expect(btnIgnition).toHaveClass(/active/);
+
+        // State 1: Viper Idle (750 RPM, 0% Throttle)
+        await setOperatingCondition(750, 0);
+        await page.screenshot({ path: 'verification/viper_1_idle.png', fullPage: true });
+        const viperIdle = await getTelemetry();
+        console.log('Viper 1 (Idle 750 RPM, 0%):', viperIdle);
+
+        // State 2: Viper Mid (3000 RPM, 60% Throttle)
+        await setOperatingCondition(3000, 0.60);
+        await page.screenshot({ path: 'verification/viper_2_mid.png', fullPage: true });
+        const viperMid = await getTelemetry();
+        console.log('Viper 2 (Mid 3000 RPM, 60%):', viperMid);
+
+        // State 3: Viper WOT (6200 RPM, 100% Throttle)
+        await setOperatingCondition(6200, 1.0);
+        await page.screenshot({ path: 'verification/viper_3_wot.png', fullPage: true });
+        const viperWot = await getTelemetry();
+        console.log('Viper 3 (WOT 6200 RPM, 100%):', viperWot);
+
+        // --- PART 2: F1 GOLDEN ERA V10 ---
+        await presetSelect.selectOption('f1_golden_era_v10');
+        const f1PatchName = await page.evaluate(() => window.engine.patch.name);
+        expect(f1PatchName).toBe('F1 Golden Era V10 (3.0L 19,000 RPM Acoustic Model)');
+        await expect(page.locator('.node-card')).toHaveCount(13);
+
+        // Verify #rpm-slider max is 19000
+        const rpmSliderMax = await page.locator('#rpm-slider').getAttribute('max');
+        expect(Number(rpmSliderMax)).toBe(19000);
+
+        // State 4: F1 Idle (4000 RPM, 0% Throttle)
+        await setOperatingCondition(4000, 0);
+        await page.screenshot({ path: 'verification/f1_v10_1_idle.png', fullPage: true });
+        const f1Idle = await getTelemetry();
+        console.log('F1 V10 1 (Idle 4000 RPM, 0%):', f1Idle);
+
+        // State 5: F1 Mid (12000 RPM, 65% Throttle)
+        await setOperatingCondition(12000, 0.65);
+        await page.screenshot({ path: 'verification/f1_v10_2_mid.png', fullPage: true });
+        const f1Mid = await getTelemetry();
+        console.log('F1 V10 2 (Mid 12000 RPM, 65%):', f1Mid);
+
+        // State 6: F1 Overrun (16000 RPM, 0% Throttle)
+        await setOperatingCondition(16000, 0);
+        await page.screenshot({ path: 'verification/f1_v10_3_overrun.png', fullPage: true });
+        const f1Overrun = await getTelemetry();
+        console.log('F1 V10 3 (Overrun 16000 RPM, 0%):', f1Overrun);
+
+        // State 7: F1 WOT 19k (19000 RPM, 100% Throttle)
+        await setOperatingCondition(19000, 1.0);
+        await page.screenshot({ path: 'verification/f1_v10_4_wot_19k.png', fullPage: true });
+        const f1Wot = await getTelemetry();
+        console.log('F1 V10 4 (WOT 19000 RPM, 100%):', f1Wot);
+
+        // Copy all 7 new screenshots into /media/documents/2025/gemini_scratch/audio_tuner_screenshots/
+        const newScreenshots = [
+            'viper_1_idle.png',
+            'viper_2_mid.png',
+            'viper_3_wot.png',
+            'f1_v10_1_idle.png',
+            'f1_v10_2_mid.png',
+            'f1_v10_3_overrun.png',
+            'f1_v10_4_wot_19k.png'
+        ];
+        for (const file of newScreenshots) {
+            const srcPath = `verification/${file}`;
+            if (fs.existsSync(srcPath)) {
+                fs.copyFileSync(srcPath, `${destDir}/${file}`);
+            }
+        }
+
+        // Verify healthy levels, crest factor, and waveform smoothness
+        const allV10Telems = [viperIdle, viperMid, viperWot, f1Idle, f1Mid, f1Overrun, f1Wot];
+        for (const telem of allV10Telems) {
+            expect(telem.peak).toBeGreaterThan(0.04);
+            expect(telem.peak).toBeLessThan(0.98);
+            expect(telem.crestFactor).toBeGreaterThanOrEqual(1.2);
+            expect(telem.crestFactor).toBeLessThanOrEqual(4.2);
+            expect(telem.maxSlew).toBeLessThan(0.35);
+        }
+
+        // F1 V10 at 19,000 RPM WOT has higher spectral centroid than Dodge Viper V10 at 6,200 RPM WOT
+        expect(f1Wot.spectralCentroid).toBeGreaterThan(viperWot.spectralCentroid * 2.0);
+
+        // Stop audio
+        await btnIgnition.click();
+        await expect(btnIgnition).not.toHaveClass(/active/);
+    });
+
 });

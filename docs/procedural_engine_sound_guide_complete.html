@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+@page {
+    size: A4;
+    margin: 18mm 15mm 18mm 15mm;
+    @bottom-right {
+        content: counter(page);
+        font-family: 'DejaVu Sans', sans-serif;
+        font-size: 8pt;
+        color: #777777;
+    }
+    @bottom-left {
+        content: "Procedural Engine Sound DSP & Acoustics — Parking Simulator";
+        font-family: 'DejaVu Sans', sans-serif;
+        font-size: 8pt;
+        color: #777777;
+    }
+}
+
+body {
+    font-family: 'DejaVu Sans', sans-serif;
+    font-size: 9.3pt;
+    line-height: 1.54;
+    color: #222222;
+    background-color: #ffffff;
+}
+
+h1 {
+    font-size: 17pt;
+    color: #0b4f6c;
+    border-bottom: 2px solid #0b4f6c;
+    padding-bottom: 4pt;
+    margin-top: 0;
+    margin-bottom: 12pt;
+    page-break-before: always;
+}
+body > h1:first-of-type {
+    page-break-before: avoid;
+}
+
+h2 {
+    font-size: 12.5pt;
+    color: #1f6e8c;
+    border-bottom: 1px solid #d0d7de;
+    padding-bottom: 3pt;
+    margin-top: 15pt;
+    margin-bottom: 8pt;
+    page-break-after: avoid;
+}
+
+h3 {
+    font-size: 10.2pt;
+    color: #2e4057;
+    margin-top: 12pt;
+    margin-bottom: 5pt;
+    page-break-after: avoid;
+}
+
+p {
+    margin-top: 4pt;
+    margin-bottom: 6pt;
+}
+
+ul, ol {
+    margin-top: 5pt;
+    margin-bottom: 8pt;
+    padding-left: 18pt;
+}
+
+li {
+    margin-top: 2pt;
+    margin-bottom: 6pt;
+    line-height: 1.52;
+}
+
+li > ul, li > ol {
+    margin-top: 3pt;
+    margin-bottom: 3pt;
+    padding-left: 16pt;
+}
+
+code {
+    font-family: 'DejaVu Sans Mono', monospace;
+    font-size: 8.5pt;
+    background-color: #f3f4f6;
+    color: #b31d28;
+    padding: 1pt 3.5pt;
+    border-radius: 3pt;
+}
+
+pre {
+    background-color: #f6f8fa;
+    border: 1px solid #d0d7de;
+    border-radius: 4pt;
+    padding: 8pt;
+    overflow-x: auto;
+    font-size: 8pt;
+    line-height: 1.35;
+    margin: 8pt 0;
+    page-break-inside: avoid;
+}
+pre code {
+    background-color: transparent;
+    color: #24292f;
+    padding: 0;
+}
+
+blockquote {
+    border-left: 4px solid #0b4f6c;
+    background-color: #f0f7fa;
+    margin: 8pt 0;
+    padding: 6pt 12pt;
+    color: #333333;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10pt 0;
+    font-size: 8.4pt;
+    page-break-inside: avoid;
+}
+th, td {
+    border: 1px solid #d0d7de;
+    padding: 5pt 7pt;
+    text-align: left;
+    vertical-align: top;
+}
+th {
+    background-color: #f6f8fa;
+    color: #24292f;
+    font-weight: bold;
+}
+tr:nth-child(even) td {
+    background-color: #fcfcfc;
+}
+
+.pause-box {
+    background-color: #fff9e6;
+    border: 1.5px solid #d4a017;
+    border-radius: 5pt;
+    padding: 10pt 12pt;
+    margin: 12pt 0;
+    page-break-inside: avoid;
+}
+.pause-box h3 {
+    color: #8c6500;
+    margin-top: 0;
+    margin-bottom: 6pt;
+    font-size: 10.5pt;
+    border-bottom: 1px solid #f0d58a;
+    padding-bottom: 3pt;
+}
+.pause-box p {
+    margin-top: 3pt;
+    margin-bottom: 5pt;
+}
+.pause-box ol, .pause-box ul {
+    margin-top: 4pt;
+    margin-bottom: 5pt;
+    padding-left: 18pt;
+}
+.pause-box li {
+    margin-bottom: 5pt;
+}
+
+.solution-box {
+    background-color: #f0faf0;
+    border: 1.2px solid #38a169;
+    border-radius: 5pt;
+    padding: 10pt 12pt;
+    margin: 10pt 0;
+    font-size: 8.8pt;
+    page-break-inside: avoid;
+}
+.solution-box strong.title {
+    display: block;
+    color: #22543d;
+    font-weight: bold;
+    font-size: 9.8pt;
+    margin-bottom: 6pt;
+    border-bottom: 1px solid #c6f6d5;
+    padding-bottom: 3pt;
+}
+.solution-box p {
+    margin-top: 3pt;
+    margin-bottom: 5pt;
+}
+.solution-box ol, .solution-box ul {
+    margin-top: 4pt;
+    margin-bottom: 5pt;
+    padding-left: 18pt;
+}
+.solution-box li {
+    margin-bottom: 5pt;
+}
+
+img.diagram {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10pt auto 4pt auto;
+    border: 1px solid #d0d7de;
+    border-radius: 4pt;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    page-break-inside: avoid;
+}
+.caption {
+    font-size: 8pt;
+    color: #555555;
+    text-align: center;
+    font-style: italic;
+    margin-top: 4pt;
+    margin-bottom: 11pt;
+    page-break-after: avoid;
+}
+
+/* Math styling */
+.math-inline code {
+    font-family: 'DejaVu Sans', sans-serif;
+    font-size: 8.8pt;
+    font-style: italic;
+    background-color: #f3f6fa;
+    color: #0b4f6c;
+    padding: 0.5pt 3pt;
+    border-radius: 2pt;
+    border: 1px solid #e1e7ee;
+}
+.math-block {
+    text-align: center;
+    margin: 8pt auto;
+    padding: 6pt;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4pt;
+    page-break-inside: avoid;
+}
+.math-block code {
+    font-family: 'DejaVu Sans', sans-serif;
+    font-size: 9.8pt;
+    font-weight: bold;
+    color: #0b4f6c;
+    background: transparent;
+    padding: 0;
+    border: none;
+}
+
+/* Flowchart Diagram Tables */
+.flow-container {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 5pt;
+    padding: 8pt 10pt;
+    margin: 10pt 0;
+    page-break-inside: avoid;
+}
+.flow-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 5pt;
+    border: none;
+    margin: 0;
+}
+.flow-table td {
+    border: none;
+    padding: 4pt 6pt;
+    vertical-align: middle;
+}
+.flow-box {
+    background: #ffffff;
+    border: 1.5px solid #0b4f6c;
+    border-radius: 4pt;
+    font-size: 8.2pt;
+    font-weight: bold;
+    color: #0b4f6c;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.flow-box-primary {
+    background: #f0f7fa;
+    border: 1.5px solid #0b4f6c;
+}
+.flow-box-accent {
+    background: #e0f2fe;
+    border: 1.5px solid #0284c7;
+    color: #0369a1;
+}
+.flow-box-danger {
+    background: #fef2f2;
+    border: 1.5px solid #ef4444;
+    color: #b91c1c;
+}
+.flow-sub {
+    font-weight: normal;
+    font-size: 7.2pt;
+    color: #555555;
+    display: block;
+    margin-top: 2pt;
+}
+.flow-sub-box {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 3pt;
+    padding: 3pt;
+    margin-top: 4pt;
+    font-weight: normal;
+    font-size: 7.5pt;
+}
+.flow-arrow {
+    text-align: center;
+    font-size: 11pt;
+    color: #64748b;
+}
+
+</style>
+</head>
+<body>
+<h1>Chapter 1 (Tier 1): Subtractive DSP, Formant Filtering &amp; Drivetrain Dynamics</h1>
+<h2>Learning Goals</h2>
+<p>By the end of this chapter, you will understand from first principles:</p>
+<ol>
+<li>Why digital oscillators sound "buzzy" and how <strong>harmonics</strong>, <strong>octaves</strong>, and <strong>decibels</strong> work.</li>
+<li>What a digital <strong>Biquad Filter</strong> is—and how cutoff frequency (<span class="math-inline"><code>f_c</code></span>) and resonance (<span class="math-inline"><code>Q</code></span>) map directly to a car's suspension springs and dampers.</li>
+<li><strong>Formant Filters:</strong> What they are physically (the <strong>Source–Filter Model</strong>), why sliding filters sound fake, whether to wire them in <strong>series or parallel</strong>, <strong>how many</strong> you actually need, and <strong>how to tune them</strong> for an I4, VTEC, Straight-6, V8, and 987.2 Flat-6.</li>
+<li>Why half of engine sound realism in a <em>parking</em> simulator lives in the <strong>Drivetrain &amp; Load model</strong> (flywheel inertia, clutch slip, reverse load, and overrun vacuum) rather than the audio nodes alone.</li>
+</ol>
+<hr />
+<h2>1.1 DSP From Zero: Waves, Harmonics, and Why Your Current Synth Buzzes</h2>
+<p><img src="/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs/diagrams/arch_overview.png" class="diagram"/></p>
+<div class="caption">Figure 1.1: Three-Stage Procedural Engine Audio Architecture</div>
+
+<h3>What Sound Actually Is in Code</h3>
+<p>Sound in air is tiny, rapid fluctuations in atmospheric pressure pushing on your eardrum. Your browser's Web Audio API represents this pressure wave digitally as a stream of floating-point numbers <span class="math-inline"><code>x[n] ∈ [-1.0, +1.0]</code></span>, typically sampled <strong><span class="math-inline"><code>f_s = 48,000</code></span> times per second</strong> (<span class="math-inline"><code>48 kHz</code></span>).</p>
+<p>Every periodic sound can be viewed in two complementary ways:</p>
+<ul>
+<li><strong>Time Domain (<span class="math-inline"><code>x[n]</code></span> vs. time):</strong> The shape of the pressure wiggle from millisecond to millisecond (what an oscilloscope draws).</li>
+<li><strong>Frequency Domain (Amplitude vs. Hz):</strong> The recipe of pure sine waves that add together to make that shape (what the FFT bar graph in <a href="../src/audio_tuner.html"><code>src/audio_tuner.html</code></a> draws).</li>
+</ul>
+<p>Before touching filters, keep two perceptual rules of human hearing in mind—both are <strong>logarithmic</strong>, not linear:</p>
+<ol>
+<li><strong>Pitch is perceived in Octaves (<span class="math-inline"><code>2×</code></span> frequency):</strong> Going from <span class="math-inline"><code>50 Hz → 100 Hz</code></span> sounds like the <em>exact same</em> musical interval (one octave) as going from <span class="math-inline"><code>1,000 Hz → 2,000 Hz</code></span>.</li>
+<li>
+<p><strong>Loudness is measured in Decibels (<span class="math-inline"><code>dB</code></span>):</strong>
+ <br />
+<div class="math-block"><code>dB = 20 log_10((A_2 / A_1))</code></div>
+</p>
+<ul>
+<li><strong><span class="math-inline"><code>+6 dB</code></span></strong> <span class="math-inline"><code>≈ 2×</code></span> the wave amplitude.</li>
+<li><strong><span class="math-inline"><code>-6 dB</code></span></strong> <span class="math-inline"><code>≈ 0.5×</code></span> the wave amplitude.</li>
+<li><strong><span class="math-inline"><code>-20 dB</code></span></strong> <span class="math-inline"><code>= 0.1×</code></span> the wave amplitude (<span class="math-inline"><code>10%</code></span> left).</li>
+<li><strong><span class="math-inline"><code>-40 dB</code></span></strong> <span class="math-inline"><code>= 0.01×</code></span> the wave amplitude (<span class="math-inline"><code>1%</code></span> left—nearly inaudible in a mix).</li>
+</ul>
+</li>
+</ol>
+<hr />
+<h3>Fourier's Theorem &amp; The Harmonic Series</h3>
+<p>In 1822, Joseph Fourier proved a remarkable fact: <strong>any</strong> repeating waveform with fundamental frequency <span class="math-inline"><code>f_0</code></span> (say, <span class="math-inline"><code>50 Hz</code></span>) is mathematically identical to a sum of pure sine waves at integer multiples of <span class="math-inline"><code>f_0</code></span>:</p>
+<div class="math-block"><code>1f_0,  2f_0,  3f_0,  4f_0,  5f_0 …</code></div>
+
+<p>These multiples are called <strong>harmonics</strong> (or <strong>overtones</strong>). What distinguishes a flute from a brass horn or a buzzing chainsaw playing the exact same <span class="math-inline"><code>50 Hz</code></span> pitch is <em>solely</em> the relative loudness of those harmonics:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Web Audio Waveform</th>
+<th style="text-align: left;">Which Harmonics Exist?</th>
+<th style="text-align: left;">Natural High-End Roll-Off</th>
+<th style="text-align: left;">What It Sounds Like Raw</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong><code>sine</code></strong></td>
+<td style="text-align: left;">Only <span class="math-inline"><code>1f_0</code></span> (no overtones)</td>
+<td style="text-align: left;">Infinite (nothing above <span class="math-inline"><code>f_0</code></span>)</td>
+<td style="text-align: left;">Pure tuning fork, hum, sub-bass</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>triangle</code></strong></td>
+<td style="text-align: left;">Odd only (<span class="math-inline"><code>1f_0, 3f_0, 5f_0 …</code></span>)</td>
+<td style="text-align: left;">Fast: amplitude <span class="math-inline"><code>∝ (1 / n^2)</code></span> (<strong><span class="math-inline"><code>-12 dB/oct</code></span></strong>)</td>
+<td style="text-align: left;">Mellow, hollow, muted flute</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>square</code></strong></td>
+<td style="text-align: left;">Odd only (<span class="math-inline"><code>1f_0, 3f_0, 5f_0 …</code></span>)</td>
+<td style="text-align: left;">Slow: amplitude <span class="math-inline"><code>∝ (1 / n)</code></span> (<strong><span class="math-inline"><code>-6 dB/oct</code></span></strong>)</td>
+<td style="text-align: left;">Clarinet, 8-bit Nintendo</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>sawtooth</code></strong></td>
+<td style="text-align: left;"><strong>All</strong> (<span class="math-inline"><code>1f_0, 2f_0, 3f_0, 4f_0 …</code></span>)</td>
+<td style="text-align: left;">Slow: amplitude <span class="math-inline"><code>∝ (1 / n)</code></span> (<strong><span class="math-inline"><code>-6 dB/oct</code></span></strong>)</td>
+<td style="text-align: left;">Bright, raspy, buzzy synthesizer</td>
+</tr>
+</tbody>
+</table>
+<h3>Autopsy of Your Current <code>AudioController.js</code></h3>
+<p>Open <a href="../src/AudioController.js"><code>src/AudioController.js</code></a> and look at lines 296–326 and 180–221:</p>
+<ol>
+<li>For an Inline-6 (<code>i6</code>), <code>setupEngineSound()</code> spawns <strong>five <code>sawtooth</code> oscillators</strong> simultaneously (<code>1.0x</code>, <code>1.5x</code>, <code>3.0x</code>, <code>4.5x</code>, <code>6.0x</code>). Because <em>each</em> sawtooth already contains every integer harmonic (<span class="math-inline"><code>1, 2, 3 … ∞</code></span>) rolling off at a gentle <span class="math-inline"><code>-6 dB/oct</code></span>, stacking five of them floods the spectrum from <span class="math-inline"><code>20 Hz</code></span> all the way up to <span class="math-inline"><code>20,000 Hz</code></span> with phase-locked digital teeth.</li>
+<li>Next, all five sawtooths feed directly into a nonlinear <strong><code>WaveShaperNode</code> (distortion)</strong>. Waveshaping clips the peaks of the sum, generating <em>even more</em> high-frequency harmonics and intermodulation products.</li>
+<li>Finally, look at what sits between that distortion node and your speakers: <strong>two narrow <code>notch</code> filters</strong> at <span class="math-inline"><code>1,000 Hz</code></span> and <span class="math-inline"><code>2,500 Hz</code></span>, and <strong>zero low-pass filter</strong>. Every harsh harmonic at <span class="math-inline"><code>3 kHz, 5 kHz, 8 kHz</code></span> hits your ears completely unattenuated!</li>
+</ol>
+<h3>Engine Orders vs. Arbitrary <code>baseFreq</code></h3>
+<p>In automotive acoustics, engineers don't guess a magic <code>baseFreq: 17</code> or <code>baseFreq: 22</code>—every frequency comes directly from crankshaft geometry:</p>
+<ul>
+<li>
+<p><strong>Crankshaft Rotational Frequency (<span class="math-inline"><code>1st Engine Order</code></span>, or <span class="math-inline"><code>1E</code></span>):</strong>
+<br />
+<div class="math-block"><code>f_rot = (RPM / 60) Hz</code></div>
+</p>
+</li>
+<li>
+<p><strong>Single-Cylinder Firing Frequency (<span class="math-inline"><code>0.5E</code></span>, the "Half-Order"):</strong> In a 4-stroke engine (Intake <span class="math-inline"><code>→</code></span> Compression <span class="math-inline"><code>→</code></span> Power <span class="math-inline"><code>→</code></span> Exhaust), each cylinder fires once every <strong>two</strong> crank revolutions:
+<br />
+<div class="math-block"><code>f_cyl = 0.5 · f_rot = (RPM / 120) Hz</code></div>
+</p>
+</li>
+<li>
+<p><strong>Total Engine Firing Frequency (<span class="math-inline"><code>(N_cyl / 2)E</code></span>):</strong> Across <span class="math-inline"><code>N_cyl</code></span> cylinders firing evenly over two revolutions:
+<br />
+<div class="math-block"><code>f_fire = (N_cyl / 2) · f_rot = (RPM · N_cyl / 120) Hz</code></div>
+</p>
+</li>
+</ul>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 1.1: Physical Engine Orders</h3>
+<ol>
+<li>
+<p>Calculate <span class="math-inline"><code>f_rot</code></span> (<span class="math-inline"><code>1E</code></span>) and <span class="math-inline"><code>f_fire</code></span> in Hz for:</p>
+<ul>
+<li>An <strong>Inline-4</strong> at <span class="math-inline"><code>900 RPM</code></span> idle vs. <span class="math-inline"><code>6,500 RPM</code></span> redline.</li>
+<li>Your <strong>987.2 Cayman S Flat-6</strong> at <span class="math-inline"><code>950 RPM</code></span> idle vs. <span class="math-inline"><code>7,400 RPM</code></span> redline.</li>
+</ul>
+</li>
+<li>
+<p>Look at <code>ENGINE_PRESETS.flat6.harmonics</code> in <a href="../src/AudioController.js"><code>AudioController.js</code></a>: it lists multipliers <code>[3.0, 1.5, 1.0, 6.0, 0.75]</code> relative to <code>baseFreq: 17</code>. If <code>baseFreq</code> represents <span class="math-inline"><code>f_rot</code></span> at idle (<span class="math-inline"><code>950 / 60 = 15.83 Hz</code></span>), what physical part of a 6-cylinder boxer engine produces <strong><code>3.0x</code></strong> vs. <strong><code>1.5x</code></strong>? <em>(Hint: think about how the exhaust manifolds on a Flat-6 are arranged!)</em></p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Frequencies:</strong></p>
+<ul>
+<li><strong>Inline-4 (<span class="math-inline"><code>N_cyl = 4 ⇒ f_fire = 2 f_rot</code></span>):</strong><ul>
+<li>At <span class="math-inline"><code>900 RPM</code></span>: <span class="math-inline"><code>f_rot = 15.0 Hz</code></span>, and <span class="math-inline"><code>f_fire = 30.0 Hz</code></span> (right at the bottom of human bass hearing!).</li>
+<li>At <span class="math-inline"><code>6,500 RPM</code></span>: <span class="math-inline"><code>f_rot = 108.3 Hz</code></span>, and <span class="math-inline"><code>f_fire = 216.7 Hz</code></span>.</li>
+</ul>
+</li>
+<li><strong>Flat-6 (<span class="math-inline"><code>N_cyl = 6 ⇒ f_fire = 3 f_rot</code></span>):</strong><ul>
+<li>At <span class="math-inline"><code>950 RPM</code></span>: <span class="math-inline"><code>f_rot = 15.83 Hz</code></span>, and <span class="math-inline"><code>f_fire = 47.5 Hz</code></span>.</li>
+<li>At <span class="math-inline"><code>7,400 RPM</code></span>: <span class="math-inline"><code>f_rot = 123.3 Hz</code></span>, and <span class="math-inline"><code>f_fire = 370.0 Hz</code></span> (roughly F#4 above middle C!).</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Physical meaning of <code>3.0x</code> vs. <code>1.5x</code> on a Flat-6:</strong></p>
+<ul>
+<li><strong><code>3.0x</code> (<span class="math-inline"><code>3E</code></span>)</strong> is the <strong>combined 6-cylinder firing frequency</strong> (all 6 cylinders merging at the X-pipe/tailpipes: <span class="math-inline"><code>6 / 2 = 3</code></span> firings per revolution).</li>
+<li><strong><code>1.5x</code> (<span class="math-inline"><code>1.5E</code></span>)</strong> is the <strong>single-bank firing frequency</strong>! A Flat-6 has 3 cylinders on the Left bank and 3 on the Right bank, each feeding its own 3-into-1 exhaust manifold (<span class="math-inline"><code>3 / 2 = 1.5</code></span> firings per crank revolution per bank). That <code>1.5E</code> + <code>3.0E</code> interplay is why 6-cylinder engines with split 3-cylinder manifolds have a throatier, deeper undertone than a single-manifold engine! (Meanwhile <code>0.75x</code> doesn't exist physically on a 4-stroke—the lowest possible combustion order is <code>0.5x</code>, a single cylinder firing once per 2 revolutions.)</li>
+</ul>
+</li>
+</ol>
+</div>
+
+<hr />
+<h2>1.2 Digital Filters &amp; The Suspension Analogy (<span class="math-inline"><code>f_c</code></span>, Slope, and <span class="math-inline"><code>Q</code></span>)</h2>
+<p>Subtractive synthesis works just like sculpting marble: you start with a harmonically rich raw wave (lots of overtones) and <strong>carve away</strong> the frequencies a physical muffler, intake box, and engine block wouldn't let out.</p>
+<p>In Web Audio, <code>ctx.createBiquadFilter()</code> gives you a <strong>2nd-order digital filter</strong> ("biquad" because its transfer function is a ratio of two quadratic polynomials—under the hood, it computes each output sample using just 5 multiplications on the current/last 2 input samples and last 2 output samples).</p>
+<h3>The Suspension Analogy: What <span class="math-inline"><code>f_c</code></span> and <span class="math-inline"><code>Q</code></span> Actually Mean</h3>
+<p><img src="/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs/diagrams/ch1_lowpass_response.png" class="diagram"/></p>
+<div class="caption">Figure 1.2: 2nd-Order Low-Pass Filter Frequency Response Across Different Q Values</div>
+
+<p>If you understand how coilover springs and dampers behave on a car, you already understand a 2nd-order <code>lowpass</code> filter—<strong>they obey the exact same 2nd-order differential equation!</strong></p>
+<p>Imagine driving over bumps of frequency <span class="math-inline"><code>f</code></span>, where road height is the input wave and car body motion is the output wave:</p>
+<ol>
+<li>
+<p><strong>Cutoff Frequency (<span class="math-inline"><code>f_c</code></span>, <code>filter.frequency.value</code> in Hz):</strong> This is the <strong>natural frequency</strong> of the spring-mass system (<span class="math-inline"><code>ω_n = √k/m</code></span>).</p>
+<ul>
+<li>Slow highway undulations (<span class="math-inline"><code>f ≪ f_c</code></span>): The chassis follows the road <span class="math-inline"><code>1:1</code></span> (<strong>Passband</strong>, <span class="math-inline"><code>0 dB</code></span>).</li>
+<li>Fast cobblestone chatter (<span class="math-inline"><code>f ≫ f_c</code></span>): The tire vibrates, but the heavy chassis doesn't have time to move. Above <span class="math-inline"><code>f_c</code></span>, a single 2nd-order <code>lowpass</code> filter attenuates energy at <strong><span class="math-inline"><code>-12 dB per octave</code></span></strong> (every time frequency doubles, amplitude drops by <span class="math-inline"><code>4×</code></span>!).</li>
+</ul>
+</li>
+<li>
+<p><strong>Quality Factor (<span class="math-inline"><code>Q</code></span>, <code>filter.Q.value</code>):</strong> For <code>lowpass</code> and <code>highpass</code> in Web Audio, this parameter is measured in <strong>decibels of resonant peak</strong> around <span class="math-inline"><code>f_c</code></span> (note: in textbook physics, dimensionless <span class="math-inline"><code>Q = (1 / 2ζ)</code></span> where <span class="math-inline"><code>ζ</code></span> is the damping ratio; for <code>bandpass</code> and <code>peaking</code> nodes in Web Audio, <code>Q</code> <em>is</em> true dimensionless <span class="math-inline"><code>Q = (f_c / Bandwidth)</code></span>!).</p>
+<ul>
+<li><strong>Flat / Critically Damped (<code>Q</code> near <code>0</code> dB on Web Audio <code>lowpass</code>, or <span class="math-inline"><code>Q = 0.707</code></span> on <code>peaking</code>/<code>bandpass</code>):</strong> Like perfectly dialed street dampers—flat response up to <span class="math-inline"><code>f_c</code></span>, zero bounce, smooth roll-off above <span class="math-inline"><code>f_c</code></span>.</li>
+<li><strong>High Resonance (High <code>Q</code>):</strong> Like removing your shock absorbers and driving on bare springs! Right at <span class="math-inline"><code>f_c</code></span>, energy builds up and <strong>rings louder than the input</strong>, creating a pronounced resonant peak ("boom" or "howl") right at <span class="math-inline"><code>f_c</code></span>.</li>
+</ul>
+</li>
+</ol>
+<pre><code>Gain (dB)
+ +12 |             /\  &lt;-- High Q (Underdamped: rings/booms at fc!)
+     |            /  \
+   0 |-----------/----\---------  &lt;-- Flat Q (Smooth passband)
+     |                 \
+ -12 |                  \   Slope = -12 dB / octave
+     |                   \  (Chain two lowpass nodes = -24 dB / octave!)
+ -24 |                    \
+     +-----------------------------------------&gt; Frequency (log scale)
+                fc    2*fc  4*fc
+</code></pre>
+<h3>Your Four Workhorse <code>BiquadFilterNode</code> Types</h3>
+<p><em>(Check MDN's Web Audio <code>BiquadFilterNode</code> reference carefully on <code>Q</code> conventions—Web Audio has one quirk worth knowing up front!)</em></p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;"><code>filter.type</code></th>
+<th style="text-align: left;">What It Does</th>
+<th style="text-align: left;">Parameters You Set</th>
+<th style="text-align: left;">Acoustic Role in an Engine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong><code>lowpass</code></strong></td>
+<td style="text-align: left;">Passes <span class="math-inline"><code>&lt; f_c</code></span>, cuts <span class="math-inline"><code>&gt; f_c</code></span> at <span class="math-inline"><code>-12 dB/oct</code></span></td>
+<td style="text-align: left;"><code>frequency</code> (<span class="math-inline"><code>f_c</code></span>), <code>Q</code> (dB peak at <span class="math-inline"><code>f_c</code></span>, default <code>0</code>–<code>3</code>)</td>
+<td style="text-align: left;"><strong>Muffler absorption &amp; throttle load</strong> (muffled at idle, opens up under load)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>highpass</code></strong></td>
+<td style="text-align: left;">Cuts <span class="math-inline"><code>&lt; f_c</code></span>, passes <span class="math-inline"><code>&gt; f_c</code></span> at <span class="math-inline"><code>-12 dB/oct</code></span></td>
+<td style="text-align: left;"><code>frequency</code> (<span class="math-inline"><code>f_c</code></span>), <code>Q</code> (dB peak)</td>
+<td style="text-align: left;"><strong>Speaker protection / removing sub-25 Hz mud</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>bandpass</code></strong></td>
+<td style="text-align: left;">Passes <em>only</em> a band around <span class="math-inline"><code>f_c</code></span>; cuts both below &amp; above at <span class="math-inline"><code>-6 dB/oct</code></span></td>
+<td style="text-align: left;"><code>frequency</code> (<span class="math-inline"><code>f_c</code></span>), <code>Q</code> (<span class="math-inline"><code>= f_c / Δ f</code></span>, e.g. <code>2</code>–<code>8</code>)</td>
+<td style="text-align: left;"><strong>Parallel Formant cavities</strong> (airbox induction howl, narrow pipe mode)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>peaking</code></strong></td>
+<td style="text-align: left;">Leaves flat <span class="math-inline"><code>0 dB</code></span> passband, but boosts/cuts a bell around <span class="math-inline"><code>f_c</code></span></td>
+<td style="text-align: left;"><code>frequency</code> (<span class="math-inline"><code>f_c</code></span>), <code>Q</code> (<span class="math-inline"><code>= f_c / Δ f</code></span>), <strong><code>gain</code></strong> (dB, e.g. <code>+10</code> or <code>-8</code>)</td>
+<td style="text-align: left;"><strong>Series Formant body resonances</strong> (muffler boom, metallic mid-pipe rasp)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 1.2: Taming the Exhaust Buzz</h3>
+<p>At <span class="math-inline"><code>900 RPM</code></span> idle, your exhaust <code>WaveShaper</code> generates nasty high-frequency buzz around <strong><span class="math-inline"><code>2,400 Hz</code></span></strong>. Suppose you insert a single <code>lowpass</code> <code>BiquadFilterNode</code> after the <code>WaveShaper</code> with cutoff <strong><span class="math-inline"><code>f_c = 300 Hz</code></span></strong> (flat resonance).</p>
+<ol>
+<li>
+<p>How many <strong>octaves</strong> above <span class="math-inline"><code>300 Hz</code></span> is <span class="math-inline"><code>2,400 Hz</code></span>?</p>
+</li>
+<li>
+<p>Using the <span class="math-inline"><code>-12 dB/octave</code></span> slope of a 2nd-order low-pass filter, by how many <strong>decibels</strong> is that <span class="math-inline"><code>2,400 Hz</code></span> buzz reduced, and roughly what <strong>percentage</strong> of its original amplitude survives?</p>
+</li>
+<li>
+<p>If that still lets through a tiny whisper of fizz on headphones, what happens to the slope if you connect <strong>two</strong> identical <code>lowpass</code> nodes in series (<code>ws -&gt; lp1 -&gt; lp2</code>)?</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Octaves:</strong> <span class="math-inline"><code>300 →× 2 600 →× 2 1,200 →× 2 2,400 Hz</code></span> (<span class="math-inline"><code>(2400 / 300) = 8 = 2^3</code></span>). That is <strong>3 octaves</strong>.</p>
+</li>
+<li>
+<p><strong>Attenuation:</strong> <span class="math-inline"><code>3 octaves × (-12 dB/oct) = -36 dB</code></span>.
+   In linear amplitude: <span class="math-inline"><code>10^-36 / 20 ≈ 0.0158</code></span> (or <span class="math-inline"><code>(1 / 8^2) = (1 / 64)</code></span>)—only <strong>~1.6%</strong> of the harsh <span class="math-inline"><code>2,400 Hz</code></span> buzz survives, while the fundamental <span class="math-inline"><code>30–150 Hz</code></span> engine note below <span class="math-inline"><code>300 Hz</code></span> passes through at <strong>100%</strong> (<span class="math-inline"><code>0 dB</code></span>)!</p>
+</li>
+<li>
+<p><strong>Cascading two <code>lowpass</code> nodes:</strong> Decibels <strong>add</strong> in series! Two 2nd-order filters create a 4th-order (<span class="math-inline"><code>-24 dB/oct</code></span>) filter, crushing <span class="math-inline"><code>2,400 Hz</code></span> by <strong><span class="math-inline"><code>-72 dB</code></span></strong> (<span class="math-inline"><code>0.025%</code></span> amplitude—dead silent).</p>
+</li>
+</ol>
+</div>
+
+<hr />
+<h2>1.3 What Is a Formant Filter? (The Source–Filter Model)</h2>
+<p><img src="/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs/diagrams/ch1_formant_concept.png" class="diagram"/></p>
+<div class="caption">Figure 1.3: Source-Filter Model (Harmonic Source × Stationary Cavity Formants = Radiated Spectrum)</div>
+
+<p>This brings us to your core question: <strong>What actually <em>is</em> a formant filter, and why is it the secret to realistic acoustic synthesis?</strong></p>
+<h3>The Human Voice Experiment</h3>
+<p>Sing the vowel <strong>"Ahhh"</strong> at a low note, and then slide your pitch smoothly up an octave while still holding <strong>"Ahhh"</strong>. Now repeat the exact same low-to-high pitch slide while singing <strong>"Eeee"</strong>.</p>
+<p>Notice two things happened simultaneously:</p>
+<ol>
+<li><strong>The Source (Your Vocal Cords)</strong> slid <em>up</em> in frequency (<span class="math-inline"><code>f_0, 2f_0, 3f_0 …</code></span> all doubled).</li>
+<li><strong>The Filter (Your Throat &amp; Mouth Cavity)</strong> did <strong>NOT</strong> shrink to half its physical size when you sang higher! Because the physical volume and length of your vocal tract stayed constant, its acoustic resonant peaks—called <strong>Formants</strong> (<span class="math-inline"><code>F_1 ≈ 730 Hz, F_2 ≈ 1,090 Hz</code></span> for <em>"Ahhh"</em>; <span class="math-inline"><code>F_1 ≈ 270 Hz, F_2 ≈ 2,290 Hz</code></span> for <em>"Eeee"</em>)—<strong>stayed fixed in Hz!</strong></li>
+</ol>
+<blockquote>
+<p><strong>Definition:</strong> A <strong>Formant</strong> is a <strong>stationary</strong> (or geometry-dependent, <em>not</em> pitch-dependent) resonant peak of a physical acoustic cavity.</p>
+</blockquote>
+<h3>Why Moving Filters Sound Like Cartoon Synths</h3>
+<p>Look at line 374 of your current <a href="../src/AudioController.js"><code>AudioController.js</code></a>:</p>
+<pre><code class="language-js">intakeFreq: p.intake.filterBase + (absSpeed * p.intake.filterRange)
+</code></pre>
+<p>Right now, as <code>absSpeed</code> goes from <code>0</code> to <code>1</code>, your intake bandpass filter slides from <code>400 Hz</code> up to <code>2900 Hz</code> <em>in lockstep with RPM</em>. Physically, that simulates an intake airbox that magically shrinks from the size of a shoebox at idle down to the size of a thimble at redline! When <em>both</em> harmonics and filter peaks move together, your ear hears a synthetic "wah-wah" pitch-shift rather than a real metal machine.</p>
+<p>In a real car, the <strong>engine block, intake plenum, intake runners, header collectors, and muffler chambers have fixed physical dimensions</strong>:</p>
+<ol>
+<li>
+<p><strong>Helmholtz Resonances (<span class="math-inline"><code>100–350 Hz</code></span>):</strong> Just like blowing across the neck of an empty glass bottle, air mass in an intake snorkel bouncing against the springiness of air inside the airbox (or a muffler expansion chamber) rings at a fixed low-mid frequency:
+ <br />
+<div class="math-block"><code>f_H = (c / 2π)√(A_neck / V_cavity · L_neck)</code></div>
+</p>
+</li>
+<li>
+<p><strong>Pipe Standing-Wave Modes (<span class="math-inline"><code>400–2,500 Hz</code></span>):</strong> Intake runners (<span class="math-inline"><code>30–50 cm</code></span>) and exhaust mid-pipes (<span class="math-inline"><code>1.5–3 m</code></span>) reinforce fixed wavelengths (<span class="math-inline"><code>f = (c / 4L)</code></span> or <span class="math-inline"><code>(c / 2L)</code></span>).</p>
+</li>
+<li><strong>What creates the "Spine-Tingling Sweep":</strong> As RPM climbs, the engine's harmonics (<span class="math-inline"><code>1×, 2×, 3×, 4× f_fire</code></span>) <strong>march upward through those fixed formant peaks one after another</strong>. Each time a strong engine harmonic crosses a stationary cavity formant, that harmonic suddenly swells and sings before passing through and handing off to the next harmonic below it!</li>
+</ol>
+<p><em>(Note: The one exception where a real car's formant <em>switches</em> between two fixed frequencies is a physical <strong>variable intake resonance flap</strong>—like Porsche's dual-stage resonance intake manifold on the 987.2 S or BMW's DISA valve—which snaps open a connecting plenum valve around <span class="math-inline"><code>4,200–5,500 RPM</code></span>, shifting the Helmholtz peak between two discrete physical states!)</em></p>
+<hr />
+<h2>1.4 Engineering Your Formant Bank: Routing, Count &amp; Tuning</h2>
+<h3>Crucial Trap: Series vs. Parallel Routing!</h3>
+<p>Suppose you want two formant peaks—one throaty airbox boom at <strong><span class="math-inline"><code>220 Hz</code></span></strong> and one intake runner howl at <strong><span class="math-inline"><code>1,400 Hz</code></span></strong>—and you wire two <code>bandpass</code> filters in <strong>series</strong>:</p>
+<div class="flow-container">
+  <table class="flow-table">
+    <tr>
+      <td class="flow-box">Noise / Osc</td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box">Bandpass 220 Hz<br><span class="flow-sub">Kills everything except ~220 Hz</span></td>
+      <td class="flow-arrow">➔<br><span class="flow-sub" style="color:#d9534f;">Only 220 Hz left</span></td>
+      <td class="flow-box">Bandpass 1400 Hz<br><span class="flow-sub">Kills 220 Hz!</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box flow-box-danger">Near Silence!</td>
+    </tr>
+  </table>
+</div>
+
+<p><strong>Never chain narrow <code>bandpass</code> filters in series!</strong> The first bandpass strips away the frequencies the second bandpass needs. Instead, DSP engineers use one of two clean topologies:</p>
+<h4>Topology A: Parallel <code>bandpass</code> Bank (Best for Intake Induction)</h4>
+<p>Split the source signal into <span class="math-inline"><code>N</code></span> parallel branches, each with one <code>bandpass</code> filter (<code>frequency</code> = <span class="math-inline"><code>F_k</code></span>, <code>Q</code> = sharpness) and one <code>GainNode</code> (weight), then sum them back into a single bus:</p>
+<div class="flow-container">
+  <table class="flow-table">
+    <tr>
+      <td rowspan="2" class="flow-box flow-box-primary" style="width: 24%;">Intake Source<br><span class="flow-sub">(Noise + Firing Ripple)</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box">Bandpass F1<br><span class="flow-sub">240 Hz (Q=3.0)</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box">Gain 1</td>
+      <td class="flow-arrow">➔</td>
+      <td rowspan="2" class="flow-box flow-box-accent" style="width: 22%;">Intake Bus<br><span class="flow-sub">(Summed Output)</span></td>
+    </tr>
+    <tr>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box">Bandpass F2<br><span class="flow-sub">1350 Hz (Q=4.5)</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box">Gain 2</td>
+      <td class="flow-arrow">➔</td>
+    </tr>
+  </table>
+</div>
+
+<ul>
+<li><strong>Why it shines for Intake:</strong> Zero broadband white-noise "hiss" leaks around the peaks—you hear <em>only</em> the resonant air column inside the airbox and runners.</li>
+</ul>
+<h4>Topology B: Series <code>peaking</code> EQ Chain + Master Load <code>lowpass</code> (Best for Exhaust)</h4>
+<p>Unlike <code>bandpass</code>, a <strong><code>peaking</code></strong> filter passes the base signal through at <span class="math-inline"><code>0 dB</code></span> and carves a resonant boost (<code>+6</code> to <code>+14 dB</code>) or scoop (<code>-6 dB</code>) at <span class="math-inline"><code>F_k</code></span>. Because the rest of the spectrum survives, you <strong>can</strong> wire <code>peaking</code> nodes cleanly in series, followed by a <strong>Throttle-Load Low-Pass Filter</strong> representing muffler absorption:</p>
+<div class="flow-container">
+  <table class="flow-table">
+    <tr>
+      <td class="flow-box flow-box-primary" style="width: 24%;">Exhaust Harmonics</td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box" style="width: 24%;">WaveShaper<br><span class="flow-sub">Soft Saturation</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box" style="width: 24%;">Peaking F1<br><span class="flow-sub">Body Boom</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box" style="width: 24%;">Peaking F2<br><span class="flow-sub">Mid Bark / Rasp</span></td>
+    </tr>
+    <tr>
+      <td colspan="7" class="flow-arrow" style="text-align: center; padding: 2pt 0;">▼</td>
+    </tr>
+    <tr>
+      <td class="flow-box" style="width: 24%;">Peaking F3<br><span class="flow-sub">Tailpipe Ring</span></td>
+      <td class="flow-arrow">➔</td>
+      <td colspan="3" class="flow-box" style="width: 48%;">Lowpass ×1 or ×2<br><span class="flow-sub">Cutoff opens with Throttle Load!</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box flow-box-accent" style="width: 24%;">Exhaust Bus<br><span class="flow-sub">(To Master Limiter)</span></td>
+    </tr>
+  </table>
+</div>
+
+<ul>
+<li><strong>Why it shines for Exhaust:</strong> You retain the fundamental low-end chest thump below <span class="math-inline"><code>F_1</code></span>, sculpt 2–3 signature metallic/woody resonances in the mids, and use the final <code>lowpass</code> cutoff (<span class="math-inline"><code>f_LP</code></span>) to dynamically muffle the sound at idle/coasting (<span class="math-inline"><code>f_LP ≈ 220–350 Hz</code></span>) and open it up under heavy throttle load (<span class="math-inline"><code>f_LP ≈ 1,000–2,400 Hz</code></span>).</li>
+</ul>
+<hr />
+<h3>How Many Formant Filters Do You Actually Need?</h3>
+<p><strong>Short answer: 2 on Intake + 3 on Exhaust (+ 1 or 2 cascaded Exhaust Low-Pass nodes) = 6–7 filter nodes total.</strong></p>
+<p>Why not 10 or 20?</p>
+<ol>
+<li>Even human speech—the most complex resonant instrument our brains decode—is completely intelligible with just <strong>3 formants (<span class="math-inline"><code>F_1, F_2, F_3</code></span>)</strong>.</li>
+<li>Web Audio <code>BiquadFilterNode</code>s run in native C++/SIMD on the audio thread; 7 biquads take <strong><span class="math-inline"><code>&lt; 0.1%</code></span> CPU</strong>. Adding 15 overlapping peaks doesn't cost much CPU, <em>but</em> overlapping high-<span class="math-inline"><code>Q</code></span> boosts sum constructively and turn your mix into muddy, clipping soup.</li>
+<li>Three well-placed exhaust formants map cleanly to real physical zones you can hear and tune independently:<ul>
+<li><strong><span class="math-inline"><code>F_1</code></span> (<span class="math-inline"><code>90–240 Hz</code></span>, <span class="math-inline"><code>Q ≈ 1.5–3.0</code></span>):</strong> <strong>Chest / Muffler Box Boom</strong> (cabin drone &amp; displacement weight).</li>
+<li><strong><span class="math-inline"><code>F_2</code></span> (<span class="math-inline"><code>350–900 Hz</code></span>, <span class="math-inline"><code>Q ≈ 2.5–5.0</code></span>):</strong> <strong>Primary Pipe Character</strong> (woody V8 burble, boxy I4 tone, hollow Flat-6 mid-range).</li>
+<li><strong><span class="math-inline"><code>F_3</code></span> (<span class="math-inline"><code>1,000–2,400 Hz</code></span>, <span class="math-inline"><code>Q ≈ 3.0–6.0</code></span>):</strong> <strong>Collector Metallic Bite / Wail</strong> (BMW Straight-6 rasp, Porsche high-RPM howl, VTEC scream).</li>
+</ul>
+</li>
+</ol>
+<hr />
+<h3>How Do You Tune Them? (Methodology + Starting Recipes)</h3>
+<p>When you build your formant controls in <a href="../src/audio_tuner.html"><code>audio_tuner.html</code></a>, use the <strong>"Sweep &amp; Lock" studio EQ technique</strong>:</p>
+<ol>
+<li><strong>Set the Load Low-Pass first:</strong> With formants flat (<code>gain = 0 dB</code>), adjust your idle <code>lowpass</code> cutoff until all artificial synth buzz disappears at idle (usually <span class="math-inline"><code>200–320 Hz</code></span>), then set your full-throttle <code>lowpass</code> ceiling where the engine sounds bright without fizzing (<span class="math-inline"><code>900 Hz</code></span> for a lazy V8 up to <span class="math-inline"><code>2,400 Hz</code></span> for a screaming Flat-6 / VTEC).</li>
+<li><strong>Solo-boost one formant at a time:</strong> Crank <span class="math-inline"><code>F_2</code></span>'s gain temporarily to <code>+15 dB</code> with <code>Q = 5</code>, hold the engine around <span class="math-inline"><code>3,500 RPM</code></span>, and slowly drag <span class="math-inline"><code>F_2</code></span>'s frequency slider until it hits the exact "throatiness" or "metallic rasp" of the car you have in mind. Then pull <code>gain</code> back to a natural <code>+6</code> to <code>+10 dB</code> and widen <code>Q</code> (<code>2.5</code>–<code>4.5</code>) so transitions across RPM feel smooth rather than whistly.</li>
+<li><strong>Carve a scoop if it sounds "boxy":</strong> Real exhausts also have destructive acoustic cancellations! Setting one <code>peaking</code> node to <strong><code>-5 dB</code> around <code>300–450 Hz</code></strong> removes "cardboard box" muddiness and makes low bass + high metallic wail pop in high contrast.</li>
+</ol>
+<h4>Starting Acoustic Target Table for Your Presets</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Engine Preset</th>
+<th style="text-align: left;">Harmonic Orders (<code>mult</code> of <span class="math-inline"><code>f_rot</code></span>)</th>
+<th style="text-align: left;">Exhaust Formants (<span class="math-inline"><code>F_1 / F_2 / F_3</code></span>)</th>
+<th style="text-align: left;">Exhaust Low-Pass (Idle <span class="math-inline"><code>→</code></span> WOT)</th>
+<th style="text-align: left;">Intake Formants (<span class="math-inline"><code>F_box / F_runner</code></span>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong><code>v8</code></strong> <em>(Land Cruiser / Cross-Plane)</em></td>
+<td style="text-align: left;"><code>0.5x</code> (0.5), <code>1.0x</code> (0.8), <code>2.0x</code> (0.6), <code>4.0x</code> (0.7)</td>
+<td style="text-align: left;"><strong><span class="math-inline"><code>110 Hz</code></span></strong> (+8 dB, Q=2) · <strong><span class="math-inline"><code>260 Hz</code></span></strong> (+6 dB, Q=2.5) · <strong><span class="math-inline"><code>620 Hz</code></span></strong> (+4 dB, Q=3)</td>
+<td style="text-align: left;"><span class="math-inline"><code>180 Hz → 850 Hz</code></span></td>
+<td style="text-align: left;"><span class="math-inline"><code>160 Hz</code></span> / <span class="math-inline"><code>650 Hz</code></span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>i4</code></strong> <em>(Mini / Jazz / Jimny)</em></td>
+<td style="text-align: left;"><code>1.0x</code> (0.25), <code>2.0x</code> (0.9), <code>4.0x</code> (0.35)</td>
+<td style="text-align: left;"><strong><span class="math-inline"><code>145 Hz</code></span></strong> (+7 dB, Q=2) · <strong><span class="math-inline"><code>380 Hz</code></span></strong> (-4 dB scoop!) · <strong><span class="math-inline"><code>780 Hz</code></span></strong> (+6 dB, Q=3)</td>
+<td style="text-align: left;"><span class="math-inline"><code>220 Hz → 1,300 Hz</code></span></td>
+<td style="text-align: left;"><span class="math-inline"><code>220 Hz</code></span> / <span class="math-inline"><code>1,100 Hz</code></span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>civic_vtec</code></strong> <em>(EG B16A)</em></td>
+<td style="text-align: left;"><code>2.0x</code> (0.85), <code>4.0x</code> (0.4), <code>6.0x</code> (boosts on VTEC!)</td>
+<td style="text-align: left;"><strong><span class="math-inline"><code>165 Hz</code></span></strong> (+6 dB, Q=2) · <strong><span class="math-inline"><code>520 Hz</code></span></strong> (+5 dB, Q=3) · <strong><span class="math-inline"><code>1,450 Hz</code></span></strong> (+9 dB, Q=4.5)</td>
+<td style="text-align: left;"><span class="math-inline"><code>260 Hz → 2,200 Hz</code></span></td>
+<td style="text-align: left;"><span class="math-inline"><code>260 Hz</code></span> / <strong><span class="math-inline"><code>1,750 Hz</code></span></strong> (Q=5.5 on VTEC!)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>i6</code></strong> <em>(M3 G80 / E91 / G31)</em></td>
+<td style="text-align: left;"><code>1.5x</code> (0.45), <code>3.0x</code> (0.9), <code>6.0x</code> (0.4)</td>
+<td style="text-align: left;"><strong><span class="math-inline"><code>155 Hz</code></span></strong> (+7 dB, Q=2) · <strong><span class="math-inline"><code>740 Hz</code></span></strong> (+8 dB, Q=4) · <strong><span class="math-inline"><code>1,850 Hz</code></span></strong> (+7 dB, Q=5, metallic rasp)</td>
+<td style="text-align: left;"><span class="math-inline"><code>240 Hz → 1,900 Hz</code></span></td>
+<td style="text-align: left;"><span class="math-inline"><code>210 Hz</code></span> / <span class="math-inline"><code>1,300 Hz</code></span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>flat6</code></strong> <em>(Cayman 987.2 S)</em></td>
+<td style="text-align: left;"><code>1.5x</code> (0.65), <code>3.0x</code> (0.85), <code>4.5x</code> (0.25), <code>6.0x</code> (0.45)</td>
+<td style="text-align: left;"><strong><span class="math-inline"><code>185 Hz</code></span></strong> (+6 dB, Q=2.2) · <strong><span class="math-inline"><code>460 Hz</code></span></strong> (+5 dB, Q=3, boxer hollow thrum) · <strong><span class="math-inline"><code>1,150 Hz</code></span></strong> (+10 dB, Q=4.5, wail)</td>
+<td style="text-align: left;"><span class="math-inline"><code>250 Hz → 2,300 Hz</code></span></td>
+<td style="text-align: left;"><span class="math-inline"><code>240 Hz</code></span> / <strong><span class="math-inline"><code>1,050 Hz</code></span> &amp; <span class="math-inline"><code>2,050 Hz</code></span></strong></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 1.3: How Harmonics Excite a Stationary Formant</h3>
+<p>Suppose on your <strong>Porsche 987.2 S (<code>flat6</code>)</strong>, you place a sharp resonant formant peak at <strong><span class="math-inline"><code>F_3 = 1,050 Hz</code></span></strong> (<span class="math-inline"><code>Q = 4.5</code></span>). Remember from Pause &amp; Think 1.1 that the Flat-6's fundamental 6-cylinder firing frequency is <span class="math-inline"><code>f_fire = 3 f_rot = (RPM / 20) Hz</code></span>.</p>
+<ol>
+<li>
+<p>What RPM would the engine need to spin for the <strong>fundamental</strong> firing frequency (<span class="math-inline"><code>1 × f_fire</code></span>) itself to reach <span class="math-inline"><code>1,050 Hz</code></span>? Does the Cayman ever reach that RPM?</p>
+</li>
+<li>
+<p>Yet in reality, that <span class="math-inline"><code>1,050 Hz</code></span> formant lights up dramatically during a pull to <span class="math-inline"><code>7,400 RPM</code></span>! Calculate the <strong>exact three RPMs</strong> between <span class="math-inline"><code>3,000 RPM</code></span> and <span class="math-inline"><code>7,400 RPM</code></span> where the <strong>6th</strong>, <strong>4th</strong>, and <strong>3rd</strong> harmonics of <span class="math-inline"><code>f_fire</code></span> (<span class="math-inline"><code>6 f_fire, 4 f_fire, 3 f_fire</code></span>) sweep straight across the <span class="math-inline"><code>1,050 Hz</code></span> peak!</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Fundamental:</strong> <span class="math-inline"><code>(RPM / 20) = 1,050 ⇒ 21,000 RPM</code></span> (late-2000s Formula 1 V8 territory!). A road-going 987.2 S redlines at <span class="math-inline"><code>7,400 RPM</code></span> (<span class="math-inline"><code>f_fire = 370 Hz</code></span>), so the fundamental <em>never</em> gets anywhere near <span class="math-inline"><code>1,050 Hz</code></span>.</p>
+</li>
+<li>
+<p><strong>Harmonic crossings:</strong> Because your source waveform contains integer harmonics of <span class="math-inline"><code>f_fire</code></span>, each overtone marches through <span class="math-inline"><code>1,050 Hz</code></span> at a distinct RPM:</p>
+<ul>
+<li><strong>6th harmonic (<span class="math-inline"><code>6 f_fire = 1,050 ⇒ f_fire = 175 Hz</code></span>):</strong> Hits at <strong><span class="math-inline"><code>3,500 RPM</code></span></strong>.</li>
+<li><strong>5th harmonic (<span class="math-inline"><code>5 f_fire = 1,050 ⇒ f_fire = 210 Hz</code></span>):</strong> Hits at <strong><span class="math-inline"><code>4,200 RPM</code></span></strong> (right around VarioCam / intake flap transition!).</li>
+<li><strong>4th harmonic (<span class="math-inline"><code>4 f_fire = 1,050 ⇒ f_fire = 262.5 Hz</code></span>):</strong> Hits at <strong><span class="math-inline"><code>5,250 RPM</code></span></strong>.</li>
+<li><strong>3rd harmonic (<span class="math-inline"><code>3 f_fire = 1,050 ⇒ f_fire = 350 Hz</code></span>):</strong> Screams straight through the peak at <strong><span class="math-inline"><code>7,000 RPM</code></span></strong> right before redline!</li>
+</ul>
+</li>
+</ol>
+<p><em>This</em> is why stationary formants sound magical: a single fixed filter creates a multi-stage evolving vocal "singing" across the rev range as successive harmonics climb the ladder through it!</p>
+</div>
+
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 1.4: Fixing VTEC / VarioCam</h3>
+<p>In <a href="../src/AudioController.js"><code>AudioController.js</code></a> line 363, <code>vtecFreqShift</code> multiplies all oscillator frequencies by <code>1.2</code> when <code>currentRPM &gt;= 5800</code>.
+Why did that sound jarring, and in your new Tier 1 architecture, which <strong>three parameters</strong> <em>should</em> change at the VTEC / VarioCam crossover instead of fundamental pitch?</p>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ul>
+<li><strong>Why <code>freqShift = 1.2</code> sounded fake:</strong> Crankshaft speed didn't jump from <span class="math-inline"><code>5,800 RPM</code></span> to <span class="math-inline"><code>6,960 RPM</code></span> in <span class="math-inline"><code>16 ms</code></span>! Shifting oscillator frequency by <span class="math-inline"><code>1.2×</code></span> jumps up a musical minor third instantly, breaking physical continuity.</li>
+<li><strong>What actually changes when switching to the high-lift cam lobe (or opening an intake resonance flap):</strong><ol>
+<li><strong>Upper Harmonic Weights:</strong> Faster, higher valve lift creates a sharper pressure pulse, boosting upper harmonics (<code>4x</code>, <code>6x</code>) relative to the fundamental (<code>2x</code>/<code>3x</code>).</li>
+<li><strong>Intake Runner Formant Gain &amp; <span class="math-inline"><code>Q</code></span>:</strong> Deeper volumetric breathing excites the high intake runner formant (<span class="math-inline"><code>1,500–2,000 Hz</code></span>) much more strongly (<code>screamGain</code>).</li>
+<li><strong>Exhaust Low-Pass Cutoff &amp; Drive:</strong> Higher mass flow opens up the exhaust brightness (<code>lowpass</code> cutoff shifts higher by <span class="math-inline"><code>+300–500 Hz</code></span>) and increases waveshaper saturation slightly.</li>
+</ol>
+</li>
+</ul>
+</div>
+
+<hr />
+<h2>1.5 Fixing the Physics-to-Audio Bridge: Drivetrain &amp; Load at Parking Speeds</h2>
+<p>Even the best DSP sound engine will feel completely disconnected in <a href="../index.html"><code>index.html</code></a> if you don't fix how <a href="../src/GameEngine.js"><code>GameEngine.js</code></a> talks to <a href="../src/AudioController.js"><code>AudioController.js</code></a>.</p>
+<p>Let's do quick math on your simulator's physical scale (from <a href="../tests/unit/performance.test.js"><code>tests/unit/performance.test.js</code></a> line 35: <code>kmh = velocity / 20 * 3.6</code>, meaning <strong><span class="math-inline"><code>20 pixels = 1 meter</code></span></strong>):</p>
+<ul>
+<li>When you maneuver into a tight parallel or perpendicular spot, you drive at <strong><span class="math-inline"><code>2 to 8 km/h</code></span></strong> (<span class="math-inline"><code>11 to 44 px/s</code></span>).</li>
+<li>Compared to <code>maxSpeed = 340 px/s</code> (<span class="math-inline"><code>61.2 km/h</code></span>, roughly top of 1st gear), your <code>speedRatio</code> during parking is <strong><code>0.03</code> to <code>0.13</code></strong>.</li>
+</ul>
+<p>If <code>RPM</code> is just <code>idleRPM + speedRatio * (redline - idleRPM)</code>, three things feel wrong during parking:</p>
+<h3>Bug 1: Separating Braking from Reverse Engine Load</h3>
+<p>In <a href="../src/GameEngine.js"><code>GameEngine.js</code></a>, pressing <code>ArrowDown</code> sets <code>input.throttle = -1</code>:</p>
+<ul>
+<li>If the car is rolling <strong>forward</strong> (<code>velocity &gt; 2 px/s</code>) and <code>input.throttle &lt; 0</code>, the driver is pressing the <strong>footbrake</strong>, <em>not</em> the gas pedal! Engine load should be <strong>zero</strong> (closed throttle).</li>
+<li>Once the car stops or rolls <strong>backward</strong> (<code>velocity &lt;= 2 px/s</code>) and <code>input.throttle &lt; 0</code>, the car is <strong>in Reverse gear</strong> and the driver is pressing the <strong>accelerator</strong>! Engine load should be <strong><code>Math.abs(input.throttle)</code></strong> (whereas your old <code>Math.max(0, throttle)</code> clamped reverse load to <code>0</code>, making backing into a bay dead silent!).</li>
+</ul>
+<h3>Bug 2: Clutch Slip / Torque-Converter Flare &amp; Flywheel Inertia</h3>
+<p>In a real car at <span class="math-inline"><code>0 km/h</code></span>, if the clutch were rigidly locked to the wheels, <span class="math-inline"><code>0 km/h</code></span> would mean <span class="math-inline"><code>0 RPM</code></span> (stalled!). Below ~10 km/h (<span class="math-inline"><code>55 px/s</code></span>), a driver (or automatic torque converter / PDK clutch) <strong>slips the clutch</strong>:</p>
+<ol>
+<li>When you tap the gas from a standstill, the light flywheel spins up <em>much faster</em> than the <span class="math-inline"><code>1,500 kg</code></span> car—RPM flares immediately to <strong><span class="math-inline"><code>1,500–2,200 RPM</code></span></strong> ("blip/bite") while the car barely creeps at <span class="math-inline"><code>3 km/h</code></span>.</li>
+<li>As wheel speed catches up above ~10–12 km/h, <code>wheelDrivenRPM</code> takes over smoothly up to <code>redline</code> in 1st gear (or a shorter Reverse gear ratio, typically ~15% shorter than 1st!).</li>
+<li>You can model this cleanly with two coupled RPM targets and asymmetric <strong>flywheel inertia</strong> (<code>dt</code> smoothing):<ul>
+<li><strong><code>freeRevTarget</code></strong>: <code>idleRPM + engineThrottle * flareRange</code> (e.g., <code>flareRange ≈ 1400–1800 RPM</code> when slipping from a stop).</li>
+<li><strong><code>coupledWheelRPM</code></strong>: <code>(Math.abs(velocity) / maxGearSpeed) * redline</code>.</li>
+<li><strong><code>targetRPM</code></strong>: <code>Math.min(redline, Math.max(idleRPM, coupledWheelRPM, freeRevTarget))</code> (or a smooth blend as the clutch locks up!).</li>
+<li><strong>Flywheel smoothing:</strong> Engine RPM chases <code>targetRPM</code> faster when revving up under throttle (<span class="math-inline"><code>τ_up ≈ 0.08 s</code></span>) than when decaying against internal friction (<span class="math-inline"><code>τ_down ≈ 0.22 s</code></span>):
+ <div class="math-block"><code>rpm += (targetRPM - rpm) · (1 - e^-dt / τ)</code></div></li>
+</ul>
+</li>
+</ol>
+<h3>Bug 3: Engine Load vs. Overrun (Engine Braking)</h3>
+<p>Pitch is controlled by <strong>RPM</strong>, but <strong>Timbre &amp; Volume</strong> are controlled by <strong>Manifold Load</strong>:</p>
+<ul>
+<li><strong>High Load (<code>engineThrottle &gt; 0</code>, climbing RPM):</strong> Throttle butterfly is wide open <span class="math-inline"><code>→</code></span> loud intake roar, bright exhaust <code>lowpass</code> cutoff, high waveshaper drive, deep sub-bass.</li>
+<li><strong>Overrun / Deceleration (<code>engineThrottle === 0</code> while <code>rpm &gt; idleRPM + 250</code>):</strong> Throttle butterfly snaps shut! Intake roar drops to <strong>zero</strong> immediately, and exhaust <code>lowpass</code> closes down to a dark, hollow vacuum rumble (<span class="math-inline"><code>200–300 Hz</code></span>).</li>
+</ul>
+<h3>Micro-Imperfection (Breaking the Frozen Robot Idle)</h3>
+<p>At steady idle, a fixed <code>900.000 RPM</code> sounds like an electrical transformer. Adding <span class="math-inline"><code>± 10–18 RPM</code></span> of slow organic hunting (e.g., summing two slow sine waves at non-integer frequencies like <span class="math-inline"><code>1.3 Hz</code></span> and <span class="math-inline"><code>3.1 Hz</code></span>, scaled down as RPM rises) plus detuning your mechanical vs. exhaust oscillators by <code>0.3%</code> (<code>1.003x</code>) creates natural acoustic beating instead of sterile phase-cancellation.</p>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 1.5: Tracing a Parallel Park Maneuver</h3>
+<p>Walk through four moments of backing into a spot with your new Drivetrain + Formant model:</p>
+<ol>
+<li>
+<p><strong>Phase A:</strong> Stationary (<span class="math-inline"><code>v = 0</code></span>), foot off pedals (<code>input.throttle = 0</code>).</p>
+</li>
+<li>
+<p><strong>Phase B:</strong> You press <code>ArrowDown</code> (<code>input.throttle = -1</code>) for <span class="math-inline"><code>0.3 s</code></span>; car has barely reached <span class="math-inline"><code>v = -15 px/s</code></span> (<span class="math-inline"><code>-2.7 km/h</code></span>).</p>
+</li>
+<li>
+<p><strong>Phase C:</strong> Rolling backward at <span class="math-inline"><code>v = -40 px/s</code></span> (<span class="math-inline"><code>-7.2 km/h</code></span>), you release all keys (<code>input.throttle = 0</code>) to coast into the bay.</p>
+</li>
+<li>
+<p><strong>Phase D:</strong> Still rolling backward at <span class="math-inline"><code>v = -25 px/s</code></span>, you tap <code>ArrowUp</code> (<code>input.throttle = +1</code>) to brake to a stop.
+In <strong>Phase B</strong> vs. <strong>Phase D</strong>, <code>Math.abs(input.throttle)</code> is <code>1.0</code> in both cases! Which phase should have <strong>high engine load &amp; clutch RPM flare</strong>, and which phase should stay at <strong>zero engine load (idle/overrun)</strong>? Write down the boolean condition on <code>velocity</code> and <code>input.throttle</code> that distinguishes accelerating from braking!</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ul>
+<li><strong>Phase B</strong> (rolling backward or stopped, pressing <code>ArrowDown</code>) is <strong>accelerating in Reverse</strong>: <code>engineThrottle = 1.0</code> <span class="math-inline"><code>⇒</code></span> RPM flares on the virtual clutch to ~<span class="math-inline"><code>2,000 RPM</code></span>, intake airbox booms, exhaust low-pass opens up!</li>
+<li><strong>Phase D</strong> (rolling backward at <span class="math-inline"><code>-25 px/s</code></span>, pressing <code>ArrowUp</code>) is <strong>stepping on the brake pedal</strong>: <code>engineThrottle = 0.0</code>! Even though <code>input.throttle === +1</code>, it opposes the current motion (<code>velocity * input.throttle &lt; 0</code> beyond a small deadzone like <code>|velocity| &gt; 5 px/s</code>), so the clutch disengages / throttle stays shut and RPM settles peacefully toward idle instead of roaring!</li>
+<li><strong>Clean boolean condition (with a small standstill deadzone <span class="math-inline"><code>ε ≈ 5 px/s</code></span> so you can launch cleanly in either direction):</strong>
+  <code>js
+  const isBraking = Math.abs(velocity) &gt; 5 &amp;&amp; Math.sign(input.throttle) !== Math.sign(velocity);
+  const engineThrottle = isBraking ? 0 : Math.abs(input.throttle);</code></li>
+</ul>
+</div>
+
+<hr />
+<h2>1.6 Web Audio Smoothing &amp; Gain Staging Tips</h2>
+<p>Two quick engineering guardrails before you jump into code:</p>
+<ol>
+<li>
+<p><strong>Always smooth 60 Hz parameter updates with <code>setTargetAtTime</code>:</strong>
+   Your game loop updates audio 60 times/sec (every <span class="math-inline"><code>16.7 ms</code></span>), while audio plays at <span class="math-inline"><code>48,000</code></span> samples/sec. Jumping <code>filter.frequency.value = newFreq</code> instantaneously creates audible clicks ("zipper noise"). You're already using <code>param.setTargetAtTime(target, ctx.currentTime, timeConstant)</code> in <code>AudioController.js</code>—keep using it! A <code>timeConstant</code> of <strong><code>0.02</code> to <code>0.04</code> seconds</strong> reaches <span class="math-inline"><code>63%</code></span> of the target in <span class="math-inline"><code>20–40 ms</code></span>, eliminating clicks while feeling instantaneous to the driver's foot.</p>
+</li>
+<li>
+<p><strong>Prevent Resonant Clipping:</strong>
+   When a harmonic sits dead-on a <code>+10 dB</code> (<code>3.16x</code> amplitude!) formant peak, your signal level spikes—just as a real exhaust drones loudly at a specific RPM! Keep <code>masterGain</code> sensible (<code>~0.35–0.5</code>), or place a <code>DynamicsCompressorNode</code> (acting as a transparent brickwall safety limiter: <code>threshold: -3</code>, <code>knee: 6</code>, <code>ratio: 12</code>, <code>attack: 0.003</code>, <code>release: 0.1</code>) right before <code>this.analyser</code> so speaker outputs never hard-clip above <code>1.0</code>.</p>
+</li>
+</ol>
+<hr />
+<h2>1.7 Hands-On Coding Lab: Implementing Tier 1 Yourself</h2>
+<p>Now it's your turn to write the code! Work through these four milestones in order so you can hear and test each improvement incrementally.</p>
+<h3>Milestone 1A: Physical Engine Orders &amp; Clean VTEC (<code>src/AudioController.js</code>)</h3>
+<ol>
+<li>
+<p>Replace the arbitrary <code>baseFreq</code> math in <code>calculateState()</code> with true physical crank rotation frequency:
+ <br />
+<div class="math-block"><code>f_rot = (currentRPM / 60)</code></div>
+</p>
+</li>
+<li>
+<p>Interpret each preset's <code>harmonics[i].mult</code> as true <strong>Engine Orders</strong> (multiples of <span class="math-inline"><code>f_rot</code></span>, e.g., <code>2.0</code> for I4 firing, <code>1.5</code> &amp; <code>3.0</code> for I6/Flat-6, <code>0.5</code>, <code>1.0</code>, <code>2.0</code>, <code>4.0</code> for V8).</p>
+</li>
+<li>Remove the musical pitch-jump multiplier (<code>vtecFreqShift</code>) on oscillator frequencies! Instead, when <code>isVtecActive</code> is true (or smoothly blended over a <code>300 RPM</code> transition window around <code>vtec.rpm</code>), boost upper harmonic gains (<code>mult &gt;= 4</code>), intake runner formant gain, and exhaust low-pass cutoff.</li>
+</ol>
+<h3>Milestone 1B: Stateful Parking Drivetrain (<code>src/EngineSim.js</code>, <code>src/AudioController.js</code> &amp; <code>src/main.js</code>)</h3>
+<ol>
+<li>Create a stateful <code>Drivetrain</code> helper (either expanding <code>EngineSim.js</code> or a dedicated class imported by both <code>main.js</code> and <code>AudioTuner.js</code>) with <code>step(dt, velocityPxPerSec, rawThrottleInput)</code> returning <code>{ rpm, engineLoad, isOverrun, isReversing, isBraking }</code>:<ul>
+<li>Implement the braking vs. reverse-load check (<code>isBraking</code> when <code>|velocity| &gt; 5</code> and <code>sign(throttle) !== sign(velocity)</code>).</li>
+<li>Implement virtual clutch flare from a stop + 1st/Reverse gear ratio coupling (remembering Reverse is ~15% shorter than 1st!) + asymmetric flywheel inertia (<span class="math-inline"><code>τ_up</code></span> vs. <span class="math-inline"><code>τ_down</code></span>).</li>
+<li>Add subtle idle RPM micro-hunting (<span class="math-inline"><code>± 12 RPM</code></span> at idle, tapering off above <span class="math-inline"><code>1,500 RPM</code></span>).</li>
+</ul>
+</li>
+<li>Update <a href="../tests/unit/audio_logic.test.js"><code>tests/unit/audio_logic.test.js</code></a> to test:<ul>
+<li>Tapping reverse throttle from standstill raises <code>rpm</code> and <code>engineLoad</code> (&gt; 0).</li>
+<li>Pressing opposite throttle while moving (<code>isBraking</code>) drops <code>engineLoad</code> to <code>0</code> rather than flaring the engine.</li>
+<li>Run <code>npm test</code> to verify all unit tests pass!</li>
+</ul>
+</li>
+</ol>
+<h3>Milestone 1C: Formant Filter Bank &amp; Load-Modulated Low-Pass (<code>src/AudioController.js</code>)</h3>
+<ol>
+<li>
+<p><strong>Exhaust Chain (Topology B):</strong></p>
+<ul>
+<li>Replace the hardcoded <code>1000 Hz</code> and <code>2500 Hz</code> notch filters in <code>init()</code> with a configurable array of <strong>3 series <code>peaking</code> filters</strong> (<span class="math-inline"><code>F_1, F_2, F_3</code></span>, configured per engine preset in <code>ENGINE_PRESETS</code>) followed by <strong>two cascaded <code>lowpass</code> filters</strong> (<code>-24 dB/oct</code> muffler roll-off).</li>
+<li>Modulate the <code>lowpass</code> cutoff dynamically in <code>applyState()</code> using <strong>both</strong> <code>engineLoad</code> and <code>rpm</code> (dark and muffled at idle/overrun; bright and open under heavy throttle load).</li>
+</ul>
+</li>
+<li>
+<p><strong>Intake Chain (Topology A):</strong></p>
+<ul>
+<li>Route intake noise (plus a touch of firing-order ripple!) into <strong>2 parallel <code>bandpass</code> formant filters</strong> (<span class="math-inline"><code>F_airbox</code></span> and <span class="math-inline"><code>F_runner</code></span>) whose frequencies stay <strong>stationary</strong> in Hz (except an optional plenum resonance switch on <code>flat6</code> / <code>civic_vtec</code>), gated strictly by <code>engineLoad</code>!</li>
+</ul>
+</li>
+<li>
+<p><strong>Safety Limiter:</strong> Insert a <code>DynamicsCompressorNode</code> before <code>this.analyser</code> so high-<span class="math-inline"><code>Q</code></span> formant sweeps never clip.</p>
+</li>
+</ol>
+<h3>Milestone 1D: Upgrade the Audio Tuner Lab (<code>src/audio_tuner.html</code> &amp; <code>src/AudioTuner.js</code>)</h3>
+<ol>
+<li>Add sliders in <code>audio_tuner.html</code> for your Exhaust Low-Pass range and Formant frequencies/gains/<span class="math-inline"><code>Q</code></span> so you can use the <strong>"Sweep &amp; Lock"</strong> method live while watching the FFT canvas.</li>
+<li>Add a <strong>"PARKING CREEP / BLIP"</strong> scenario button next to <code>"GENEROUS REV"</code> and <code>"ENGINE BRAKING"</code> that blips throttle <code>0 -&gt; 0.6 -&gt; 0 -&gt; -0.5 -&gt; 0</code> at low speeds so you can tune clutch flare and parking character directly in the tuner.</li>
+<li>Export your tuned JSON presets back into <code>ENGINE_PRESETS</code> in <code>AudioController.js</code>, then test every car inside <a href="../index.html"><code>index.html</code></a>!</li>
+</ol>
+<hr />
+<p><em>Once your Tier 1 Drivetrain and Formant Cabinet are singing, open <strong><a href="./chapter_02_tier2_pulses_and_waveguides.md">Chapter 2 (Tier 2): Crankshaft Phase, Cylinder Pressure Pulses &amp; 1D Waveguides</a></strong> to replace those continuous oscillators with true 48 kHz cylinder combustion pulses!</em></p>
+<div style='page-break-before: always;'></div>
+
+<h1>Chapter 2 (Tier 2): Crankshaft Phase, Cylinder Pressure Pulses &amp; 1D Waveguides</h1>
+<h2>Learning Goals</h2>
+<p>By the end of this chapter, you will understand from first principles:</p>
+<ol>
+<li>Why continuous oscillators hit a realism ceiling at idle and low RPM, and how Web Audio's <strong><code>AudioWorklet</code></strong> lets you write real-time <span class="math-inline"><code>48,000 Hz</code></span> sample-by-sample physics in plain JavaScript.</li>
+<li>How to track <strong>crankshaft angle <span class="math-inline"><code>θ ∈ [0, 4π)</code></span></strong> across a <span class="math-inline"><code>720°</code></span> 4-stroke cycle without pitch-warp bugs or sample-grid aliasing.</li>
+<li><strong>What a single cylinder pulse actually sounds like:</strong> Why 1-sample clicks sound like Geiger counters, and how to synthesize a <strong>zero-DC biphasic exhaust blowdown pulse</strong> + turbulent gas "chuff" whose shape naturally brightens under load.</li>
+<li>Why firing orders and manifold geometry make a <strong>Cross-Plane V8 burble</strong> while a <strong>987.2 Flat-6 howls</strong>—even when their cylinders fire cleanly.</li>
+<li>How a 20-line <strong>1D Acoustic Waveguide</strong> (circular delay line + inverted open-tailpipe reflection + damping filter) turns dry puffs into a resonant metallic exhaust pipe (<span class="math-inline"><code>f = (c / 4L)</code></span>).</li>
+</ol>
+<hr />
+<h2>2.1 Why Leave Oscillators Behind? The Duty-Cycle Problem</h2>
+<p>After completing Tier 1, your engines will already sound dramatically warmer and react properly to parking maneuvers. Yet if you listen closely at <strong>idle (<span class="math-inline"><code>850–950 RPM</code></span>)</strong> or <strong>slow parking creep (<span class="math-inline"><code>1,200 RPM</code></span>)</strong>, you will still notice a subtle "synthesizer" smoothness. Why?</p>
+<p>Because <code>OscillatorNode</code> generates a <strong>continuous, 100%-duty-cycle periodic wave</strong>:</p>
+<pre><code>Sawtooth Oscillator at 30 Hz (33 ms period):
+  /|  /|  /|  /|     &lt;-- Continuous ramp filling all 33 ms of every cycle
+ / | / | / | / |
+
+Real Cylinder Exhaust Port at 900 RPM (33 ms between firings):
+ /\          /\      &lt;-- Sharp 3 ms pressure explosion, followed by
+   \________/  \___      ~30 ms of resonant pipe ringdown &amp; near-silence!
+</code></pre>
+<p>At <span class="math-inline"><code>850 RPM</code></span>, your ear does <strong>not</strong> hear a continuous <span class="math-inline"><code>28 Hz</code></span> bass guitar note—human hearing resolves events separated by <span class="math-inline"><code>&gt; 25 ms</code></span> as <strong>discrete percussive chugs</strong> (<em>"chug-chug-chug"</em>). As RPM climbs past ~<span class="math-inline"><code>1,800 RPM</code></span> (<span class="math-inline"><code>&lt; 15 ms</code></span> between pulses), those discrete explosions overlap in the exhaust pipe and naturally fuse into a continuous pitched roar!</p>
+<p>Continuous Web Audio oscillators cannot:</p>
+<ol>
+<li>Change the <strong>duty cycle</strong> (ratio of pulse width to cycle period) as RPM rises.</li>
+<li>Fire <strong>unevenly spaced</strong> cylinder intervals (like one bank of a Cross-Plane V8).</li>
+<li>Vary <strong>individual</strong> explosions randomly from cycle to cycle (combustion variance and overrun pops).</li>
+</ol>
+<p>To unlock all three at once, we step down from the 60 Hz Node Graph into the <strong><span class="math-inline"><code>48,000 Hz</code></span> Sample Loop</strong> via <code>AudioWorklet</code>.</p>
+<hr />
+<h2>2.2 <code>AudioWorklet</code> in 5 Minutes: Sample-By-Sample Audio</h2>
+<p>Web Audio runs across two threads so UI work or garbage collection on the main thread never causes audio dropouts:</p>
+<div class="flow-container">
+  <table class="flow-table">
+    <tr>
+      <td class="flow-box" style="width: 30%;">
+        <strong>Main Thread (60 Hz Game Loop)</strong><br>
+        <span class="flow-sub">GameEngine + Drivetrain</span><br>
+        <div class="flow-sub-box">AudioWorkletNode</div>
+      </td>
+      <td class="flow-arrow">➔<br><span class="flow-sub">AudioParam (rpm, load)<br>postMessage (preset)</span></td>
+      <td class="flow-box flow-box-primary" style="width: 35%;">
+        <strong>Dedicated Audio Thread (48,000 Hz)</strong><br>
+        <div class="flow-sub-box">EngineWorkletProcessor<br>process() every 128 samples (2.67 ms)</div>
+      </td>
+      <td class="flow-arrow">➔<br><span class="flow-sub">Raw Exhaust + Intake</span></td>
+      <td class="flow-box flow-box-accent" style="width: 25%;">
+        <strong>Web Audio Graph</strong><br>
+        <div class="flow-sub-box">Stationary Formants + Limiter ➔ Speakers</div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Inside your <code>AudioWorkletProcessor</code>, the browser calls <code>process(inputs, outputs, parameters)</code> <strong>375 times per second</strong>, handing you a tiny <code>Float32Array(128)</code> (<span class="math-inline"><code>128 / 48000 = 2.67 ms</code></span> of audio) to fill:</p>
+<pre><code class="language-js">// Boilerplate shell of src/EngineWorklet.js (Web Audio API plumbing — not the DSP!)
+class EngineWorkletProcessor extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+        return [
+            { name: 'rpm', defaultValue: 900, minValue: 0, maxValue: 18000, automationRate: 'a-rate' },
+            { name: 'load', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'a-rate' }
+        ];
+    }
+
+    constructor() {
+        super();
+        // Pre-allocate all typed arrays &amp; state here (ZERO 'new' allocations inside process()!)
+        this.port.onmessage = (e) =&gt; this.applyPreset(e.data);
+    }
+
+    process(inputs, outputs, parameters) {
+        const outExhaust = outputs[0][0]; // Channel 0: Exhaust
+        const outIntake  = outputs[0][1]; // Channel 1: Intake (optional stereo/2-bus split!)
+        const rpmArr  = parameters.rpm;
+        const loadArr = parameters.load;
+
+        for (let i = 0; i &lt; outExhaust.length; i++) {
+            const rpm  = rpmArr.length &gt; 1 ? rpmArr[i] : rpmArr[0];
+            const load = loadArr.length &gt; 1 ? loadArr[i] : loadArr[0];
+            // ---&gt; YOUR 48 kHz ENGINE PHYSICS GOES RIGHT HERE &lt;---
+        }
+        return true; // Keep processor alive
+    }
+}
+registerProcessor('engine-worklet', EngineWorkletProcessor);
+</code></pre>
+<blockquote>
+<p><strong>Golden Rule of Real-Time DSP:</strong> Never allocate objects (<code>{}</code>, <code>[]</code>, <code>new Float32Array</code>) inside the <code>for (let i = 0; i &lt; 128; i++)</code> sample loop! Allocate small fixed-size arrays (e.g., max 8 cylinders, fixed ring buffers) once in <code>constructor()</code>, and mutate numbers in place so the JS garbage collector never runs on the audio thread.</p>
+</blockquote>
+<hr />
+<h2>2.3 Crankshaft Phase Accumulator &amp; 4-Stroke Geometry</h2>
+<h3>Classic Beginner Bug: Never Multiply Frequency by Time!</h3>
+<p>When programmers first write a variable-pitch wave in a loop, they are tempted to write <code>Math.sin(2 * Math.PI * freq * currentTime)</code>. <strong>Never do this when <code>freq</code> changes over time!</strong> By the product rule of calculus, the instantaneous frequency (derivative of phase <span class="math-inline"><code>2π f(t) · t</code></span>) becomes <span class="math-inline"><code>f(t) + t · (df / dt)</code></span>—meaning after 60 seconds of play, tapping the gas multiplies pitch wildly by <span class="math-inline"><code>60×</code></span>!</p>
+<p>Instead, just like integrating <code>pos += velocity * dt</code> in <a href="../src/GameEngine.js"><code>GameEngine.js</code></a>, you integrate <strong>crankshaft angle <span class="math-inline"><code>θ</code></span></strong> incrementally by a tiny step <span class="math-inline"><code>Δθ</code></span> each sample:</p>
+<div class="math-block"><code>Δθ = 2π · (RPM / 60 · f_s)   (radians per sample)</code></div>
+
+<p>Because a <strong>4-stroke Otto cycle</strong> (Intake <span class="math-inline"><code>→</code></span> Compression <span class="math-inline"><code>→</code></span> Power <span class="math-inline"><code>→</code></span> Exhaust) takes <strong>two full crankshaft revolutions</strong>, our repeating cycle wraps at <strong><span class="math-inline"><code>4π radians</code></span> (<span class="math-inline"><code>720°</code></span>)</strong>, not <span class="math-inline"><code>2π</code></span>:</p>
+<div class="math-block"><code>θ[n] = (θ[n-1] + Δθ) mod 4π</code></div>
+
+<p>Each cylinder <span class="math-inline"><code>k ∈ 0 … N_cyl-1</code></span> has a fixed <strong>Exhaust Valve Opening (EVO) trigger angle</strong> <span class="math-inline"><code>θ_k ∈ [0, 4π)</code></span>.</p>
+<h3>Wrap-Safe Trigger Detection &amp; Free Sub-Sample Accuracy</h3>
+<p>How do you know if cylinder <span class="math-inline"><code>k</code></span> just opened its exhaust valve on the current sample? Compute the wrapped angular distance <span class="math-inline"><code>ϕ_k ∈ [0, 4π)</code></span> <em>ahead</em> of cylinder <span class="math-inline"><code>k</code></span>'s trigger angle:</p>
+<div class="math-block"><code>ϕ_k = (θ - θ_k + 4π) mod 4π</code></div>
+
+<ul>
+<li>If <strong><span class="math-inline"><code>ϕ_k &lt; Δθ</code></span></strong>, the crankshaft <strong>just crossed <span class="math-inline"><code>θ_k</code></span> during this exact sample!</strong></li>
+<li>Even better: <span class="math-inline"><code>Δ t_sub = (ϕ_k / Δθ · f_s)</code></span> tells you the <em>exact sub-sample fraction of a sample</em> ago that the valve cracked open! Starting your pulse envelope at <span class="math-inline"><code>t = Δ t_sub</code></span> instead of <span class="math-inline"><code>t = 0</code></span> eliminates high-RPM sample-grid quantization buzz (aliasing) in two lines of arithmetic!</li>
+</ul>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 2.1: Crankshaft Sample Math</h3>
+<p>Assume <span class="math-inline"><code>f_s = 48,000 Hz</code></span> (<code>sampleRate</code> in Web Audio).</p>
+<ol>
+<li>
+<p>How many audio samples elapse during one complete <span class="math-inline"><code>720°</code></span> (<span class="math-inline"><code>4π</code></span>) 4-stroke cycle at <strong><span class="math-inline"><code>900 RPM</code></span> idle</strong> vs. <strong><span class="math-inline"><code>7,200 RPM</code></span> redline</strong>?</p>
+</li>
+<li>
+<p>At <span class="math-inline"><code>7,200 RPM</code></span>, by how many <strong>degrees</strong> does the crankshaft rotate in a <em>single</em> audio sample? Why would checking <code>if (Math.abs(theta - theta_k) &lt; 0.0001)</code> skip almost every cylinder firing?</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Samples per <span class="math-inline"><code>720°</code></span> cycle:</strong></p>
+<ul>
+<li>At <strong><span class="math-inline"><code>900 RPM</code></span></strong>: <span class="math-inline"><code>f_rot = 15 rev/s ⇒ 7.5</code></span> full <span class="math-inline"><code>720°</code></span> cycles/sec. <span class="math-inline"><code>(48,000 / 7.5) = 6,400 samples</code></span> per 4-stroke cycle.</li>
+<li>At <strong><span class="math-inline"><code>7,200 RPM</code></span></strong>: <span class="math-inline"><code>f_rot = 120 rev/s ⇒ 60</code></span> full <span class="math-inline"><code>720°</code></span> cycles/sec. <span class="math-inline"><code>(48,000 / 60) = 800 samples</code></span> per 4-stroke cycle.</li>
+</ul>
+</li>
+<li>
+<p><strong>Degrees per sample at <span class="math-inline"><code>7,200 RPM</code></span>:</strong></p>
+<ul>
+<li><span class="math-inline"><code>(720° / 800 samples) = 0.9° per sample</code></span> (<span class="math-inline"><code>Δθ ≈ 0.0157 rad</code></span>).</li>
+<li>Because <span class="math-inline"><code>θ</code></span> leaps by <span class="math-inline"><code>0.0157 rad</code></span> each sample, it will almost <em>never</em> land within <code>0.0001</code> of <code>theta_k</code>—your engine would misfire 99% of the time! Checking <code>phi_k &lt; dTheta</code> catches <strong>100%</strong> of crossings across every RPM, including right across the <span class="math-inline"><code>4π → 0</code></span> boundary.</li>
+</ul>
+</li>
+</ol>
+</div>
+
+<hr />
+<h2>2.4 Does Each Pulse Have Sound? Synthesizing a Single Exhaust Blowdown</h2>
+<p>Now for your central Tier 2 question: <strong>When a single cylinder fires, what sound does <em>one</em> isolated pulse make, and how do we generate it mathematically?</strong></p>
+<p>Yes—each cylinder event is literally a miniature <strong>uncorked champagne pop</strong> inside the exhaust port! Let's build up the exact waveform of a single pulse in three steps so you see why naive pulses fail and why a physical blowdown wavelet works wonders.</p>
+<h3>Attempt 1 (Naive): The 1-Sample Digital Spike (<code>[1, 0, 0, 0...]</code>)</h3>
+<p>What if you output <code>1.0</code> on the trigger sample and <code>0.0</code> everywhere else?
+In DSP, a 1-sample spike (<span class="math-inline"><code>0.02 ms</code></span> wide) is a <strong>Dirac Delta Impulse</strong>. Its Fourier transform is a <strong>perfectly flat horizontal line</strong>: it contains <em>equal</em> energy at <span class="math-inline"><code>50 Hz</code></span>, <span class="math-inline"><code>1,000 Hz</code></span>, <span class="math-inline"><code>10,000 Hz</code></span>, and <span class="math-inline"><code>24,000 Hz</code></span>! A train of 1-sample clicks sounds like an <strong>electric taser or Geiger counter</strong>, not a combustion engine.</p>
+<h3>Attempt 2 (Flawed): A Purely Positive Pressure Hump</h3>
+<p>What if each valve opening outputs a smooth <span class="math-inline"><code>2 ms</code></span> positive bump <span class="math-inline"><code>p(t) ≥ 0</code></span>?
+Because every sample is positive, the <strong>average value (DC offset)</strong> is strictly greater than zero—and as RPM climbs from <span class="math-inline"><code>900</code></span> to <span class="math-inline"><code>7,000 RPM</code></span>, <span class="math-inline"><code>8×</code></span> as many positive bumps pack into each second! That rising DC offset shoves your speaker cone steadily outward toward <code>1.0</code>, eating up all your headroom and distorting asymmetrically.</p>
+<h3>Attempt 3 (Physical Reality): The Zero-DC Biphasic Blowdown Wave + Turbulent Chuff</h3>
+<p>Look at the actual gas dynamics when an exhaust valve cracks open (~<span class="math-inline"><code>45°</code></span> before Bottom Dead Center):</p>
+<ol>
+<li><strong>The Compression Front (<span class="math-inline"><code>0 → 0.5 ms</code></span>):</strong> Residual cylinder pressure (<span class="math-inline"><code>5–8 bar</code></span> at full throttle; <span class="math-inline"><code>~ 1.3 bar</code></span> at idle) blasts past the valve seat, launching a steep <strong>positive pressure crest</strong> down the header primary.</li>
+<li><strong>Scavenging Rarefaction (<span class="math-inline"><code>0.5 ms → 4 ms</code></span>):</strong> Momentum of the fast-moving gas column over-expands the port (exhaust scavenging!), creating a broader, shallower <strong>negative pressure trough</strong> behind the crest. Furthermore, when that pulse exits the open tailpipe into outside air, acoustic radiation pressure is proportional to the <em>time derivative</em> of volume velocity (<span class="math-inline"><code>p_rad ∝ (dU / dt)</code></span>)—meaning <strong>a radiated acoustic pulse always has equal positive and negative area (zero DC offset)</strong>!</li>
+<li><strong>Turbulent Shear "Chuff":</strong> Supersonic gas shearing through the narrow valve gap injects a brief puff of band-limited <strong>turbulent flow noise</strong> riding on the crest of the pulse.</li>
+</ol>
+<pre><code>Pressure p(t) of ONE Cylinder Exhaust Blowdown Pulse:
+
+  +1.0 |    /\      &lt;-- Steep positive blowdown shock (+ turbulent gas noise)
+       |   /  \
+   0.0 +--+----\----------------------&gt; time t (ms)
+       |        \      ________
+ -0.34 |         \____/        ^-- Broader scavenging rarefaction trough
+                                   (Positive area == Negative area -&gt; Zero DC!)
+</code></pre>
+<h3>A Clean, Exact Equation You Can Code in 4 Lines</h3>
+<p>Consider the normalized dimensionless wavelet <span class="math-inline"><code>w(u)</code></span> where <span class="math-inline"><code>u = (t / τ_0) ≥ 0</code></span>, controlled by a single characteristic blowdown time constant <strong><span class="math-inline"><code>τ_0</code></span></strong> (in seconds):</p>
+<div class="math-block"><code>w(u) = 2.17 · u(2 - u)e^-u    for  0 ≤ u ≤ 10   (and  0  for  u > 10)</code></div>
+
+<p><img src="/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs/diagrams/ch2_blowdown_wavelet.png" class="diagram"/></p>
+<div class="caption">Figure 2.1: Single-Cylinder Exhaust Blowdown Pressure Wavelet w(t) (Zero Net DC Offset)</div>
+
+<p>Look at the properties this tiny formula gives you for free:</p>
+<ul>
+<li><strong>Zero click at <span class="math-inline"><code>t = 0</code></span>:</strong> <span class="math-inline"><code>w(0) = 0</code></span> (ramps up smoothly as the valve cracks open).</li>
+<li><strong>Asymmetric blowdown punch:</strong> Peaks sharply at <span class="math-inline"><code>u ≈ 0.59</code></span> (<span class="math-inline"><code>w ≈ +1.0</code></span>), crosses zero at <span class="math-inline"><code>u = 2.0</code></span>, dips into a wide scavenging trough of <span class="math-inline"><code>-0.34</code></span> at <span class="math-inline"><code>u ≈ 3.41</code></span>, and decays to <span class="math-inline"><code>&lt; 0.008</code></span> by <span class="math-inline"><code>u = 10</code></span>.</li>
+<li>
+<p><strong>Mathematically guaranteed Zero DC Offset at <em>every</em> RPM:</strong>
+<br />
+<div class="math-block"><code>∫_0^∞ u(2 - u)e^-u du = 2∫_0^∞ u e^-u du - ∫_0^∞ u^2 e^-u du = 2(1!) - 2! = 2 - 2 = 0</code></div>
+</p>
+</li>
+<li>
+<p><strong>Adding Turbulent Gas Chuff:</strong> Mix in a touch of filtered white noise gated by the positive blowdown crest (<span class="math-inline"><code>u &lt; 2</code></span>) and scaled by <code>load</code>:
+<br />
+<div class="math-block"><code>p_total(u) = A_load · [ w(u) + k_turb · load · max(0, w(u)) · noise[n] ]</code></div>
+</p>
+</li>
+</ul>
+<h3>How Load &amp; RPM Shape <span class="math-inline"><code>τ_0</code></span> Naturally</h3>
+<p>Why does an engine bark sharply under full throttle, purr softly at idle, and sound tight at high RPM? <strong>Because <span class="math-inline"><code>τ_0</code></span> changes physically!</strong></p>
+<ul>
+<li><strong>At Idle / Low Load (<code>load ≈ 0.05</code>):</strong> Low cylinder blowdown pressure <span class="math-inline"><code>⇒</code></span> lazy, wide pulse (<strong><span class="math-inline"><code>τ_0 ≈ 0.9–1.3 ms</code></span></strong>, total tail <span class="math-inline"><code>~ 10 ms</code></span>). Smooth, wide pulses naturally lack harsh high frequencies!</li>
+<li><strong>Under Full Throttle (<code>load = 1.0</code>) &amp; High RPM:</strong> High cylinder pressure + fast valve opening <span class="math-inline"><code>⇒</code></span> crisp, narrow shock (<strong><span class="math-inline"><code>τ_0 ≈ 0.25–0.45 ms</code></span></strong>, total tail <span class="math-inline"><code>~ 3 ms</code></span>) with <span class="math-inline"><code>4–6×</code></span> larger amplitude <span class="math-inline"><code>A_load</code></span>. Narrower pulses automatically pack punchy mid/high harmonics into the headers!</li>
+</ul>
+<h3>Superposition (When Pulses Overlap at High RPM)</h3>
+<p>Each cylinder <span class="math-inline"><code>k</code></span> tracks the elapsed time <span class="math-inline"><code>t_k</code></span> since its most recent EVO trigger (if active, i.e., <span class="math-inline"><code>t_k &lt; 10τ_0</code></span>). At each sample, you simply advance <code>t_k += 1 / sampleRate</code> for each cylinder and <strong>sum</strong> their active pressures into the manifold! Zero dynamic arrays needed—just a fixed loop of length <span class="math-inline"><code>N_cyl ≤ 8</code></span>.</p>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 2.2: Pulse Width vs. Brightness</h3>
+<p>Without writing any filter at all, imagine listening to two isolated pulses:
+- <strong>Pulse A</strong> has <span class="math-inline"><code>τ_0 = 1.2 ms</code></span> (positive crest lasts <span class="math-inline"><code>2τ_0 = 2.4 ms</code></span>).
+- <strong>Pulse B</strong> has <span class="math-inline"><code>τ_0 = 0.3 ms</code></span> (positive crest lasts <span class="math-inline"><code>2τ_0 = 0.6 ms</code></span>).
+Roughly what half-wave sine frequency corresponds to a <span class="math-inline"><code>2.4 ms</code></span> crest vs. a <span class="math-inline"><code>0.6 ms</code></span> crest? Why does shrinking <span class="math-inline"><code>τ_0</code></span> when you floor the accelerator pedal automatically brighten the engine's timbre <em>before</em> any EQ filter?</p>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ul>
+<li>A half-cycle lasting <span class="math-inline"><code>2.4 ms</code></span> corresponds to a full period of <span class="math-inline"><code>4.8 ms ⇒ f ≈ (1 / 0.0048) ≈ 208 Hz</code></span>! Energy above a few hundred Hz rolls off naturally because a wide, gentle wave cannot wiggle fast enough to excite <span class="math-inline"><code>2 kHz</code></span> air vibrations.</li>
+<li>Shrinking the crest <span class="math-inline"><code>4×</code></span> to <span class="math-inline"><code>0.6 ms</code></span> corresponds to a full period of <span class="math-inline"><code>1.2 ms ⇒ f ≈ 833 Hz</code></span>, extending strong harmonic energy up past <span class="math-inline"><code>2,000 Hz</code></span>!</li>
+<li>In physics and Fourier analysis, this is the <strong>Time–Frequency Scaling Property</strong>: compressing a pulse in time by <span class="math-inline"><code>4×</code></span> stretches its frequency spectrum upward by <span class="math-inline"><code>4×</code></span>! That means load-dependent <span class="math-inline"><code>τ_0</code></span> gives you organic harmonic brightening straight from thermodynamics.</li>
+</ul>
+</div>
+
+<hr />
+<h2>2.5 Firing Orders, Bank Geometry &amp; Why V8s Burble While Flat-6s Howl</h2>
+<p><img src="/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs/diagrams/ch2_firing_orders.png" class="diagram"/></p>
+<div class="caption">Figure 2.2: Cross-Plane V8 Uneven Bank Spacing vs. Flat-6 Even Spacing Across 720° Cycle</div>
+
+<p>Here is one of the coolest payoffs in procedural audio: <strong>once you model per-cylinder pulses and dual-bank manifolds, engine character emerges directly from real mechanical blueprints!</strong></p>
+<p>Let's compare the <span class="math-inline"><code>720°</code></span> (<span class="math-inline"><code>4π</code></span>) crank trigger schedules across your presets:</p>
+<h3>1. Inline-4 (<code>i4</code>, <code>civic_vtec</code>) — Firing Order <code>1-3-4-2</code></h3>
+<ul>
+<li><strong>EVO Angles:</strong> <span class="math-inline"><code>[0°,  180°,  360°,  540°]</code></span> (even <span class="math-inline"><code>π rad</code></span> spacing into a single 4-into-1 collector).</li>
+<li><strong>Acoustic signature:</strong> Strong <span class="math-inline"><code>2E</code></span> pulse train. <em>(Fun experiment: if you add <span class="math-inline"><code>35 cm</code></span> of extra runner pipe delay to two cylinders on one side, your I4 instantly transforms into a <strong>Subaru WRX unequal-length Boxer-4</strong> off-beat rumble!)</em></li>
+</ul>
+<h3>2. BMW Straight-6 (<code>i6</code>) — Firing Order <code>1-5-3-6-2-4</code></h3>
+<ul>
+<li><strong>Bank / Manifold split:</strong><ul>
+<li><strong>Front Manifold (<code>Cyl 1, 3, 2</code>):</strong> Fires at <strong><span class="math-inline"><code>0°,  240°,  480°</code></span></strong> (<span class="math-inline"><code>240°</code></span> spacing).</li>
+<li><strong>Rear Manifold (<code>Cyl 5, 6, 4</code>):</strong> Fires at <strong><span class="math-inline"><code>120°,  360°,  600°</code></span></strong> (<span class="math-inline"><code>240°</code></span> spacing, alternating <code>Front-Rear-Front-Rear</code> every <span class="math-inline"><code>120°</code></span>!).</li>
+</ul>
+</li>
+<li><strong>Why BMW splits <code>1-2-3</code> and <code>4-5-6</code>:</strong> Grouping Front 3 and Rear 3 into separate downpipes prevents adjacent blowdown pulses from spoiling cylinder scavenging before they merge downstream at the mid-pipe resonator with a slight <span class="math-inline"><code>15–30 cm</code></span> path difference.</li>
+</ul>
+<h3>3. Porsche 987.2 S Flat-6 (<code>flat6</code>) — Firing Order <code>1-6-2-4-3-5</code></h3>
+<ul>
+<li><strong>Bank split:</strong><ul>
+<li><strong>Left Bank (<code>Cyl 1, 2, 3</code>):</strong> Fires at <strong><span class="math-inline"><code>0°  (Cyl 1),  240°  (Cyl 2),  480°  (Cyl 3)</code></span></strong>.</li>
+<li><strong>Right Bank (<code>Cyl 6, 4, 5</code>):</strong> Fires at <strong><span class="math-inline"><code>120°  (Cyl 6),  360°  (Cyl 4),  600°  (Cyl 5)</code></span></strong>.</li>
+</ul>
+</li>
+<li><strong>Why a Cayman sounds completely different from a single-pipe 6-cylinder:</strong> Left and Right banks travel through <strong>two independent headers, catalytic converters, and muffler chambers</strong>, meeting only at an acoustic balance tube / dual center tailpipe! If Left and Right pipes reach the listener's ears with even a tiny acoustic path asymmetry (<span class="math-inline"><code>0.3–0.8 ms</code></span>, or stereo panning!), the <span class="math-inline"><code>1.5E</code></span> bank pulses and <span class="math-inline"><code>3E</code></span> combined pulses create that unmistakable hollow boxer thrum at <span class="math-inline"><code>2,000 RPM</code></span> that locks into a spine-tingling 6-cylinder wail above <span class="math-inline"><code>4,500 RPM</code></span>!</li>
+</ul>
+<h3>4. Cross-Plane V8 (<code>v8</code>) — Classic Firing Order <code>1-8-4-3-6-5-7-2</code></h3>
+<p>Look closely at which bank (<code>L</code> = Left <code>1,3,5,7</code>; <code>R</code> = Right <code>2,4,6,8</code>) fires every <span class="math-inline"><code>90°</code></span>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Crank Angle</th>
+<th style="text-align: center;"><span class="math-inline"><code>0°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>90°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>180°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>270°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>360°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>450°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>540°</code></span></th>
+<th style="text-align: center;"><span class="math-inline"><code>630°</code></span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Cylinder</strong></td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">8</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">7</td>
+<td style="text-align: center;">2</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Bank</strong></td>
+<td style="text-align: center;"><strong>L</strong></td>
+<td style="text-align: center;"><strong>R</strong></td>
+<td style="text-align: center;"><strong>R</strong></td>
+<td style="text-align: center;"><strong>L</strong></td>
+<td style="text-align: center;"><strong>R</strong></td>
+<td style="text-align: center;"><strong>L</strong></td>
+<td style="text-align: center;"><strong>L</strong></td>
+<td style="text-align: center;"><strong>R</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Look at <strong>Left Bank alone</strong>: it fires at <strong><span class="math-inline"><code>0° → 270° → 450° → 540° → (720°)</code></span></strong>.
+The angular gaps inside the Left exhaust pipe are:</p>
+<div class="math-block"><code>270°  -  180°  -  90°  -  180°</code></div>
+<p>Two cylinders (<code>5</code> then <code>7</code> on Left; <code>8</code> then <code>4</code> on Right) fire back-to-back <strong><span class="math-inline"><code>90°</code></span> apart ("double-hit")</strong>, followed by a huge <strong><span class="math-inline"><code>270°</code></span> pause</strong> in that pipe! <em>That</em> <code>L - R - R - L - R - L - L - R</code> bank bunching is <strong>100% of why an American / Land Cruiser Cross-Plane V8 burbles like a motorboat</strong>, whereas a Ferrari Flat-Plane V8 (<code>L - R - L - R - L - R - L - R</code>) screams smoothly like two synced Inline-4s!</p>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 2.3: Avoiding the "Silent V8 Cancel-Out" Trap</h3>
+<p>Suppose you code the exact Cross-Plane V8 <code>L-R-R-L-R-L-L-R</code> table above, compute Left Bank's pulses <code>leftSum</code> and Right Bank's pulses <code>rightSum</code>, and then immediately write <code>const monoOut = leftSum + rightSum;</code> with identical pulse parameters and zero pipe delay difference.</p>
+<ol>
+<li>
+<p>What happens to the uneven <code>270° - 180° - 90° - 180°</code> burble when <code>leftSum</code> and <code>rightSum</code> are added together instantaneously with identical waveguides?</p>
+</li>
+<li>
+<p>Name <strong>two realistic physical mechanisms</strong> in a dual-exhaust car that keep Left Bank and Right Bank distinct so your ear clearly hears the V8 burble even on mono laptop speakers!</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Instantaneous identical sum collapses the burble!</strong> Because <code>{0°, 270°, 450°, 540°} ∪ {90°, 180°, 360°, 630°}</code> equals <code>{0°, 90°, 180°, 270°, 360°, 450°, 540°, 630°}</code>, summing two identical linear banks with zero delay/nonlinearity erases the bank distinction and leaves a completely uniform <span class="math-inline"><code>90°</code></span> (<span class="math-inline"><code>4E</code></span>) hum!</p>
+</li>
+<li>
+<p><strong>Two physical mechanisms that preserve the burble in real life (and in your code!):</strong></p>
+<ul>
+<li><strong>Per-Bank Nonlinearity &amp; Waveguide State:</strong> Each bank has its <em>own</em> header collector waveguide and nonlinear gas compression (<code>Math.tanh(...)</code> saturation) <em>before</em> meeting outside! Two pulses bunched <span class="math-inline"><code>90°</code></span> apart inside the Left header overlap and saturate differently than two pulses split across Left and Right pipes.</li>
+<li><strong>Acoustic Path-Length Asymmetry (and/or Stereo Panning):</strong> On virtually every V8 (especially transverse routing around a transmission/transfer case like a Land Cruiser, or standing slightly off-axis from dual tailpipes), one bank's exhaust path to the listener is <strong><span class="math-inline"><code>25–70 cm</code></span> (<span class="math-inline"><code>0.7–2.0 ms</code></span>, or <span class="math-inline"><code>35–95</code></span> samples)</strong> longer than the other, and in headphones you can pan Left Bank slightly left (<code>-0.25</code>) and Right Bank slightly right (<code>+0.25</code>)!</li>
+</ul>
+</li>
+</ol>
+</div>
+
+<hr />
+<h2>2.6 1D Acoustic Waveguides: Putting a Metal Pipe Around Your Pulses</h2>
+<p><img src="/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs/diagrams/ch2_waveguide_loop.png" class="diagram"/></p>
+<div class="caption">Figure 2.3: 1D Acoustic Digital Waveguide with Inverting Open Tailpipe Reflection</div>
+
+<p>If you listen to your raw zero-DC blowdown pulses directly, they sound like an <strong>un-piped lawnmower cylinder firing into open air</strong>—percussive, crisp, and engine-like, <em>but</em> missing the hollow, metallic "tubiness" of headers and tailpipes.</p>
+<p>How do we simulate a <span class="math-inline"><code>2 m</code></span> steel exhaust pipe at <span class="math-inline"><code>48,000 Hz</code></span> without solving partial differential equations? With a <strong>1D Digital Waveguide</strong>—which is just a <strong>circular delay buffer (<code>Float32Array</code>) + a 1-line reflection filter</strong>!</p>
+<h3>Step 1: Pipe Length = Sample Delay (<span class="math-inline"><code>N</code></span>)</h3>
+<p>Sound in hot exhaust gas (<span class="math-inline"><code>~ 350–500°C</code></span>) travels much faster than in room-temperature air (<span class="math-inline"><code>343 m/s</code></span>) because speed of sound scales with <span class="math-inline"><code>√T_Kelvin</code></span>:</p>
+<div class="math-block"><code>c_exhaust ≈ 480 m/s</code></div>
+
+<p>For a pulse to travel down a pipe of length <span class="math-inline"><code>L</code></span> meters and reflect back to the collector (a round trip of <span class="math-inline"><code>2L</code></span> meters), the delay in audio samples is:</p>
+<div class="math-block"><code>N_RT = round\!((2L / c_exhaust) · f_s)</code></div>
+<p>For example, a <strong><span class="math-inline"><code>1.0 m</code></span></strong> pipe at <span class="math-inline"><code>c = 480 m/s</code></span> and <span class="math-inline"><code>f_s = 48,000 Hz</code></span> is a round-trip delay of just <strong><span class="math-inline"><code>N_RT = 200</code></span> floats</strong> in a circular <code>Float32Array</code>!
+<em>(In code, you don't shift array elements every sample: you keep one integer cursor <code>idx</code>, read the oldest sample <code>const delayed = buf[idx]</code>, overwrite <code>buf[idx] = newSample</code> in the exact same slot, and advance <code>idx = (idx + 1) % N_RT</code>—an <span class="math-inline"><code>O(1)</code></span> delay line!)</em></p>
+<h3>Step 2: Why an Open Tailpipe Reflects Waves <em>Upside Down</em> (<span class="math-inline"><code>R &lt; 0</code></span>)</h3>
+<p>Here is a classic acoustics surprise: how can sound <em>reflect</em> off the <strong>open end</strong> of an empty tailpipe when there is no wall there?</p>
+<p>Inside the narrow steel pipe, the gas pulse is confined by rigid walls (high acoustic impedance). The instant it hits the open tailpipe exit, it suddenly expands into the vast 3D atmosphere (low acoustic impedance), clamping gauge pressure toward <span class="math-inline"><code>0</code></span>. By momentum conservation, that sudden pressure drop sucks a <strong>negative (sign-inverted) rarefaction wave</strong> (<span class="math-inline"><code>R ≈ -0.55 to -0.72</code></span>) <em>backward</em> up the tailpipe toward the engine!</p>
+<h3>Step 3: High-Frequency Wall Losses (1-Pole Low-Pass in the Loop)</h3>
+<p>Higher frequencies dissipate faster against muffler perforations and pipe walls than low bass. Inside an <code>AudioWorklet</code>, you don't have <code>BiquadFilterNode</code>, so you write the simplest filter in all of DSP—a <strong>1-pole Exponential Moving Average (EMA)</strong>:</p>
+<pre><code class="language-js">lpState = (1 - d) * delayed + d * lpState;
+</code></pre>
+<ul>
+<li><strong>Why is a weighted average a low-pass filter?</strong> For a slow <span class="math-inline"><code>80 Hz</code></span> bass wave, adjacent samples at <span class="math-inline"><code>48 kHz</code></span> are nearly identical, so <code>lpState</code> tracks the wave <span class="math-inline"><code>1:1</code></span>. For a rapid <span class="math-inline"><code>12 kHz</code></span> hiss (<code>+1, -1, +1, -1</code>), blending the new sample with previous opposite-sign samples averages it out toward <code>0</code>!</li>
+<li><strong>How to pick <code>d</code> without guessing:</strong> Given a desired wall-loss cutoff frequency <span class="math-inline"><code>f_wall</code></span> in Hz (e.g., <span class="math-inline"><code>1,800–3,500 Hz</code></span>):
+<br />
+<div class="math-block"><code>d = e^-2π · f_wall / f_s</code></div>
+</li>
+</ul>
+<div class="flow-container">
+  <table class="flow-table">
+    <tr>
+      <td class="flow-box flow-box-primary" style="width: 28%;">Bank Collector Pulse x[n]</td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box" style="font-size:11pt; font-weight:bold; width: 16%;">(+) Sum</td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box" style="width: 24%;">Soft Clip<br><span class="flow-sub">Math.tanh()</span></td>
+      <td class="flow-arrow">➔</td>
+      <td class="flow-box flow-box-accent" style="width: 28%;">To Exhaust Formants</td>
+    </tr>
+    <tr>
+      <td colspan="2"></td>
+      <td class="flow-arrow" style="text-align:center;">▲<br><span class="flow-sub">Echo Feedback</span></td>
+      <td class="flow-arrow">◀</td>
+      <td class="flow-box" style="background:#fef2f2; border-color:#dc2626;">Open Reflection<br><span class="flow-sub">× R (-0.60)</span></td>
+      <td class="flow-arrow">◀</td>
+      <td class="flow-box">1-Pole Loss + Delay<br><span class="flow-sub">N_RT = 2L / c</span></td>
+    </tr>
+  </table>
+</div>
+
+<blockquote>
+<p><strong>Note: Critical Stability Invariant:</strong> The feedback reflection magnitude <strong>must strictly satisfy <span class="math-inline"><code>|R| &lt; 1.0</code></span></strong> (in practice, keep <span class="math-inline"><code>R ∈ [-0.75, -0.35]</code></span>). If <span class="math-inline"><code>|R| ≥ 1.0</code></span>, each echo returns <em>louder</em> than the last, exploding exponentially to <code>NaN</code> in milliseconds! Wrapping the pipe sum in <code>Math.tanh(x)</code> adds realistic high-pressure gas compression <em>and</em> guarantees the waveguide can never blow up.</p>
+</blockquote>
+<p><em>(Bonus Header Detail: You can also give each individual cylinder primary runner a tiny non-feedback delay line of <span class="math-inline"><code>35–75 cm</code></span> before summing into the Bank Waveguide! Varying those 4 or 6 runner lengths by even <span class="math-inline"><code>3–8 cm</code></span> gives realistic collector phase texture.)</em></p>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 2.4: Connecting Your Ring Buffer to Classical Pipe Physics!</h3>
+<p>Suppose your bank exhaust waveguide has a round-trip buffer length of <strong><span class="math-inline"><code>N_RT = 200 samples</code></span></strong> at <span class="math-inline"><code>f_s = 48,000 Hz</code></span> (representing a <span class="math-inline"><code>L = 1.0 m</code></span> pipe at <span class="math-inline"><code>c = 480 m/s</code></span>), and an inverting open-tailpipe reflection of <strong><span class="math-inline"><code>R = -0.6</code></span></strong>.</p>
+<ol>
+<li>
+<p>You inject a positive spike <code>+1.0</code> at sample <code>0</code>. What comes back at sample <code>200</code>? At what sample does the echo flip back to <strong>positive (<code>+0.36</code>)</strong> so it reinforces the original polarity?</p>
+</li>
+<li>
+<p>Using that positive-to-positive period (in samples), calculate the waveguide's <strong>fundamental resonant frequency <span class="math-inline"><code>f_1</code></span> in Hz</strong>!</p>
+</li>
+<li>
+<p>Compare your answer to the classical physics textbook formula for a pipe closed at one end (the cylinder head) and open at the other (the tailpipe)—a <strong>quarter-wave resonator</strong>, <span class="math-inline"><code>f_1 = (c / 4L)</code></span>!</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Echo polarity:</strong> At sample <code>200</code> (1 round trip), the echo returns inverted: <strong><code>-0.60</code></strong>. After a <em>second</em> round trip at <strong>sample <code>400</code></strong>, <span class="math-inline"><code>-0.60 × -0.60 = +0.36</code></span>—back in positive phase!</p>
+</li>
+<li>
+<p><strong>DSP frequency from buffer size:</strong> A full positive-to-positive cycle takes <span class="math-inline"><code>400 samples</code></span> at <span class="math-inline"><code>48,000 samples/sec</code></span>:
+ <br />
+<div class="math-block"><code>f_1 = (48,000 / 400) = 120 Hz</code></div></p>
+</li>
+</ol>
+<p>(And because alternate half-cycles invert, it reinforces <strong>odd harmonics only</strong>: <span class="math-inline"><code>120 Hz, 360 Hz, 600 Hz…</code></span>—giving that unmistakable hollow, woody pipe resonance!)</p>
+<ol>
+<li><strong>Physics textbook check:</strong>
+ <br />
+<div class="math-block"><code>f_1 = (c / 4L) = (480 m/s / 4 × 1.0 m) = 120 Hz</code></div></li>
+</ol>
+<p>Your 4-line ring buffer <code>Float32Array(200)</code> with negative feedback <em>is</em> the exact time-domain solution to the 1D acoustic wave equation of a quarter-wave exhaust pipe!</p>
+</div>
+
+<hr />
+<h2>2.7 Breathing Life Into the Machine: Jitter, Intake Gulp &amp; Overrun Burbles</h2>
+<p>With crank pulses, dual-bank geometry, and 1D pipe waveguides working, three final micro-details elevate Tier 2 from "impressive simulation" to <strong>visceral</strong>:</p>
+<h3>1. Cycle-to-Cycle Combustion Stochasticity</h3>
+<p>In a real cylinder, air-fuel mixing and spark kernel growth vary slightly on <em>every single explosion</em>. Whenever cylinder <span class="math-inline"><code>k</code></span> crosses its EVO trigger (<code>phi_k &lt; dTheta</code>), randomize that individual pulse's amplitude and width slightly:</p>
+<ul>
+<li><strong>Pulse Amplitude Jitter:</strong> <span class="math-inline"><code>A_k = A_base · (1 + rand(-0.07, +0.07))</code></span> (wider variance <span class="math-inline"><code>± 12%</code></span> at idle when combustion is cooler/lazier; tighter <span class="math-inline"><code>± 4%</code></span> under full load).</li>
+<li><strong>Pulse Width Jitter:</strong> <span class="math-inline"><code>τ_k = τ_0 · (1 + rand(-0.05, +0.05))</code></span>.
+Because every cylinder stroke excites the waveguide slightly differently, the engine never sounds "looped" even if you let it idle for 5 minutes!</li>
+</ul>
+<h3>2. Intake Induction Pulses (Why Wide-Open Throttle Growls From the Front)</h3>
+<p>Intake sound isn't just continuous white-noise hiss—every time an <strong>Intake Valve Opens (IVO)</strong> (<span class="math-inline"><code>360° = 2π rad</code></span> offset from EVO) and the piston plunges down, it sucks a sharp <strong>negative pressure gulp</strong> out of the intake plenum!</p>
+<ul>
+<li><strong>Crucial physical gate:</strong> Between the intake plenum and outside air sits the <strong>throttle butterfly valve</strong>.<ul>
+<li>When <code>load === 0</code> (closed throttle), the metal throttle plate blocks the sound from escaping out the snorkel <span class="math-inline"><code>⇒</code></span> intake pulse gain <span class="math-inline"><code>≈ 0</code></span>.</li>
+<li>As <code>load -&gt; 1.0</code> (wide-open throttle), you get an unobstructed acoustic shot straight down the intake runners to the intake valves! Feeding those IVO pulses into your Tier 1 parallel Intake Formants (<span class="math-inline"><code>F_airbox</code></span> + <span class="math-inline"><code>F_runner</code></span>) produces true induction bark (especially on the 987.2 S Cayman and B16 Civic VTEC!).</li>
+</ul>
+</li>
+</ul>
+<h3>3. Lift-Off Overrun Burbles</h3>
+<p>When you rev past <span class="math-inline"><code>2,800 RPM</code></span> and suddenly snap the throttle shut (<code>load === 0</code>, <code>isOverrun === true</code>), manifold vacuum spikes and tiny pockets of unburnt fuel ignite late in the hot exhaust manifold:</p>
+<ul>
+<li>During overrun, normal cylinder pulses become very soft and wide (low pressure, large <span class="math-inline"><code>τ_0 ≈ 1.3 ms</code></span>).</li>
+<li>With a small per-firing probability (say <code>p = 0.04</code> to <code>0.12</code> while <code>rpm &gt; 2500</code> on sporty presets like <code>m3_g80</code> or <code>cayman_987</code>, tapering to <code>0</code> near idle), trigger a single sharper, medium-amplitude delayed pop inside one bank's waveguide! Because it passes through the exact same exhaust pipe waveguide and formant filters, it sounds like an organic exhaust burble rather than a canned sound effect.</li>
+</ul>
+<hr />
+<div class="pause-box">
+<h3>Pause &amp; Think 2.5: Overrun Physics Check</h3>
+<p>Suppose you rev the <code>flat6</code> up to <span class="math-inline"><code>5,500 RPM</code></span> under full throttle (<code>load = 1.0</code>), and then abruptly lift your foot completely off the gas (<code>load = 0.0</code>).
+Contrast what happens <strong>immediately</strong> (within <span class="math-inline"><code>30 ms</code></span>, while RPM is still ~<span class="math-inline"><code>5,400    ext RPM</code></span>!) to:</p>
+<ol>
+<li>
+<p>The <strong>Intake</strong> channel output, vs.</p>
+</li>
+<li>
+<p>The <strong>Exhaust</strong> channel's pulse rate, pulse amplitude <span class="math-inline"><code>A</code></span>, and pulse width <span class="math-inline"><code>τ_0</code></span>!</p>
+</li>
+</ol>
+</div>
+
+<div class="solution-box"><strong class="title">Check Your Thinking</strong>
+<ol>
+<li>
+<p><strong>Intake channel:</strong> Drops <strong>immediately to near-silence</strong> within <span class="math-inline"><code>20–30 ms</code></span> even though the engine is still spinning at <span class="math-inline"><code>5,400 RPM</code></span>, because the throttle butterfly plate physically slammed shut!</p>
+</li>
+<li>
+<p><strong>Exhaust channel:</strong></p>
+<ul>
+<li><strong>Pulse rate:</strong> Still firing at the <span class="math-inline"><code>5,400 RPM</code></span> rate (<span class="math-inline"><code>270 pulses/sec</code></span>) as the car's momentum/flywheel spins the crank!</li>
+<li><strong>Pulse amplitude <span class="math-inline"><code>A</code></span> &amp; width <span class="math-inline"><code>τ_0</code></span>:</strong> Because fuel is cut (or minimal) and manifold pressure is deep vacuum, cylinder blowdown pressure plummets—so <span class="math-inline"><code>A</code></span> drops to ~15–20% of full-throttle level and <span class="math-inline"><code>τ_0</code></span> widens from ~<span class="math-inline"><code>0.3 ms</code></span> to ~<span class="math-inline"><code>1.1 ms</code></span> (plus occasional random overrun burble pops), producing that smooth, hollow, decelerating engine-braking purr down the rev range!</li>
+</ul>
+</li>
+</ol>
+</div>
+
+<hr />
+<h2>2.8 Hands-On Coding Lab: Implementing Tier 2 Yourself</h2>
+<p>Time to build your real-time 48 kHz engine! Keep your Tier 1 <strong>Drivetrain</strong> and <strong>Stationary Formant Filters</strong>—you are only replacing the <code>OscillatorNode</code> bank inside <a href="../src/AudioController.js"><code>src/AudioController.js</code></a>.</p>
+<h3>Milestone 2A: <code>AudioWorklet</code> Plumbing &amp; Async Init (<code>src/EngineWorklet.js</code> &amp; <code>src/AudioController.js</code>)</h3>
+<ol>
+<li>Create <code>src/EngineWorklet.js</code> defining <code>EngineWorkletProcessor</code> with <code>rpm</code> and <code>load</code> <code>AudioParam</code>s and a stereo (2-channel) output: Channel <code>0</code> = Exhaust raw waveguide out, Channel <code>1</code> = Intake raw induction out (split via <code>ctx.createChannelSplitter(2)</code> into your Tier 1 Exhaust Formants and Intake Formants!).</li>
+<li>Update <code>AudioController.init()</code> to <code>async init()</code> using:
+   <code>js
+   await this.ctx.audioWorklet.addModule(new URL('./EngineWorklet.js', import.meta.url));</code>
+   <em>(Tip: Remember to serve over <code>npm start</code> / <code>http://localhost:8080</code>, as browsers block <code>AudioWorklet</code> over <code>file://</code>. Also guard <code>if (typeof AudioWorkletProcessor !== 'undefined')</code> in <code>EngineWorklet.js</code> if you want to import and unit-test your pure pulse/waveguide math classes inside Jest!)</em></li>
+</ol>
+<h3>Milestone 2B: <span class="math-inline"><code>720°</code></span> Crank Accumulator &amp; Firing Tables (<code>src/EngineWorklet.js</code>)</h3>
+<ol>
+<li>Implement the <span class="math-inline"><code>0 … 4π</code></span> phase accumulator and wrap-safe sub-sample crossing detector (<code>phi_k &lt; dTheta</code>).</li>
+<li>Add cylinder EVO angle + bank assignment (<code>0</code> = Left/Front, <code>1</code> = Right/Rear) configurations for:<ul>
+<li><code>i4</code> / <code>civic_vtec</code> (<code>[0, 180, 360, 540]</code> deg)</li>
+<li><code>i6</code> (<code>[0, 120, 240, 360, 480, 600]</code> deg, split across Front 3 / Rear 3 banks)</li>
+<li><code>flat6</code> (<code>1-6-2-4-3-5</code>, Left vs. Right banks)</li>
+<li><code>v8</code> (<code>1-8-4-3-6-5-7-2</code>, Cross-Plane Left vs. Right banks!)
+   <em>(Keep your existing smooth sine/harmonic path as a fallback for <code>ev</code>!)</em></li>
+</ul>
+</li>
+</ol>
+<h3>Milestone 2C: Zero-DC Blowdown Pulse, Turbulent Chuff &amp; Jitter</h3>
+<ol>
+<li>Implement your fixed-size per-cylinder pulse state (<code>active</code>, <code>elapsedSec</code>, <code>amp</code>, <code>tau0</code>) with <strong>zero heap allocations</strong> inside <code>process()</code>.</li>
+<li>Evaluate the zero-DC biphasic blowdown wavelet <span class="math-inline"><code>w(u) = 2.17 · u(2 - u)e^-u</code></span> + load-gated turbulent noise burst (generate a fast Xorshift PRNG or pre-filled noise table inside the worklet constructor!).</li>
+<li>Add per-firing random combustion jitter (<span class="math-inline"><code>± 6%</code></span> amplitude, <span class="math-inline"><code>± 4%</code></span> <span class="math-inline"><code>τ_0</code></span>) and load-modulated <span class="math-inline"><code>τ_0</code></span> (wide at idle/overrun, crisp under load, plus optional VTEC cam-profile <span class="math-inline"><code>τ_0</code></span> sharpening above <code>vtec.rpm</code>!).</li>
+</ol>
+<h3>Milestone 2D: Dual-Bank 1D Pipe Waveguides &amp; Overrun Burble</h3>
+<ol>
+<li>Write a small, reusable <code>PipeWaveguide</code> class (pre-allocated <code>Float32Array</code> ring buffer, write index, 1-pole wall-loss filter state, open-end negative reflection <span class="math-inline"><code>R ∈ [-0.70, -0.45]</code></span>, and <code>Math.tanh</code> saturation).</li>
+<li>Give <strong>Bank 0</strong> and <strong>Bank 1</strong> slightly different pipe lengths (e.g., <code>1.15 m</code> vs. <code>1.48 m</code> on <code>v8</code>; <code>0.95 m</code> vs. <code>1.08 m</code> on <code>flat6</code> / <code>i6</code>) so dual-bank interference and V8 burble come alive even in mono!</li>
+<li>Add intake IVO pulses on Channel <code>1</code> (gated by <code>load</code>) and probabilistic lift-off overrun burbles when <code>isOverrun &amp;&amp; rpm &gt; 2500</code>.</li>
+</ol>
+<h3>Milestone 2E: Add an Oscilloscope Toggle &amp; "Single Spark" Test to <code>audio_tuner.html</code>!</h3>
+<p>To <em>see</em> and <em>hear</em> your time-domain physics from the ground up, add two tiny controls in <a href="../src/audio_tuner.html"><code>src/audio_tuner.html</code></a> &amp; <a href="../src/AudioTuner.js"><code>src/AudioTuner.js</code></a>:</p>
+<ol>
+<li>
+<p><strong>A <code>"SINGLE PULSE (1 SPARK)"</code> debug button</strong> (sends <code>{ type: 'single_spark' }</code> over <code>workletNode.port.postMessage</code> when the engine is stopped):</p>
+<ul>
+<li>Listen to <strong>one isolated cylinder blowdown</strong> pop and ring down inside your <span class="math-inline"><code>1 m</code></span> exhaust pipe waveguide!</li>
+</ul>
+</li>
+<li>
+<p><strong>An <code>[FFT Spectrum | Oscilloscope]</code> visualizer toggle</strong> using <code>audio.analyser.getByteTimeDomainData(dataArray)</code>:</p>
+<ul>
+<li>Drag RPM slowly from a slow-motion <strong><code>120 RPM</code></strong> crank up through <strong><code>900 RPM</code></strong> idle to <strong><code>7,000 RPM</code></strong> redline—hear the exact threshold where discrete percussive cylinder pops fuse into a continuous engine note!</li>
+<li>At <span class="math-inline"><code>850 RPM</code></span> idle on <strong><code>i4</code></strong>, watch evenly spaced biphasic blowdown crests + inverted quarter-wave pipe echoes decay cleanly between firings.</li>
+<li>Switch to <strong><code>v8</code></strong> and watch the <code>L - R - R - L</code> double-hit bunching dance across the oscilloscope while you hear the V8 burble!</li>
+<li>Blip the throttle and watch the pulses compress narrower (<span class="math-inline"><code>τ_0 ↓</code></span>), grow taller, and pack closer together into a screaming high-RPM howl!</li>
+</ul>
+</li>
+</ol>
+</body>
+</html>

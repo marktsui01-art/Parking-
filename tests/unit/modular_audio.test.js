@@ -1067,3 +1067,132 @@ describe('Boxer-6 (boxer_6_cayman) Acoustic & Load-RPM Verification', () => {
         expect(crossed680_f60).toBe(true);
     });
 });
+
+describe('Dodge Viper V10 & F1 Golden Era V10 Acoustic Verification', () => {
+    describe('Dodge Viper V10 (8.4L Odd-Fire Side-Pipe)', () => {
+        let engine;
+
+        beforeEach(() => {
+            engine = new ModularAudioEngine('dodge_viper_v10');
+        });
+
+        test('Structure & Configuration', () => {
+            expect(engine.patch.name).toBe('Dodge Viper V10 (8.4L Odd-Fire Side-Pipe)');
+            expect(engine.patch.baseRPM).toBe(750);
+            expect(engine.patch.redlineRPM).toBe(6200);
+            expect(engine.patch.cylinders).toBe(10);
+            expect(engine.patch.masterGain).toBe(0.80);
+            expect(engine.patch.nodes.length).toBe(13);
+        });
+
+        test('Low-Mid Body (60–350 Hz) and Buzz Rejection across RPM Range', () => {
+            const testRPMs = [750, 2500, 4000, 6200];
+
+            for (const rpm of testRPMs) {
+                const throttle = 0.5;
+                const state = engine.calculateState(rpm, throttle);
+                engine.currentRPM = rpm;
+                engine.currentThrottle = throttle;
+
+                const f0 = rpm / 60;
+                const bank25 = state.nodeStates['osc_bank25'];
+                const fire50 = state.nodeStates['osc_fire50'];
+
+                // Frequencies and gains
+                expect(bank25.frequency).toBeCloseTo(f0 * 2.5, 1);
+                expect(fire50.frequency).toBeCloseTo(f0 * 5.0, 1);
+                expect(bank25.gain).toBeGreaterThan(0.70);
+                expect(fire50.gain).toBeGreaterThan(0.50);
+
+                // Composite filter response in chest/side-pipe band [115, 180, 240] Hz has strong positive boost (> +4.0 dB average)
+                const resp115 = engine.getCompositeFilterFrequencyResponse([115])[0];
+                const resp180 = engine.getCompositeFilterFrequencyResponse([180])[0];
+                const resp240 = engine.getCompositeFilterFrequencyResponse([240])[0];
+                const avgBoost = (resp115 + resp180 + resp240) / 3;
+                expect(avgBoost).toBeGreaterThan(4.0);
+
+                // 3500 Hz buzz is attenuated by < -25 dB relative to 200 Hz
+                const resp200 = engine.getCompositeFilterFrequencyResponse([200])[0];
+                const resp3500 = engine.getCompositeFilterFrequencyResponse([3500])[0];
+                expect(resp3500 - resp200).toBeLessThan(-25.0);
+            }
+        });
+
+        test('Load Sensitivity (0% Idle vs 100% WOT)', () => {
+            const rpm = 2500;
+            const sIdle = engine.calculateState(rpm, 0);
+            const sWot = engine.calculateState(rpm, 1.0);
+
+            // Opening throttle opens both Stage 1 & Stage 2 lowpass cutoffs
+            expect(sWot.nodeStates['flt_exh_lp'].frequency - sIdle.nodeStates['flt_exh_lp'].frequency).toBeCloseTo(480, 1);
+            expect(sWot.nodeStates['flt_exh_lp2'].frequency - sIdle.nodeStates['flt_exh_lp2'].frequency).toBeCloseTo(660, 1);
+
+            // Increases turbulence noise gain (noise_chuff)
+            expect(sWot.nodeStates['noise_chuff'].gain - sIdle.nodeStates['noise_chuff'].gain).toBeCloseTo(0.42, 2);
+        });
+    });
+
+    describe('F1 Golden Era V10 (3.0L 19,000 RPM Acoustic Model)', () => {
+        let engine;
+
+        beforeEach(() => {
+            engine = new ModularAudioEngine('f1_golden_era_v10');
+        });
+
+        test('Structure & Configuration', () => {
+            expect(engine.patch.name).toBe('F1 Golden Era V10 (3.0L 19,000 RPM Acoustic Model)');
+            expect(engine.patch.baseRPM).toBe(4000);
+            expect(engine.patch.redlineRPM).toBe(19000);
+            expect(engine.patch.cylinders).toBe(10);
+            expect(engine.patch.masterGain).toBe(0.80);
+            expect(engine.patch.nodes.length).toBe(13);
+        });
+
+        test('Harmonic Chord at 4,000 RPM and 19,000 RPM', () => {
+            // At 4,000 RPM (idle, f0 = 66.67 Hz)
+            const s4k = engine.calculateState(4000, 0);
+            expect(s4k.f0).toBeCloseTo(66.67, 1);
+            expect(s4k.nodeStates['osc_bank25'].frequency).toBeCloseTo(166.67, 1);
+            expect(s4k.nodeStates['osc_fire50'].frequency).toBeCloseTo(333.33, 1);
+            expect(s4k.nodeStates['osc_fifth75'].frequency).toBeCloseTo(500.0, 1);
+            expect(s4k.nodeStates['osc_shriek100'].frequency).toBeCloseTo(666.67, 1);
+
+            // At 19,000 RPM (redline, f0 = 316.67 Hz)
+            const s19k = engine.calculateState(19000, 1.0);
+            expect(s19k.f0).toBeCloseTo(316.67, 1);
+            expect(s19k.nodeStates['osc_bank25'].frequency).toBeCloseTo(791.7, 1);
+            expect(s19k.nodeStates['osc_fire50'].frequency).toBeCloseTo(1583.3, 1);
+            expect(s19k.nodeStates['osc_fifth75'].frequency).toBeCloseTo(2375.0, 1);
+            expect(s19k.nodeStates['osc_shriek100'].frequency).toBeCloseTo(3166.7, 1);
+        });
+
+        test('19,000 RPM WOT Megaphone Passband & Ultrasonic Roll-off', () => {
+            engine.currentRPM = 19000;
+            engine.currentThrottle = 1.0;
+
+            // Composite filter response boosts 700-2500 Hz megaphone scream band (> +2.0 dB average across [800, 1583, 2375] Hz)
+            const r800 = engine.getCompositeFilterFrequencyResponse([800])[0];
+            const r1583 = engine.getCompositeFilterFrequencyResponse([1583])[0];
+            const r2375 = engine.getCompositeFilterFrequencyResponse([2375])[0];
+            const avgScream = (r800 + r1583 + r2375) / 3;
+            expect(avgScream).toBeGreaterThan(2.0);
+
+            // Steeply rolls off ultrasonic 10,000 Hz buzz (< -20 dB relative to 1,583 Hz)
+            const r10k = engine.getCompositeFilterFrequencyResponse([10000])[0];
+            expect(r10k - r1583).toBeLessThan(-20.0);
+        });
+
+        test('Load Sensitivity (0% Overrun vs 100% WOT)', () => {
+            const rpm = 12000;
+            const sOverrun = engine.calculateState(rpm, 0);
+            const sWot = engine.calculateState(rpm, 1.0);
+
+            // Opening throttle opens both Stage 1 (+1200 Hz) and Stage 2 (+1400 Hz) lowpass cutoffs
+            expect(sWot.nodeStates['flt_exh_lp'].frequency - sOverrun.nodeStates['flt_exh_lp'].frequency).toBeCloseTo(1200, 1);
+            expect(sWot.nodeStates['flt_exh_lp2'].frequency - sOverrun.nodeStates['flt_exh_lp2'].frequency).toBeCloseTo(1400, 1);
+
+            // Increases airbox gas velocity turbulence noise (noise_airbox)
+            expect(sWot.nodeStates['noise_airbox'].gain - sOverrun.nodeStates['noise_airbox'].gain).toBeCloseTo(0.32, 2);
+        });
+    });
+});
