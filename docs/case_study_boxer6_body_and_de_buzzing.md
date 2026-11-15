@@ -121,3 +121,16 @@ When we route low-frequency **`brown` noise** ($n(t)$, which has a $-6\text{ dB/
 $$y(t) = \tanh\Big(k \cdot \big(s(t) + n(t)\big)\Big) \approx \underbrace{\tanh\big(k \cdot s(t)\big)}_{\text{Saturated Engine Wave}} + \underbrace{k \cdot \text{sech}^2\big(k \cdot s(t)\big) \cdot n(t)}_{\text{Pitch-Synchronized Turbulent Modulation}}$$
 
 Because $\text{sech}^2(x) = 1 - \tanh^2(x)$ is maximum when $s(t)$ crosses zero and drops toward zero at the compressed wave peaks, **the waveshaper automatically amplitude-modulates the brown noise in sync with the engine's firing pulses!** Instead of hearing a static layer of background noise sitting *on top* of a clean synth wave, the noise is woven *into* the combustion pulses themselves—giving each cycle organic, pressurized mechanical texture before the signal is smoothed by the dual low-pass filters.
+
+---
+
+## 4. Phase 2 Refinement: Eliminating High-RPM Warble & Restoring Top-End Metallic "Zing" (`6,000–7,400 RPM`)
+
+Once the $3{,}000\text{–}6{,}000\text{ RPM}$ midrange had warm acoustic body, profiling the patch with a **16,384-point Hann-windowed FFT (`2.93 Hz` bin resolution)** and a **750 ms short-window RMS envelope profiler** ([`scripts/measure_histograms.mjs`](../scripts/measure_histograms.mjs)) exposed three subtle physical defects near the $7{,}200\text{–}7{,}400\text{ RPM}$ top end:
+
+1. **Unphysical `18.1%` Chorus Warble from Per-Order Detuning:**
+   Detuning `1.5x` (`-4 cents`) and `4.5x` (`+5 cents`) caused integer multiples of those orders to beat at $2\text{–}4\text{ Hz}$ inside the nonlinear waveshaper, producing an **`18.1%` periodic amplitude warble** at $7{,}200\text{ RPM}$. Because every piston and cam lobe in a real engine is locked to **one rigid crankshaft**, setting **`detune: 0` across all harmonic oscillators** cut high-RPM warble by **90%** (down to **`1.8%`**, pure turbulent gas micro-variance).
+2. **Sub-Order Headroom Stealing (`1.0x` & `1.5x` Ducking Top-End Zing):**
+   With positive RPM gain scaling on `1.0x` and `1.5x`, `1.0x` ($120\text{ Hz}$) rivaled `3.0x` ($360\text{ Hz}$) at $7{,}200\text{ RPM}$. Inside `Math.tanh`, that large $120\text{ Hz}$ bass excursion drove $\text{sech}^2(k \cdot s(t)) \to 0$ on every crank cycle, **compressing and ducking $2\text{–}4.5\text{ kHz}$ metallic overtones**! Giving `1.0x` (`rpmModGain: -0.10`) and `1.5x` (`rpmModGain: -0.05`) gentle negative slopes lowered `1.0x` by **`-5.7 dB`** at redline so the primary `3.0x` firing order leads cleanly by **`+4.9 dB`**.
+3. **Convex VarioCam Crossover Curves ($u_{\text{RPM}}^{2.8}$) for Top-End Metallic Zing:**
+   Linear RPM modulation ($\gamma = 1.0$) forced a compromise between midrange buzz and muffled redline. Raising the dual Butterworth low-pass modulation to a **convex power curve (`rpmModExp: 2.8`)** kept $3{,}500\text{ RPM}$ tucked near $\sim 700\text{ Hz}$ ($0.40^{2.8} = 0.077$, preserving a `43,110 : 1` body-to-high ratio), while opening steeply above $5{,}800\text{ RPM}$ to **`4,340 Hz` / `3,315 Hz`** alongside a convex-gated **`9.0x` (`1,080 Hz` at `7,200 RPM`) sawtooth zing order** (`rpmModExp: 2.6`) and a **`1,650 -> 2,650 Hz` (`+6.5 dB, Q = 2.2`) Metallic Zing formant**—boosting $2.0\text{–}3.15\text{ kHz}$ energy by **`+9.3 dB`** and $3.15\text{–}5.0\text{ kHz}$ bite by **`+17.9 dB`** at redline!

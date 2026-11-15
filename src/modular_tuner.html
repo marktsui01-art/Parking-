@@ -180,6 +180,73 @@
             background: rgba(251, 191, 36, 0.25);
         }
 
+        /* A/B Patch Switcher */
+        .ab-switcher-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--bg-elevated);
+            padding: 3px 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .ab-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            margin-right: 2px;
+        }
+
+        .btn-ab {
+            padding: 4px 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-base);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-ab:hover {
+            border-color: var(--border-highlight);
+            color: var(--text-main);
+        }
+
+        .btn-ab.active-slot-a {
+            background: rgba(251, 191, 36, 0.2);
+            border-color: #fbbf24;
+            color: #fbbf24;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+        }
+
+        .btn-ab.active-slot-b {
+            background: rgba(34, 211, 238, 0.2);
+            border-color: #22d3ee;
+            color: #22d3ee;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.3);
+        }
+
+        .ab-copy-btn {
+            padding: 4px 9px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-surface);
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .ab-copy-btn:hover {
+            border-color: var(--border-highlight);
+            color: var(--text-main);
+        }
+
         .quick-bar {
             display: flex;
             align-items: center;
@@ -793,6 +860,13 @@
                         <option value="dodge_viper_v10">Dodge Viper V10 (8.4L Odd-Fire Side-Pipe)</option>
                         <option value="f1_golden_era_v10">F1 Golden Era V10 (3.0L 19,000 RPM Acoustic Model)</option>
                     </select>
+                </div>
+
+                <div class="ab-switcher-group" id="ab-switcher-group" title="Instant A/B patch comparison at identical RPM & Throttle (Shortcut: press B)">
+                    <span class="ab-label">A/B:</span>
+                    <button id="btn-slot-a" class="btn-ab active-slot-a" type="button">A</button>
+                    <button id="btn-slot-b" class="btn-ab" type="button">B</button>
+                    <button id="btn-ab-copy" class="ab-copy-btn" type="button" title="Copy current active slot into the other slot">Copy A→B</button>
                 </div>
 
                 <button id="btn-wire-series" title="Connect primary source/shaper through filters in series">Wire Filters Series</button>

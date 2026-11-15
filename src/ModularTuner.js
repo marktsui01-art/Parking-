@@ -28,6 +28,9 @@ const btnWireSeries = document.getElementById('btn-wire-series');
 const btnWireParallel = document.getElementById('btn-wire-parallel');
 const btnExport = document.getElementById('btn-export');
 const btnImport = document.getElementById('btn-import');
+const btnSlotA = document.getElementById('btn-slot-a');
+const btnSlotB = document.getElementById('btn-slot-b');
+const btnAbCopy = document.getElementById('btn-ab-copy');
 
 // Quick Add Node Buttons
 const btnAddOsc = document.getElementById('btn-add-osc');
@@ -156,6 +159,48 @@ function setupEventListeners() {
             refreshAllUI();
         } catch (err) {
             alert('Invalid JSON Patch format: ' + err.message);
+        }
+    });
+
+    // A/B Patch Switcher Controls
+    if (btnSlotA) {
+        btnSlotA.addEventListener('click', () => {
+            engine.switchABSlot('A');
+            engine.update(currentRPM, throttleInput);
+            refreshAllUI();
+        });
+    }
+
+    if (btnSlotB) {
+        btnSlotB.addEventListener('click', () => {
+            engine.switchABSlot('B');
+            engine.update(currentRPM, throttleInput);
+            refreshAllUI();
+        });
+    }
+
+    if (btnAbCopy) {
+        btnAbCopy.addEventListener('click', () => {
+            engine.copyActiveToOtherSlot();
+            btnAbCopy.innerText = 'Copied!';
+            setTimeout(() => {
+                updateABButtonsUI();
+            }, 1200);
+            refreshAllUI();
+        });
+    }
+
+    // A/B Keyboard Shortcut Toggle: press 'b' or 'B'
+    document.addEventListener('keydown', (e) => {
+        if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            const target = e.target;
+            const tag = target && target.tagName ? target.tagName.toUpperCase() : '';
+            if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+                e.preventDefault();
+                engine.toggleABSlot();
+                engine.update(currentRPM, throttleInput);
+                refreshAllUI();
+            }
         }
     });
 
@@ -341,14 +386,47 @@ function refreshAllUI() {
     renderNodesRack();
     renderPatchBay();
     syncJsonTextarea();
+    updateABButtonsUI();
     nodesCountDisplay.innerText = engine.patch.nodes.length;
     masterGainSlider.value = engine.patch.masterGain ?? 0.7;
     masterGainVal.innerText = Number(masterGainSlider.value).toFixed(2);
-    presetSelect.value = Object.keys(MODULAR_PATCH_PRESETS).find(k => MODULAR_PATCH_PRESETS[k].name === engine.patch.name) || '';
+    if (engine.currentPresetKey && MODULAR_PATCH_PRESETS[engine.currentPresetKey]) {
+        presetSelect.value = engine.currentPresetKey;
+    } else {
+        presetSelect.value = Object.keys(MODULAR_PATCH_PRESETS).find(k => MODULAR_PATCH_PRESETS[k].name === engine.patch.name) || '';
+    }
+}
+
+function updateABButtonsUI() {
+    if (!btnSlotA || !btnSlotB || !btnAbCopy) return;
+
+    const isBoxer6 = engine.currentPresetKey === 'boxer_6_cayman' && engine.abSlots.A?.name?.includes('Before');
+    if (isBoxer6) {
+        btnSlotA.innerText = 'A: Before';
+        btnSlotB.innerText = 'B: After';
+    } else {
+        btnSlotA.innerText = 'Slot A';
+        btnSlotB.innerText = 'Slot B';
+    }
+
+    btnSlotA.classList.remove('active-slot-a', 'active-slot-b');
+    btnSlotB.classList.remove('active-slot-a', 'active-slot-b');
+
+    if (engine.activeSlot === 'A') {
+        btnSlotA.classList.add('active-slot-a');
+        btnAbCopy.innerText = 'Copy A→B';
+    } else {
+        btnSlotB.classList.add('active-slot-b');
+        btnAbCopy.innerText = 'Copy B→A';
+    }
 }
 
 function syncJsonTextarea() {
-    jsonIO.value = JSON.stringify(engine.exportPatch(), null, 2);
+    const patch = engine.exportPatch();
+    if (engine.abSlots) {
+        engine.abSlots[engine.activeSlot] = patch;
+    }
+    jsonIO.value = JSON.stringify(patch, null, 2);
 }
 
 // --- 3. INTERACTIVE SIGNAL ROUTING PATCH BAY ---
@@ -356,10 +434,6 @@ function renderPatchBay() {
     patchCablesLayer.innerHTML = '';
     patchNodesLayer.innerHTML = '';
     nodeLayoutMap.clear();
-
-    const svgWidth = 980;
-    const svgHeight = 240;
-    patchBaySvg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
 
     // Partition nodes into 4 standard DSP workflow columns
     const col1 = []; // Sources: oscillator, noise
@@ -379,6 +453,11 @@ function renderPatchBay() {
         }
     }
 
+    const maxColCount = Math.max(col1.length, col2.length, col3.length, col4.length);
+    const svgWidth = 980;
+    const svgHeight = Math.max(240, maxColCount * 36 + 20);
+    patchBaySvg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
+
     const columns = [
         { x: 30, width: 180, nodes: col1 },
         { x: 270, width: 180, nodes: col2 },
@@ -392,14 +471,15 @@ function renderPatchBay() {
         if (count === 0) continue;
 
         const maxBoxHeight = 44;
+        const gap = count > 6 ? 6 : 8;
         const availableHeight = svgHeight - 20;
-        const boxHeight = Math.min(maxBoxHeight, Math.max(32, (availableHeight - (count - 1) * 8) / count));
-        const totalHeight = count * boxHeight + (count - 1) * 8;
+        const boxHeight = Math.min(maxBoxHeight, Math.max(24, (availableHeight - (count - 1) * gap) / count));
+        const totalHeight = count * boxHeight + (count - 1) * gap;
         const startY = 10 + (availableHeight - totalHeight) / 2;
 
         for (let i = 0; i < count; i++) {
             const node = col.nodes[i];
-            const y = startY + i * (boxHeight + 8);
+            const y = startY + i * (boxHeight + gap);
             const box = {
                 id: node.id,
                 name: node.name,
@@ -772,6 +852,7 @@ function buildNodeParameterControls(node, container) {
         createSliderControl(container, node.id, 'gain', 'Base Gain', p.gain ?? 0.5, 0, 2.0, 0.01, (v) => v.toFixed(2));
         createSliderControl(container, node.id, 'throttleModGain', 'Throttle -> Gain', p.throttleModGain ?? 0.0, -1.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
         createSliderControl(container, node.id, 'rpmModGain', 'RPM -> Gain', p.rpmModGain ?? 0.0, -1.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
+        createSliderControl(container, node.id, 'rpmModExp', 'RPM Curve Exp', p.rpmModExp ?? 1.0, 0.5, 4.0, 0.1, (v) => `${Number(v).toFixed(1)}^`);
     } else if (node.type === 'noise') {
         createSelectControl(container, node.id, 'noiseType', 'Noise Color', p.noiseType || 'pink', [
             'pink', 'white', 'brown'
@@ -780,6 +861,7 @@ function buildNodeParameterControls(node, container) {
         createSliderControl(container, node.id, 'gain', 'Base Gain', p.gain ?? 0.3, 0, 2.0, 0.01, (v) => v.toFixed(2));
         createSliderControl(container, node.id, 'throttleModGain', 'Throttle -> Gain', p.throttleModGain ?? 0.2, -1.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
         createSliderControl(container, node.id, 'rpmModGain', 'RPM -> Gain', p.rpmModGain ?? 0.1, -1.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
+        createSliderControl(container, node.id, 'rpmModExp', 'RPM Curve Exp', p.rpmModExp ?? 1.0, 0.5, 4.0, 0.1, (v) => `${Number(v).toFixed(1)}^`);
     } else if (node.type === 'filter') {
         createSelectControl(container, node.id, 'filterType', 'Filter Type', p.filterType || 'peaking', [
             'peaking', 'lowpass', 'highpass', 'bandpass', 'notch', 'lowshelf', 'highshelf', 'allpass'
@@ -789,6 +871,7 @@ function buildNodeParameterControls(node, container) {
         createSliderControl(container, node.id, 'Q', 'Resonance (Q)', p.Q ?? 2.0, 0.1, 25.0, 0.1, (v) => v.toFixed(1), true);
         createSliderControl(container, node.id, 'filterGain', 'Filter Gain / Boost', p.filterGain ?? 6.0, -24.0, 24.0, 0.5, (v) => `${v > 0 ? `+${v.toFixed(1)}` : v.toFixed(1)} dB`);
         createSliderControl(container, node.id, 'rpmModFreq', 'RPM -> Freq Shift', p.rpmModFreq ?? 0, -2000, 4000, 20, (v) => (v > 0 ? `+${Math.round(v)} Hz` : `${Math.round(v)} Hz`));
+        createSliderControl(container, node.id, 'rpmModExp', 'RPM Curve Exp', p.rpmModExp ?? 1.0, 0.5, 4.0, 0.1, (v) => `${Number(v).toFixed(1)}^`);
         createSliderControl(container, node.id, 'throttleModFreq', 'Throttle -> Freq Shift', p.throttleModFreq ?? 0, -2000, 4000, 20, (v) => (v > 0 ? `+${Math.round(v)} Hz` : `${Math.round(v)} Hz`));
         createSliderControl(container, node.id, 'outGain', 'Output Level', p.outGain ?? 1.0, 0, 2.0, 0.01, (v) => v.toFixed(2));
     } else if (node.type === 'waveshaper') {
@@ -807,6 +890,7 @@ function buildNodeParameterControls(node, container) {
         createSliderControl(container, node.id, 'gain', 'Gain Level', p.gain ?? 1.0, 0, 3.0, 0.01, (v) => v.toFixed(2));
         createSliderControl(container, node.id, 'throttleModGain', 'Throttle -> Gain', p.throttleModGain ?? 0.0, -2.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
         createSliderControl(container, node.id, 'rpmModGain', 'RPM -> Gain', p.rpmModGain ?? 0.0, -2.0, 2.0, 0.05, (v) => (v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2)));
+        createSliderControl(container, node.id, 'rpmModExp', 'RPM Curve Exp', p.rpmModExp ?? 1.0, 0.5, 4.0, 0.1, (v) => `${Number(v).toFixed(1)}^`);
     }
 }
 
@@ -1089,21 +1173,58 @@ function renderSpectrumAndFilterResponse() {
         spectrumCtx.stroke();
     }
 
-    // Composite Response Curve (yellow/amber curve) if multiple filters
-    if (filterNodes.length > 1) {
-        const compositeDb = engine.getCompositeFilterFrequencyResponse(testFreqs);
-        spectrumCtx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
-        spectrumCtx.lineWidth = 1.5;
-        spectrumCtx.setLineDash([2, 2]);
-        spectrumCtx.beginPath();
-        for (let i = 0; i < numPoints; i++) {
-            const x = freqToX(testFreqs[i]);
-            const y = dbToY(compositeDb[i]);
-            if (i === 0) spectrumCtx.moveTo(x, y);
-            else spectrumCtx.lineTo(x, y);
+    // Active Composite Response Curve (yellow/amber curve) if multiple filters
+    let activeCompDb = null;
+    if (filterNodes.length > 0) {
+        activeCompDb = engine.getCompositeFilterFrequencyResponse(testFreqs);
+        if (filterNodes.length > 1) {
+            spectrumCtx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+            spectrumCtx.lineWidth = 1.5;
+            spectrumCtx.setLineDash([2, 2]);
+            spectrumCtx.beginPath();
+            for (let i = 0; i < numPoints; i++) {
+                const x = freqToX(testFreqs[i]);
+                const y = dbToY(activeCompDb[i]);
+                if (i === 0) spectrumCtx.moveTo(x, y);
+                else spectrumCtx.lineTo(x, y);
+            }
+            spectrumCtx.stroke();
+            spectrumCtx.setLineDash([]);
         }
-        spectrumCtx.stroke();
-        spectrumCtx.setLineDash([]);
+    } else {
+        activeCompDb = new Float32Array(numPoints).fill(0);
+    }
+
+    // Inactive A/B Slot Ghost Filter Response Curve (subtle gray/slate dashed curve)
+    let showGhostLegend = false;
+    const inactiveSlot = engine.activeSlot === 'A' ? 'B' : 'A';
+    if (typeof engine.getInactiveSlotCompositeFrequencyResponse === 'function') {
+        const inactiveDb = engine.getInactiveSlotCompositeFrequencyResponse(testFreqs);
+        if (inactiveDb) {
+            let differs = false;
+            for (let i = 0; i < numPoints; i++) {
+                if (Math.abs(inactiveDb[i] - activeCompDb[i]) > 0.25) {
+                    differs = true;
+                    break;
+                }
+            }
+
+            if (differs) {
+                showGhostLegend = true;
+                spectrumCtx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+                spectrumCtx.lineWidth = 1.5;
+                spectrumCtx.setLineDash([3, 3]);
+                spectrumCtx.beginPath();
+                for (let i = 0; i < numPoints; i++) {
+                    const x = freqToX(testFreqs[i]);
+                    const y = dbToY(inactiveDb[i]);
+                    if (i === 0) spectrumCtx.moveTo(x, y);
+                    else spectrumCtx.lineTo(x, y);
+                }
+                spectrumCtx.stroke();
+                spectrumCtx.setLineDash([]);
+            }
+        }
     }
 
     // Filter Response Legend
@@ -1123,6 +1244,13 @@ function renderSpectrumAndFilterResponse() {
         spectrumCtx.fillStyle = color;
         spectrumCtx.fillRect(legendX, legendY + (filterColorIndex - 1) * 12 - 7, 8, 8);
         spectrumCtx.fillText(`${flt.name} (${fc}Hz)`, legendX + 12, legendY + (filterColorIndex - 1) * 12);
+    }
+
+    if (showGhostLegend) {
+        const ghostY = legendY + filterColorIndex * 12;
+        spectrumCtx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+        spectrumCtx.fillRect(legendX, ghostY - 7, 8, 8);
+        spectrumCtx.fillText(`Ghost ${inactiveSlot} (Inactive)`, legendX + 12, ghostY);
     }
 }
 
@@ -1232,4 +1360,4 @@ if (typeof document !== 'undefined') {
     }
 }
 
-export { engine, sim, init, findRisingZeroCrossing };
+export { engine, sim, init, findRisingZeroCrossing, updateABButtonsUI };

@@ -1,7 +1,12 @@
 import re
 import os
+import subprocess
 import markdown
-import weasyprint
+
+try:
+    import weasyprint
+except (ImportError, OSError):
+    weasyprint = None
 
 docs_dir = "/media/documents/2025/gemini_scratch/programming_projects/Parking-/docs"
 
@@ -38,6 +43,10 @@ def replace_fracs(s):
             continue
         num_c = replace_fracs(num)
         den_c = replace_fracs(den)
+        if any(op in num_c for op in (" + ", " - ")):
+            num_c = f"({num_c})"
+        if any(op in den_c for op in (" + ", " - ")):
+            den_c = f"({den_c})"
         s = s[:idx] + f"({num_c} / {den_c})" + s[next_idx:]
     return s
 
@@ -45,6 +54,30 @@ def format_math_expr(expr):
     e = expr.strip()
     e = replace_fracs(e)
     
+    # Handle \underbrace{expr}_{label} -> expr [label]
+    while "\\underbrace" in e:
+        idx = e.find("\\underbrace")
+        b1 = idx + len("\\underbrace")
+        while b1 < len(e) and e[b1] == " ":
+            b1 += 1
+        inner, b2 = extract_braced(e, b1)
+        if inner is None:
+            e = e[:idx] + e[b1:]
+            break
+        while b2 < len(e) and e[b2] == " ":
+            b2 += 1
+        if b2 < len(e) and e[b2] == "_":
+            b3 = b2 + 1
+            while b3 < len(e) and e[b3] == " ":
+                b3 += 1
+            lbl, next_idx = extract_braced(e, b3)
+            if lbl is not None:
+                e = e[:idx] + f"{inner} [{lbl}]" + e[next_idx:]
+            else:
+                e = e[:idx] + inner + e[b2:]
+        else:
+            e = e[:idx] + inner + e[b2:]
+
     # Strip \text{...}, \mathrm{...}, \mathbf{...}, \mathrel{...}
     for cmd in ["\\text", "\\mathrm", "\\mathbf", "\\mathrel"]:
         while cmd in e:
@@ -88,6 +121,7 @@ def format_math_expr(expr):
         ("\\sqrt", "√"),
         ("\\pi", "π"),
         ("\\theta", "θ"),
+        ("\\gamma", "γ"),
         ("\\Delta", "Δ"),
         ("\\tau", "τ"),
         ("\\zeta", "ζ"),
@@ -102,12 +136,15 @@ def format_math_expr(expr):
         ("\\gg", "≫"),
         ("\\Big[", "["),
         ("\\Big]", "]"),
+        ("\\Big(", "("),
+        ("\\Big)", ")"),
         ("\\big(", "("),
         ("\\big)", ")"),
         ("\\Big", ""),
         ("\\big", ""),
         ("\\,", " "),
         ("\\;", " "),
+        ("\\qquad", "     "),
         ("\\quad", "   "),
         ("\\{", "{"),
         ("\\}", "}"),
@@ -150,17 +187,17 @@ def convert_mermaid_blocks(text, chapter_num):
     b2_html = """<div class="flow-container">
   <table class="flow-table">
     <tr>
-      <td rowspan="2" class="flow-box flow-box-primary" style="width: 24%;">Intake Source<br><span class="flow-sub">(Noise + Firing Ripple)</span></td>
+      <td rowspan="2" class="flow-box flow-box-primary" style="width: 26%;">Filtered Pink Noise<br><span class="flow-sub">(No Raw Sawtooth Leak!)</span></td>
       <td class="flow-arrow">➔</td>
-      <td class="flow-box">Bandpass F1<br><span class="flow-sub">240 Hz (Q=3.0)</span></td>
+      <td class="flow-box">Bandpass F1<br><span class="flow-sub">240 Hz (Q=2.5)</span></td>
       <td class="flow-arrow">➔</td>
       <td class="flow-box">Gain 1</td>
       <td class="flow-arrow">➔</td>
-      <td rowspan="2" class="flow-box flow-box-accent" style="width: 22%;">Intake Bus<br><span class="flow-sub">(Summed Output)</span></td>
+      <td rowspan="2" class="flow-box flow-box-accent" style="width: 22%;">Intake Bus<br><span class="flow-sub">(Load-Gated)</span></td>
     </tr>
     <tr>
       <td class="flow-arrow">➔</td>
-      <td class="flow-box">Bandpass F2<br><span class="flow-sub">1350 Hz (Q=4.5)</span></td>
+      <td class="flow-box">Bandpass F2<br><span class="flow-sub">1350 Hz (Q=3.2)</span></td>
       <td class="flow-arrow">➔</td>
       <td class="flow-box">Gain 2</td>
       <td class="flow-arrow">➔</td>
@@ -168,25 +205,25 @@ def convert_mermaid_blocks(text, chapter_num):
   </table>
 </div>"""
 
-    # Block 3 in Chapter 1: Series Peaking EQ Chain (2-tier layout)
+    # Block 3 in Chapter 1: Complete Nonlinear Exhaust Chain (2-tier layout)
     b3_html = """<div class="flow-container">
   <table class="flow-table">
     <tr>
-      <td class="flow-box flow-box-primary" style="width: 24%;">Exhaust Harmonics</td>
+      <td class="flow-box flow-box-primary" style="width: 26%;">Phase-Locked Orders<br><span class="flow-sub">(0 cts) + Brown/Pink Noise</span></td>
       <td class="flow-arrow">➔</td>
-      <td class="flow-box" style="width: 24%;">WaveShaper<br><span class="flow-sub">Soft Saturation</span></td>
+      <td class="flow-box" style="width: 24%;">Soft Tanh Shaper<br><span class="flow-sub">sech² Intermodulation</span></td>
       <td class="flow-arrow">➔</td>
-      <td class="flow-box" style="width: 24%;">Peaking F1<br><span class="flow-sub">Body Boom</span></td>
+      <td class="flow-box" style="width: 24%;">Short Pipe Comb<br><span class="flow-sub">0.9–3.4 ms (R &lt; 0)</span></td>
       <td class="flow-arrow">➔</td>
-      <td class="flow-box" style="width: 24%;">Peaking F2<br><span class="flow-sub">Mid Bark / Rasp</span></td>
+      <td class="flow-box" style="width: 24%;">Peaking F1 + F2<br><span class="flow-sub">Wide-Q Body Dome</span></td>
     </tr>
     <tr>
       <td colspan="7" class="flow-arrow" style="text-align: center; padding: 2pt 0;">▼</td>
     </tr>
     <tr>
-      <td class="flow-box" style="width: 24%;">Peaking F3<br><span class="flow-sub">Tailpipe Ring</span></td>
+      <td class="flow-box" style="width: 26%;">Peaking F3 + F4<br><span class="flow-sub">Bark + Metallic Zing</span></td>
       <td class="flow-arrow">➔</td>
-      <td colspan="3" class="flow-box" style="width: 48%;">Lowpass ×1 or ×2<br><span class="flow-sub">Cutoff opens with Throttle Load!</span></td>
+      <td colspan="3" class="flow-box" style="width: 48%;">2× Cascaded Butterworth Lowpass<br><span class="flow-sub">-24 dB/oct · Convex Cam Curve (u_RPM^γ)</span></td>
       <td class="flow-arrow">➔</td>
       <td class="flow-box flow-box-accent" style="width: 24%;">Exhaust Bus<br><span class="flow-sub">(To Master Limiter)</span></td>
     </tr>
@@ -596,11 +633,14 @@ def preprocess_markdown(content, chapter_num):
         arch_img = f'\n\n<img src="{docs_dir}/diagrams/arch_overview.png" class="diagram"/>\n<div class="caption">Figure 1.1: Three-Stage Procedural Engine Audio Architecture</div>\n\n'
         content = re.sub(r'(## 1\.1 DSP From Zero:.*?\n)', r'\1' + arch_img, content, count=1)
 
-        lp_img = f'\n\n<img src="{docs_dir}/diagrams/ch1_lowpass_response.png" class="diagram"/>\n<div class="caption">Figure 1.2: 2nd-Order Low-Pass Filter Frequency Response Across Different Q Values</div>\n\n'
+        lp_img = f'\n\n<img src="{docs_dir}/diagrams/ch1_lowpass_response.png" class="diagram"/>\n<div class="caption">Figure 1.2: 2nd-Order vs. Cascaded 4th-Order (-24 dB/oct) Low-Pass Filter Response & Web Audio Q Conventions</div>\n\n'
         content = re.sub(r'(### The Suspension Analogy:.*?\n+)', r'\1' + lp_img, content, count=1)
 
-        fmt_img = f'\n\n<img src="{docs_dir}/diagrams/ch1_formant_concept.png" class="diagram"/>\n<div class="caption">Figure 1.3: Source-Filter Model (Harmonic Source × Stationary Cavity Formants = Radiated Spectrum)</div>\n\n'
+        fmt_img = f'\n\n<img src="{docs_dir}/diagrams/ch1_formant_concept.png" class="diagram"/>\n<div class="caption">Figure 1.3: Source-Filter Model (Stratified Harmonic Orders × Wide-Q Body Dome & Zing Formant)</div>\n\n'
         content = re.sub(r'(## 1\.3 What Is a Formant Filter\?.*?\n)', r'\1' + fmt_img, content, count=1)
+
+        cam_img = f'\n\n<img src="{docs_dir}/diagrams/ch1_nonlinear_cam_and_orders.png" class="diagram"/>\n<div class="caption">Figure 1.4: Convex Cam-Crossover Curve (u_RPM^2.8) & Stratified Engine-Order Gain Envelopes Across RPM</div>\n\n'
+        content = re.sub(r'(### Nonlinear Cam-Crossover Curves.*?\n)', r'\1' + cam_img, content, count=1)
 
     elif chapter_num == 2:
         wv_img = f'\n\n<img src="{docs_dir}/diagrams/ch2_blowdown_wavelet.png" class="diagram"/>\n<div class="caption">Figure 2.1: Single-Cylinder Exhaust Blowdown Pressure Wavelet w(t) (Zero Net DC Offset)</div>\n\n'
@@ -613,6 +653,39 @@ def preprocess_markdown(content, chapter_num):
         content = re.sub(r'(## 2\.6 1D Acoustic Waveguides:.*?\n)', r'\1' + wg_img, content, count=1)
 
     return content
+
+def render_html_to_pdf(output_html, output_pdf, full_html):
+    if weasyprint is not None:
+        doc = weasyprint.HTML(string=full_html, base_url=docs_dir)
+        doc.write_pdf(output_pdf)
+        return
+
+    project_root = os.path.dirname(docs_dir)
+    node_script = """
+const { chromium } = require('@playwright/test');
+const path = require('path');
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto('file://' + path.resolve(process.argv[1]), { waitUntil: 'networkidle' });
+  await page.addStyleTag({ content: '@page { @bottom-left { content: none !important; } @bottom-right { content: none !important; } }' });
+  await page.pdf({
+    path: path.resolve(process.argv[2]),
+    format: 'A4',
+    printBackground: true,
+    margin: { top: '18mm', right: '15mm', bottom: '18mm', left: '15mm' },
+    displayHeaderFooter: true,
+    headerTemplate: '<div></div>',
+    footerTemplate: '<div style="width:100%; font-family: sans-serif; font-size: 8pt; color: #777777; padding: 0 15mm; display: flex; justify-content: space-between;"><span>Procedural Engine Sound DSP &amp; Acoustics — Parking Simulator</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>'
+  });
+  await browser.close();
+})();
+"""
+    subprocess.run(
+        ["node", "-e", node_script, output_html, output_pdf],
+        cwd=project_root,
+        check=True
+    )
 
 def compile_pdf(input_md, output_pdf, chapter_num):
     with open(input_md, 'r', encoding='utf-8') as f:
@@ -638,8 +711,7 @@ def compile_pdf(input_md, output_pdf, chapter_num):
     output_html = output_pdf.replace('.pdf', '.html')
     with open(output_html, 'w', encoding='utf-8') as f_out:
         f_out.write(full_html)
-    doc = weasyprint.HTML(string=full_html, base_url=docs_dir)
-    doc.write_pdf(output_pdf)
+    render_html_to_pdf(output_html, output_pdf, full_html)
     print(f"Done: {output_pdf}")
 
 if __name__ == '__main__':
@@ -663,8 +735,9 @@ if __name__ == '__main__':
 </body>
 </html>
 """
-    with open(f"{docs_dir}/procedural_engine_sound_guide_complete.html", "w", encoding="utf-8") as f_comb:
+    combined_html_path = f"{docs_dir}/procedural_engine_sound_guide_complete.html"
+    combined_pdf_path = f"{docs_dir}/procedural_engine_sound_guide_complete.pdf"
+    with open(combined_html_path, "w", encoding="utf-8") as f_comb:
         f_comb.write(full_combined_html)
-    doc_all = weasyprint.HTML(string=full_combined_html, base_url=docs_dir)
-    doc_all.write_pdf(f"{docs_dir}/procedural_engine_sound_guide_complete.pdf")
+    render_html_to_pdf(combined_html_path, combined_pdf_path, full_combined_html)
     print("Done: procedural_engine_sound_guide_complete.pdf")

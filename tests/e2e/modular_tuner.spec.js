@@ -350,10 +350,10 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         const presetSelect = page.locator('#preset-select');
         await presetSelect.selectOption('boxer_6_cayman');
 
-        // Verify patch name and node count (13 nodes)
+        // Verify patch name and node count (16 nodes in After Slot B)
         const patchName = await page.evaluate(() => window.engine.patch.name);
         expect(patchName).toBe('Boxer-6 (987.2 Flat-6 Acoustic Model)');
-        await expect(page.locator('.node-card')).toHaveCount(13);
+        await expect(page.locator('.node-card')).toHaveCount(16);
 
         // Start Audio
         const btnIgnition = page.locator('#btn-ignition');
@@ -719,6 +719,112 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
 
         // F1 V10 at 19,000 RPM WOT has higher spectral centroid than Dodge Viper V10 at 6,200 RPM WOT
         expect(f1Wot.spectralCentroid).toBeGreaterThan(viperWot.spectralCentroid * 2.0);
+
+        // Stop audio
+        await btnIgnition.click();
+        await expect(btnIgnition).not.toHaveClass(/active/);
+    });
+
+    test('Verifies A/B Switcher instant Before-vs-After comparison on Boxer-6 and keyboard shortcut toggle', async ({ page }) => {
+        await page.goto('/src/modular_tuner.html');
+
+        // Select Boxer-6 preset
+        const presetSelect = page.locator('#preset-select');
+        await presetSelect.selectOption('boxer_6_cayman');
+
+        // Verify A/B switcher buttons: Slot A is Before, Slot B is After (active)
+        const btnSlotA = page.locator('#btn-slot-a');
+        const btnSlotB = page.locator('#btn-slot-b');
+        const btnAbCopy = page.locator('#btn-ab-copy');
+
+        await expect(btnSlotA).toBeVisible();
+        await expect(btnSlotB).toBeVisible();
+        await expect(btnSlotA).toHaveText('A: Before');
+        await expect(btnSlotB).toHaveText('B: After');
+        await expect(btnSlotB).toHaveClass(/active-slot-b/);
+        await expect(btnSlotA).not.toHaveClass(/active-slot-a/);
+        await expect(btnAbCopy).toHaveText('Copy B→A');
+
+        // Verify initial Slot B state: 16 nodes
+        await expect(page.locator('.node-card')).toHaveCount(16);
+        const patchNameB = await page.evaluate(() => window.engine.patch.name);
+        expect(patchNameB).toBe('Boxer-6 (987.2 Flat-6 Acoustic Model)');
+
+        // Start Audio
+        const btnIgnition = page.locator('#btn-ignition');
+        await btnIgnition.click();
+        await expect(btnIgnition).toHaveClass(/active/);
+
+        // Set operating condition: 6500 RPM and 90% (0.9) Throttle
+        await page.evaluate(() => {
+            const rSlider = document.getElementById('rpm-slider');
+            const tSlider = document.getElementById('throttle-slider');
+            rSlider.value = 6500;
+            rSlider.dispatchEvent(new Event('input'));
+            tSlider.value = 0.9;
+            tSlider.dispatchEvent(new Event('input'));
+            window.engine.update(6500, 0.9);
+        });
+        await page.waitForTimeout(300);
+
+        // Verify RPM & Throttle readouts
+        await expect(page.locator('#rpm-display')).toHaveText('6500 RPM');
+        await expect(page.locator('#throttle-val')).toHaveText('90%');
+
+        // Click Slot A button to switch Before
+        await btnSlotA.click();
+        await page.waitForTimeout(200);
+
+        // Verify RPM and throttle are preserved identically
+        await expect(page.locator('#rpm-display')).toHaveText('6500 RPM');
+        await expect(page.locator('#throttle-val')).toHaveText('90%');
+        const liveRPM_A = await page.evaluate(() => window.engine.currentRPM);
+        const liveThrottle_A = await page.evaluate(() => window.engine.currentThrottle);
+        expect(liveRPM_A).toBe(6500);
+        expect(liveThrottle_A).toBe(0.9);
+
+        // Verify active slot is now A, with 15 nodes and Before patch
+        await expect(btnSlotA).toHaveClass(/active-slot-a/);
+        await expect(btnSlotB).not.toHaveClass(/active-slot-b/);
+        await expect(btnAbCopy).toHaveText('Copy A→B');
+        await expect(page.locator('.node-card')).toHaveCount(15);
+        await expect(page.locator('#nodes-count-display')).toHaveText('15');
+        const patchNameA = await page.evaluate(() => window.engine.patch.name);
+        expect(patchNameA).toBe('Boxer-6 (Before: Strong 1x, Warble, Pre-Zing)');
+
+        // Preset dropdown should still show boxer_6_cayman
+        await expect(presetSelect).toHaveValue('boxer_6_cayman');
+
+        // Now test keyboard shortcut toggle: press 'b'
+        await page.keyboard.press('b');
+        await page.waitForTimeout(200);
+
+        // Verify toggled back to Slot B: 16 nodes, After patch, identical 6500 RPM
+        await expect(btnSlotB).toHaveClass(/active-slot-b/);
+        await expect(btnSlotA).not.toHaveClass(/active-slot-a/);
+        await expect(btnAbCopy).toHaveText('Copy B→A');
+        await expect(page.locator('.node-card')).toHaveCount(16);
+        await expect(page.locator('#nodes-count-display')).toHaveText('16');
+        const patchNameToggleB = await page.evaluate(() => window.engine.patch.name);
+        expect(patchNameToggleB).toBe('Boxer-6 (987.2 Flat-6 Acoustic Model)');
+        await expect(page.locator('#rpm-display')).toHaveText('6500 RPM');
+        await expect(page.locator('#throttle-val')).toHaveText('90%');
+        const liveRPM_B = await page.evaluate(() => window.engine.currentRPM);
+        expect(liveRPM_B).toBe(6500);
+
+        // Save screenshot verification/boxer6_ab_switcher.png and copy to audio_tuner_screenshots
+        const fs = await import('fs');
+        if (!fs.existsSync('verification')) {
+            fs.mkdirSync('verification', { recursive: true });
+        }
+        const destDir = '/media/documents/2025/gemini_scratch/audio_tuner_screenshots';
+        if (!fs.existsSync(destDir)) {
+            fs.mkdirSync(destDir, { recursive: true });
+        }
+        await page.screenshot({ path: 'verification/boxer6_ab_switcher.png', fullPage: true });
+        if (fs.existsSync('verification/boxer6_ab_switcher.png')) {
+            fs.copyFileSync('verification/boxer6_ab_switcher.png', `${destDir}/boxer6_ab_switcher.png`);
+        }
 
         // Stop audio
         await btnIgnition.click();

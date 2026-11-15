@@ -3,10 +3,10 @@
 ## Learning Goals
 By the end of this chapter, you will understand from first principles:
 
-1. Why digital oscillators sound "buzzy" and how **harmonics**, **octaves**, and **decibels** work.
-2. What a digital **Biquad Filter** is—and how cutoff frequency ($f_c$) and resonance ($Q$) map directly to a car's suspension springs and dampers.
-3. **Formant Filters:** What they are physically (the **Source–Filter Model**), why sliding filters sound fake, whether to wire them in **series or parallel**, **how many** you actually need, and **how to tune them** for an I4, VTEC, Straight-6, V8, and 987.2 Flat-6.
-4. Why half of engine sound realism in a *parking* simulator lives in the **Drivetrain & Load model** (flywheel inertia, clutch slip, reverse load, and overrun vacuum) rather than the audio nodes alone.
+1. Why digital oscillators sound "buzzy" or "warbly," how **harmonics**, **octaves**, and **decibels** work, and how **waveform-by-order stratification** and **crankshaft phase-locking** establish a realistic engine-order hierarchy.
+2. What a digital **Biquad Filter** is—how cutoff frequency ($f_c$), Web Audio's decibel vs. dimensionless **$Q$ conventions**, and **cascaded 4th-order ($-24\text{ dB/oct}$) Butterworth low-pass rounding** sculpt organic time-domain pressure waves.
+3. **Formants, Exhaust Thermodynamics & Cam Curves:** How the **Source–Filter Model** works, why exhaust gas temperature ($c = \sqrt{\gamma R T}$) causes controlled formant drift, why **wide-$Q$ body domes** beat narrow synth spikes, and how **nonlinear cam-crossover modulation ($u_{\text{RPM}}^\gamma$)** unlocks top-end metallic "zing" ($2.0\text{–}4.5\text{ kHz}$) without midrange buzz.
+4. **Pre-Waveshaper Turbulence Coupling & Drivetrain Dynamics:** How feeding stochastic gas noise *into* a waveshaper creates pitch-locked $\text{sech}^2$ intermodulation, how short inverting comb delays model exhaust pipes in Tier 1, and why half of parking realism lives in the **Drivetrain & Load model**.
 
 ---
 
@@ -94,6 +94,34 @@ In automotive acoustics, engineers don't guess a magic `baseFreq: 17` or `baseFr
 
 ---
 
+### Stratified Waveforms, Order Hierarchy & Crankshaft Phase-Locking
+
+Knowing *which* engine orders exist ($1.0\text{E}, 1.5\text{E}, 3.0\text{E} \dots$) is only half the source problem. When you actually rev an engine across a $5\times\text{–}8\times$ RPM span, three physical rules govern whether those oscillators sound like a real cast-metal powertrain or a buzzy, warbling synthesizer:
+
+#### 1. Mid-RPM "Spectral Evacuation" vs. High-RPM Sub-Order Dominance
+When an engine sweeps from $900\text{ RPM}$ ($f_{\text{rot}} = 15\text{ Hz}$) up to $4{,}500\text{ RPM}$ ($f_{\text{rot}} = 75\text{ Hz}$), **every harmonic oscillator shifts upward by $5\times$ (more than two octaves)**.
+
+* **If you omit `1.0x` and `1.5x`:** On a Flat-6, `3.0x` climbs to $225\text{ Hz}$ at $4{,}500\text{ RPM}$, leaving the entire **$50\text{–}150\text{ Hz}$ chest register completely empty** ("spectral evacuation"). Psychoacoustically, the moment low-mid chest energy disappears while $1\text{–}3\text{ kHz}$ overtones remain, your brain stops hearing a heavy aluminum engine block and hears a thin synth lead.
+* **If `1.0x` and `1.5x` stay too loud at redline:** Conversely, on an inherently balanced, even-firing engine (such as a horizontally opposed Flat-6 or a $72^\circ$ Formula 1 V10), primary reciprocating forces cancel. At $7{,}400\text{ RPM}$, the **merged primary firing order (`3.0x` = $370\text{ Hz}$ on a Flat-6; `5.0x` = $1{,}583\text{ Hz}$ on a $19{,}000\text{ RPM}$ V10)** must dominate the spectrum by **$+5\text{ to }+15\text{ dB}$** over `1.0x`! If `1.0x` and `1.5x` grow linearly to high gain at redline, they boom unnaturally *and* consume the headroom of your downstream nonlinear waveshaper—**ducking and compressing the high-frequency "zing"** every time the low bass wave peaks!
+* **Rule of thumb:** Anchor the chest floor with moderate `1.0x` and single-bank (`1.5x` on 6-cyl, `2.5x` on V10) orders at low/mid RPM, then give `1.0x` (and `1.5x` on even-fire engines) a **flat or slightly negative RPM gain slope** (`rpmModGain <= 0`) so they step gracefully out of the way as the primary firing order (`3.0x` / `5.0x`) and upper overtones (`6.0x`, `9.0x`) take command! *(Exception: odd-firing engines with divorced bank pipes—such as an $8.4\text{L}$ $90^\circ$ V10 with $54^\circ / 90^\circ$ split crankpins and side-exit exhausts—physically retain massive `1.0x`, `1.5x`, and `2.5x` 5-cylinder bank energy all the way to redline.)*
+
+#### 2. Waveform-by-Order Stratification ($1/n^2$ vs. $1/n$)
+Never assign `sawtooth` blindly to every engine order! Stratify waveforms by their physical acoustic job:
+
+| Order Tier | Example Orders | Best Waveform | Physical & Spectral Reason |
+| :--- | :--- | :--- | :--- |
+| **Sub & Bank Undertones** | `1.0x` (crank/block), `1.5x` (3-cyl bank), `2.5x` (5-cyl bank) | **`triangle`** ($-12\text{ dB/oct}$) | Odd harmonics decay fast as $1/n^2$, injecting pure $50\text{–}250\text{ Hz}$ chest weight without polluting $2\text{–}6\text{ kHz}$ with extra sawtooth buzz. |
+| **Primary Firing Core** | `2.0x` (I4), `3.0x` (I6/Flat-6), `4.0x` (V8), `5.0x` (V10) | **`sawtooth`** ($-6\text{ dB/oct}$) | Contains **all** integer harmonics ($1/n$) to excite mid and upper exhaust formants as RPM climbs. |
+| **Smooth Chordal Color** | `4.5x` (Flat-6 3rd bank), `7.5x` (V10 3rd bank / musical 5th) | **`triangle`** or **`sine`** | Reinforces characteristic bank intervals without harsh intermodulation clutter. |
+| **Top-End Metallic Zing** | `6.0x`, `9.0x` (Flat-6/I6), `10.0x` (F1 V10) | **`sawtooth`** *(gated by $u_{\text{RPM}}^\gamma$)* | Stays nearly silent below $4{,}500\text{ RPM}$, then surges near redline to project crisp $1.5\text{–}4.5\text{ kHz}$ mechanical bite! |
+
+#### 3. Crankshaft Phase-Locking (`0 cents` Detune) vs. The Chorus Warble Trap
+In music synthesizers, sound designers often detune oscillators by $\pm 4\text{ to }10\text{ cents}$ ("supersaw") to make pads sound wide. **Never detune harmonic orders of a single engine!**
+
+Physically, every piston and exhaust valve in an engine is geared to **one rigid steel crankshaft**—the left cylinder bank cannot spin at $6{,}500\text{ RPM}$ while the right bank spins at $6{,}515\text{ RPM}$! If you detune `1.5x` by `-4 cents` and `4.5x` by `+5 cents` before a nonlinear waveshaper, their harmonics drift in and out of phase $2\text{–}4$ times per second, producing an **`18%` slow amplitude "wah-wah" warble** (like a guitar chorus pedal or an uneven twin-engine prop plane). Keep all crankshaft orders **100% phase-locked (`detune = 0`)**; real cycle-to-cycle mechanical life comes from stochastic gas turbulence inside the waveshaper (Section 1.4), not detuned pitch beating!
+
+---
+
 ## 1.2 Digital Filters & The Suspension Analogy ($f_c$, Slope, and $Q$)
 
 Subtractive synthesis works just like sculpting marble: you start with a harmonically rich raw wave (lots of overtones) and **carve away** the frequencies a physical muffler, intake box, and engine block wouldn't let out.
@@ -109,42 +137,53 @@ Imagine driving over bumps of frequency $f$, where road height is the input wave
     - Slow highway undulations ($f \ll f_c$): The chassis follows the road $1:1$ (**Passband**, $0\text{ dB}$).
     - Fast cobblestone chatter ($f \gg f_c$): The tire vibrates, but the heavy chassis doesn't have time to move. Above $f_c$, a single 2nd-order `lowpass` filter attenuates energy at **$-12\text{ dB per octave}$** (every time frequency doubles, amplitude drops by $4\times$!).
 
-2. **Quality Factor ($Q$, `filter.Q.value`):** For `lowpass` and `highpass` in Web Audio, this parameter is measured in **decibels of resonant peak** around $f_c$ (note: in textbook physics, dimensionless $Q = \frac{1}{2\zeta}$ where $\zeta$ is the damping ratio; for `bandpass` and `peaking` nodes in Web Audio, `Q` *is* true dimensionless $Q = \frac{f_c}{\text{Bandwidth}}$!).
-    - **Flat / Critically Damped (`Q` near `0` dB on Web Audio `lowpass`, or $Q = 0.707$ on `peaking`/`bandpass`):** Like perfectly dialed street dampers—flat response up to $f_c$, zero bounce, smooth roll-off above $f_c$.
-    - **High Resonance (High `Q`):** Like removing your shock absorbers and driving on bare springs! Right at $f_c$, energy builds up and **rings louder than the input**, creating a pronounced resonant peak ("boom" or "howl") right at $f_c$.
+2. **Quality Factor ($Q$, `filter.Q.value`) & Web Audio's Crucial Unit Law:**
+   In textbook physics (Robert Bristow-Johnson's Audio EQ Cookbook), dimensionless quality factor $Q = \frac{1}{2\zeta}$ governs resonance: **$Q = \frac{1}{\sqrt{2}} \approx 0.707$** is **Butterworth critical damping** (maximally flat passband with zero overshoot).
+   However, **Web Audio's `BiquadFilterNode` uses two different units for `Q` depending on `filter.type`**:
+    - For **`peaking`**, **`bandpass`**, and **`notch`**, `filter.Q.value` is **dimensionless $Q$** directly (`0.707` = wide, `4.0` = narrow).
+    - For **`lowpass`** and **`highpass`**, Web Audio defines `filter.Q.value` **in decibels**! To convert dimensionless textbook $Q$ into Web Audio's `lowpass`/`highpass` parameter, always apply:
+      $$Q_{\text{WebAudio (dB)}} = 20 \log_{10}(Q_{\text{dimensionless}})$$
+      Thus, true maximally flat **Butterworth damping ($Q = 0.707$)** requires setting `filter.Q.value = -3.01` dB (`Q = 1.0` maps to `0.0 dB`, and `Q = 2.0` maps to `+6.02 dB` of resonant peaking)!
 
 ```
 Gain (dB)
- +12 |             /\  <-- High Q (Underdamped: rings/booms at fc!)
+ +12 |             /\  <-- High Q (Underdamped: rings/whistles at fc!)
      |            /  \
-   0 |-----------/----\---------  <-- Flat Q (Smooth passband)
+   0 |-----------/----\---------  <-- Butterworth Q=0.707 (-3.01 dB in Web Audio)
      |                 \
- -12 |                  \   Slope = -12 dB / octave
-     |                   \  (Chain two lowpass nodes = -24 dB / octave!)
+ -12 |                  \   1x Lowpass = -12 dB / octave
+     |                   \  2x Cascaded Butterworth = -24 dB / octave!
  -24 |                    \
      +-----------------------------------------> Frequency (log scale)
                 fc    2*fc  4*fc
 ```
 
+### Why Cascading Two Butterworth Low-Pass Filters (`-24 dB/oct`) Rounds the Waveform
+Why does a single 2nd-order `lowpass` filter still sound slightly "synthy" in the midrange ($3{,}000\text{–}5{,}000\text{ RPM}$) once $f_c$ opens up to $700\text{–}1{,}200\text{ Hz}$?
+
+By Fourier's theorem, "buzziness" in the frequency domain is mathematically identical to **sharp vertical step discontinuities** (high sample-to-sample slew $|dx/dt|$) in the time domain:
+
+* A raw `sawtooth` decays slowly at **$-6\text{ dB/oct}$**. Passing it through **one** 2nd-order low-pass ($-12\text{ dB/oct}$) yields $-18\text{ dB/oct}$—gentle enough that $2.5\text{–}6\text{ kHz}$ sawtooth teeth remain audible whenever $f_c$ opens under throttle.
+* Wiring **two critically damped Butterworth low-pass filters in series (`lp1 -> lp2`, $Q \approx 0.707\text{–}0.75$)** doubles the slope to **$-24\text{ dB/octave}$** ($-30\text{ dB/oct}$ total roll-off on a sawtooth!) with **zero resonant bump** at $f_c$. In the time domain, this 4th-order cascade acts as a physical spline smoother that rounds every sharp sawtooth corner into a continuous, organic exhaust pressure pulse!
+
 ### Your Four Workhorse `BiquadFilterNode` Types
-*(Check MDN's Web Audio `BiquadFilterNode` reference carefully on `Q` conventions—Web Audio has one quirk worth knowing up front!)*
 
 | `filter.type` | What It Does | Parameters You Set | Acoustic Role in an Engine |
 | :--- | :--- | :--- | :--- |
-| **`lowpass`** | Passes $< f_c$, cuts $> f_c$ at $-12\text{ dB/oct}$ | `frequency` ($f_c$), `Q` (dB peak at $f_c$, default `0`–`3`) | **Muffler absorption & throttle load** (muffled at idle, opens up under load) |
-| **`highpass`** | Cuts $< f_c$, passes $> f_c$ at $-12\text{ dB/oct}$ | `frequency` ($f_c$), `Q` (dB peak) | **Speaker protection / removing sub-25 Hz mud** |
-| **`bandpass`** | Passes *only* a band around $f_c$; cuts both below & above at $-6\text{ dB/oct}$ | `frequency` ($f_c$), `Q` ($= f_c / \Delta f$, e.g. `2`–`8`) | **Parallel Formant cavities** (airbox induction howl, narrow pipe mode) |
-| **`peaking`** | Leaves flat $0\text{ dB}$ passband, but boosts/cuts a bell around $f_c$ | `frequency` ($f_c$), `Q` ($= f_c / \Delta f$), **`gain`** (dB, e.g. `+10` or `-8`) | **Series Formant body resonances** (muffler boom, metallic mid-pipe rasp) |
+| **`lowpass`** | Passes $< f_c$, cuts $> f_c$ at $-12\text{ dB/oct}$ (`-24 dB/oct` in pairs!) | `frequency` ($f_c$), `Q` ($20\log_{10} Q_{\text{RBJ}}$) | **Muffler absorption & waveform rounding** (tight at idle/mid, opens at high RPM/load) |
+| **`highpass`** | Cuts $< f_c$, passes $> f_c$ at $-12\text{ dB/oct}$ | `frequency` ($f_c$), `Q` ($20\log_{10} Q_{\text{RBJ}}$) | **Speaker protection / removing sub-25 Hz DC offset** |
+| **`bandpass`** | Passes around $f_c$; cuts below & above at **only $-6\text{ dB/oct}$**! | `frequency` ($f_c$), `Q` ($= f_c / \Delta f$) | **Noise-only induction cavities** *(caution: leaks HF buzz if fed raw oscillators!)* |
+| **`peaking`** | Leaves flat $0\text{ dB}$ passband, boosts/cuts a bell around $f_c$ | `frequency` ($f_c$), `Q` ($= f_c / \Delta f$), **`gain`** (dB) | **Series Formant body domes & top-end metallic zing** |
 
 ---
 
 > ### 🤔 Pause & Think 1.2: Taming the Exhaust Buzz
 >
-> At $900\text{ RPM}$ idle, your exhaust `WaveShaper` generates nasty high-frequency buzz around **$2{,}400\text{ Hz}$**. Suppose you insert a single `lowpass` `BiquadFilterNode` after the `WaveShaper` with cutoff **$f_c = 300\text{ Hz}$** (flat resonance).
+> At $900\text{ RPM}$ idle, your exhaust `WaveShaper` generates nasty high-frequency buzz around **$2{,}400\text{ Hz}$**. Suppose you insert a single `lowpass` `BiquadFilterNode` after the `WaveShaper` with cutoff **$f_c = 300\text{ Hz}$** (Butterworth flat resonance).
 >
 > 1. How many **octaves** above $300\text{ Hz}$ is $2{,}400\text{ Hz}$?
 > 2. Using the $-12\text{ dB/octave}$ slope of a 2nd-order low-pass filter, by how many **decibels** is that $2{,}400\text{ Hz}$ buzz reduced, and roughly what **percentage** of its original amplitude survives?
-> 3. If that still lets through a tiny whisper of fizz on headphones, what happens to the slope if you connect **two** identical `lowpass` nodes in series (`ws -> lp1 -> lp2`)?
+> 3. What happens to the attenuation at $2{,}400\text{ Hz}$—and to the oscilloscope waveform—when you cascade **two** Butterworth `lowpass` nodes in series (`ws -> lp1 -> lp2`)?
 
 <details>
 <summary>💡 Check Your Thinking</summary>
@@ -152,9 +191,7 @@ Gain (dB)
 1. **Octaves:** $300 \xrightarrow{\times 2} 600 \xrightarrow{\times 2} 1{,}200 \xrightarrow{\times 2} 2{,}400\text{ Hz}$ ($\frac{2400}{300} = 8 = 2^3$). That is **3 octaves**.
 2. **Attenuation:** $3\text{ octaves} \times (-12\text{ dB/oct}) = \mathbf{-36\text{ dB}}$.
    In linear amplitude: $10^{-36 / 20} \approx 0.0158$ (or $\frac{1}{8^2} = \frac{1}{64}$)—only **~1.6%** of the harsh $2{,}400\text{ Hz}$ buzz survives, while the fundamental $30\text{–}150\text{ Hz}$ engine note below $300\text{ Hz}$ passes through at **100%** ($0\text{ dB}$)!
-
-
-3. **Cascading two `lowpass` nodes:** Decibels **add** in series! Two 2nd-order filters create a 4th-order ($-24\text{ dB/oct}$) filter, crushing $2{,}400\text{ Hz}$ by **$-72\text{ dB}$** ($0.025%$ amplitude—dead silent).
+3. **Cascading two `lowpass` nodes:** Decibels **add** in series! Two 2nd-order Butterworth stages create a 4th-order ($-24\text{ dB/oct}$) filter, crushing $2{,}400\text{ Hz}$ by **$-72\text{ dB}$** ($0.025\%$ amplitude—dead silent) and rounding sharp time-domain sawtooth corners into smooth pressure crests.
 
 </details>
 
@@ -189,14 +226,51 @@ In a real car, the **engine block, intake plenum, intake runners, header collect
 2. **Pipe Standing-Wave Modes ($400\text{–}2{,}500\text{ Hz}$):** Intake runners ($30\text{–}50\text{ cm}$) and exhaust mid-pipes ($1.5\text{–}3\text{ m}$) reinforce fixed wavelengths ($f = \frac{c}{4L}$ or $\frac{c}{2L}$).
 3. **What creates the "Spine-Tingling Sweep":** As RPM climbs, the engine's harmonics ($1\times, 2\times, 3\times, 4\times f_{\text{fire}}$) **march upward through those fixed formant peaks one after another**. Each time a strong engine harmonic crosses a stationary cavity formant, that harmonic suddenly swells and sings before passing through and handing off to the next harmonic below it!
 
-*(Note: The one exception where a real car's formant *switches* between two fixed frequencies is a physical **variable intake resonance flap**—like Porsche's dual-stage resonance intake manifold on the 987.2 S or BMW's DISA valve—which snaps open a connecting plenum valve around $4{,}200\text{–}5{,}500\text{ RPM}$, shifting the Helmholtz peak between two discrete physical states!)*
+*(Note: The one mechanical exception where an intake formant *jumps* between two fixed frequencies is a physical **variable intake resonance flap**—like Porsche's dual-stage resonance intake manifold on the 987.2 S or BMW's DISA valve—which snaps open a connecting plenum valve around $4{,}200\text{–}5{,}500\text{ RPM}$, shifting the Helmholtz peak between two discrete physical states!)*
+
+### Exhaust Thermodynamics: Why Exhaust Formants Drift Gently ($20\text{–}45\%$) With Load & RPM
+Look closely at the Helmholtz and standing-wave equations above ($f_H \propto c$ and $f_{\text{pipe}} = \frac{c}{4L}$): both depend linearly on the **local speed of sound $c$** inside the gas! In an ideal gas, the speed of sound is governed by absolute temperature $T$ (in Kelvin):
+$$c = \sqrt{\gamma R_{\text{specific}} T}$$
+
+* **Intake Tract (Cold Ambient Air, Stationary Formants):** Fresh air entering the airbox and intake runners stays near ambient temperature ($T \approx 295\text{–}315\text{ K}$, so $c \approx 345\text{–}355\text{ m/s}$ regardless of RPM). Intake cavity formants are therefore genuinely stationary in Hz.
+* **Exhaust System (Hot Combustion Gas, Controlled Thermal Drift):** Exhaust gas leaves the ports at $\sim 570\text{ K}$ ($300^\circ\text{C}$) at idle/light cruise ($c \approx 480\text{ m/s}$), but climbs to $\sim 1{,}100\text{–}1{,}200\text{ K}$ ($830\text{–}930^\circ\text{C}$) under sustained high-RPM wide-open throttle ($c \approx 670\text{–}700\text{ m/s}$)! Because $\sqrt{1150 / 570} \approx 1.42$, **physical exhaust formants naturally drift upward in frequency by $20\text{–}45\%$ with RPM and throttle load** (for instance, a $275\text{ Hz}$ warm chest resonance rising gently toward $\sim 365\text{ Hz}$ at WOT redline)—far smaller than a $500\%$ cartoon synth sweep, yet crucial for conveying rising exhaust heat and gas velocity!
+
+### Wide-$Q$ "Body Domes" vs. Narrow Synth Spikes & The Mid-Scoop Trap
+For a 2nd-order `peaking` filter, its $-3\text{ dB}$ frequency bandwidth $\Delta f$ and its time-domain impulse ringing decay constant $\tau$ are coupled directly through $Q$:
+$$\Delta f = \frac{f_c}{Q}, \qquad \tau \approx \frac{Q}{\pi f_c}$$
+
+Two classic EQ mistakes immediately make a procedural engine sound thin or synthetic between $3{,}000\text{ and }6{,}000\text{ RPM}$:
+
+1. **Narrow High-$Q$ Peaks ($Q > 4.0$):** A narrow peak has a long ringing tail $\tau$. Whenever an engine harmonic sweeps across a `+10 dB, Q = 5` spike in the sensitive $1\text{–}2\text{ kHz}$ region, it whistles like a resonant flute or acid-house synth filter.
+2. **Over-Scooping the Lower Midrange (`250–400 Hz`):** Studio engineers sometimes cut $300\text{–}350\text{ Hz}$ on guitar tracks to reduce "boxiness." On a 6-cylinder engine, however, `3.0x` ($f_{\text{fire}}$) spends the *entire* $3{,}000\text{–}6{,}000\text{ RPM}$ midrange walking straight through $150\text{–}300\text{ Hz}$ while `4.5x` traverses $225\text{–}450\text{ Hz}$! Placing a `-4.5 dB` notch at $330\text{ Hz}$ hollows out the engine's primary firing note right where it needs mechanical chest weight.
+
+**The Wide-$Q$ Body Dome Solution:** Place two broad, low-$Q$ (`Q = 1.2–1.6`) positive `peaking` filters at adjacent low-mid frequencies—e.g., **$F_1 \approx 140\text{–}150\text{ Hz}$ (`+6 dB, Q = 1.3`)** and **$F_2 \approx 265\text{–}285\text{ Hz}$ (`+5 dB, Q = 1.4`)**. Because their wide bell curves ($\Delta f \approx 110\text{–}200\text{ Hz}$) overlap smoothly with almost zero time-domain ringing, they fuse into a continuous **$+5\text{ to }+6.5\text{ dB}$ acoustic body plateau spanning $80\text{–}450\text{ Hz}$**—giving cast-iron V8s, side-pipe V10s, and aluminum Flat-6 blocks unmistakable physical thickness across the entire rev range.
+
+### Nonlinear Cam-Crossover Curves ($u_{\text{RPM}}^\gamma$) & Top-End Metallic "Zing"
+Suppose you modulate your dual `-24 dB/oct` exhaust low-pass cutoff **linearly** with normalized RPM $u_{\text{RPM}} \in [0, 1]$:
+$$u_{\text{RPM}} = \frac{\text{RPM} - \text{RPM}_{\text{idle}}}{\text{RPM}_{\text{redline}} - \text{RPM}_{\text{idle}}}$$
+
+You immediately hit a frustrating wall:
+
+* If you set the redline cutoff high enough ($3{,}500\text{–}4{,}300\text{ Hz}$) to let out the exhilarating $2.0\text{–}4.5\text{ kHz}$ **metallic "zing" and raspy scream** at $7{,}400\text{ RPM}$, linear scaling forces the cutoff wide open to **$\sim 1{,}750\text{ Hz}$ already at $3{,}500\text{ RPM}$**—making cruising midrange buzzy and thin!
+* Conversely, if you clamp redline cutoff down to $1{,}800\text{ Hz}$ to protect midrange warmth, the top end ($6{,}000\text{–}7{,}400\text{ RPM}$) sounds dark and suffocated!
+
+How does a real naturally aspirated sports engine (Porsche VarioCam Plus, Honda VTEC, BMW Double-VANOS) stay warm and rounded at $3{,}500\text{ RPM}$ yet erupt into a metallic scream above $5{,}500\text{ RPM}$? **Nonlinear valvetrain breathing!** Below $4{,}500\text{ RPM}$, the engine breathes through mild, short-duration cam lobes; in the upper third of the tach, high-lift cam profiles and resonance flaps open, dramatically accelerating exhaust blowdown slew rate ($dp/dt$).
+
+In DSP, we model this cleanly by raising $u_{\text{RPM}}$ to a **convex power-law exponent $\gamma > 1$** ($\gamma \approx 2.2\text{–}2.8$):
+$$p(u_{\text{RPM}}, u_{\text{load}}) = p_{\text{base}} + \Delta p_{\text{RPM}} \cdot u_{\text{RPM}}^{\gamma} + \Delta p_{\text{load}} \cdot u_{\text{load}}$$
+
+Check the numbers at **$3{,}500\text{ RPM}$** ($u_{\text{RPM}} = 0.40$ on a $900\text{–}7{,}400\text{ RPM}$ Flat-6) with $\gamma = 2.8$:
+
+* $u_{\text{RPM}}^{2.8} = 0.40^{2.8} = \mathbf{0.077}$ (**less than $8\%$** of the RPM modulation has engaged!). Even with a huge $+2{,}650\text{ Hz}$ high-RPM cutoff span, $f_{\text{LP}}$ stays tucked around **$\sim 700\text{ Hz}$** at $3{,}500\text{ RPM}$—100% warm, rounded, and buzz-free.
+* Above **$5{,}800\text{ RPM}$** ($u_{\text{RPM}} = 0.75 \to 1.00$), $u_{\text{RPM}}^{2.8}$ accelerates steeply from $0.45 \to 1.00$, sweeping the dual low-pass out to **$3{,}300\text{–}4{,}350\text{ Hz}$** right as upper sawtooth zing harmonics (`6.0x` with $\gamma = 2.2$, `9.0x` with $\gamma = 2.6$) and a dedicated **High Metallic Zing Formant ($1{,}650 \to 2{,}650\text{ Hz}$, `+6.5 dB, Q = 2.2`)** blossom into a spine-tingling mechanical scream!
 
 ---
 
-## 1.4 Engineering Your Formant Bank: Routing, Count & Tuning
+## 1.4 Engineering Your Complete Tier 1 Signal Chain
 
-### Crucial Trap: Series vs. Parallel Routing!
-Suppose you want two formant peaks—one throaty airbox boom at **$220\text{ Hz}$** and one intake runner howl at **$1{,}400\text{ Hz}$**—and you wire two `bandpass` filters in **series**:
+### Crucial Trap: Series vs. Parallel Bandpass Routing!
+Suppose you want two intake formant peaks—one throaty airbox boom at **$220\text{ Hz}$** and one intake runner howl at **$1{,}400\text{ Hz}$**—and you wire two `bandpass` filters in **series**:
 
 ```mermaid
 flowchart LR
@@ -205,67 +279,75 @@ flowchart LR
     BP2 --> Dead["🔇 Near Silence!"]
 ```
 
-**Never chain narrow `bandpass` filters in series!** The first bandpass strips away the frequencies the second bandpass needs. Instead, DSP engineers use one of two clean topologies:
+**Never chain narrow `bandpass` filters in series!** The first bandpass strips away the frequencies the second bandpass needs. Instead, pair two distinct topologies for Intake vs. Exhaust:
 
-#### Topology A: Parallel `bandpass` Bank (Best for Intake Induction)
-Split the source signal into $N$ parallel branches, each with one `bandpass` filter (`frequency` = $F_k$, `Q` = sharpness) and one `GainNode` (weight), then sum them back into a single bus:
-
-```mermaid
-flowchart LR
-    Src["Intake Source<br/>(Noise + Firing Ripple)"] --> BP1["Bandpass F1 (240 Hz, Q=3.0)"] --> G1["Gain 1"] --> Sum["Intake Bus"]
-    Src --> BP2["Bandpass F2 (1350 Hz, Q=4.5)"] --> G2["Gain 2"] --> Sum
-```
-
-* **Why it shines for Intake:** Zero broadband white-noise "hiss" leaks around the peaks—you hear *only* the resonant air column inside the airbox and runners.
-
-#### Topology B: Series `peaking` EQ Chain + Master Load `lowpass` (Best for Exhaust)
-Unlike `bandpass`, a **`peaking`** filter passes the base signal through at $0\text{ dB}$ and carves a resonant boost (`+6` to `+14 dB`) or scoop (`-6 dB`) at $F_k$. Because the rest of the spectrum survives, you **can** wire `peaking` nodes cleanly in series, followed by a **Throttle-Load Low-Pass Filter** representing muffler absorption:
+#### Topology A: Parallel `bandpass` Bank (For Turbulent Intake Induction)
+Split turbulent induction noise (`pink` noise modulated by throttle load and $u_{\text{RPM}}^{1.5}$) into parallel `bandpass` branches (`frequency` = $F_k$, `Q` = sharpness), then sum them into the Intake Bus:
 
 ```mermaid
 flowchart LR
-    Osc["Exhaust Harmonics"] --> WS["WaveShaper<br/>(Soft Saturation)"]
-    WS --> P1["Peaking F1<br/>(Body Boom)"]
-    P1 --> P2["Peaking F2<br/>(Mid Bark / Rasp)"]
-    P2 --> P3["Peaking F3<br/>(Tailpipe Ring)"]
-    P3 --> LP1["Lowpass ×1 or ×2<br/>(Cutoff opens with Load!)"]
-    LP1 --> Out["Exhaust Bus"]
+    Src["Filtered Pink Noise<br/>(+ Optional Sine/Tri Ripple)"] --> BP1["Bandpass F1 (240 Hz, Q=2.5)"] --> G1["Gain 1"] --> Sum["Intake Bus"]
+    Src --> BP2["Bandpass F2 (1350 Hz, Q=3.2)"] --> G2["Gain 2"] --> Sum
 ```
 
-* **Why it shines for Exhaust:** You retain the fundamental low-end chest thump below $F_1$, sculpt 2–3 signature metallic/woody resonances in the mids, and use the final `lowpass` cutoff ($f_{\text{LP}}$) to dynamically muffle the sound at idle/coasting ($f_{\text{LP}} \approx 220\text{–}350\text{ Hz}$) and open it up under heavy throttle load ($f_{\text{LP}} \approx 1{,}000\text{–}2{,}400\text{ Hz}$).
+* **Critical `-6 dB/oct` Leak Warning:** Remember from Section 1.2 that a 2nd-order `bandpass` filter rolls off above $f_c$ at **only $-6\text{ dB/octave}$**! If you route a raw `sawtooth` oscillator ("firing ripple") into an intake `bandpass` filter that connects directly to `master` (bypassing your `-24 dB/oct` exhaust low-pass), its $2\text{–}6\text{ kHz}$ sawtooth teeth will short-circuit straight to your speakers as midrange buzz! Feed **only** turbulent `pink` noise (or strictly band-limited `sine`/`triangle` fundamentals) into parallel intake bandpasses.
+
+#### Topology B: Nonlinear Turbulent Coupling + Pipe Comb + Series `peaking` Formants + Dual `-24 dB/oct` Low-Pass (For Exhaust)
+Unlike `bandpass`, **`peaking`** filters pass the full spectrum at $0\text{ dB}$ and sculpt broad body domes or upper metallic formants in series. Combining four physical stages in series produces an astonishingly lifelike Tier 1 exhaust chain:
+
+```mermaid
+flowchart LR
+    Src["Phase-Locked Orders<br/>+ Brown/Pink Turbulence"] --> WS["Soft Tanh Shaper<br/>(sech² Intermod)"]
+    WS --> DL["Short Pipe Comb<br/>(0.9–3.4 ms, R < 0)"]
+    DL --> EQ["Series Peaking EQ<br/>(Body Dome + Zing Peak)"]
+    EQ --> LP["2x Butterworth LP<br/>(-24 dB/oct, u_RPM^γ)"]
+    LP --> Out["Exhaust Bus"]
+```
+
+Look at why each stage in Topology B is physically indispensable:
+
+1. **Pre-Waveshaper Stochastic Intermodulation ($\text{sech}^2$ Turbulence Coupling):**
+   Pure oscillators are 100% periodic ($s(t+T) = s(t)$), whereas real cylinders exhibit cycle-to-cycle combustion variations and high-velocity port shear. If you layer noise *after* your filters, your ear hears static radio hiss sitting *on top* of a clean synth. Instead, sum low-frequency **`brown` noise** ($1/f^2$ collector chuff) plus high-RPM **`pink` noise** ($1/f$ header gas rush, gated by $u_{\text{RPM}}^{1.8}$) $n(t)$ **directly into the `Math.tanh` waveshaper** alongside your periodic engine wave $s(t)$. A first-order Taylor expansion reveals the magic:
+   $$y(t) = \tanh\Big(k \cdot \big(s(t) + n(t)\big)\Big) \approx \underbrace{\tanh\big(k \cdot s(t)\big)}_{\text{Saturated Engine Wave}} + \underbrace{k \cdot \text{sech}^2\big(k \cdot s(t)\big) \cdot n(t)}_{\text{Pitch-Synchronized Turbulent Bursts}}$$
+   Because $\text{sech}^2(x) = 1 - \tanh^2(x)$ peaks at every waveform zero-crossing and compresses near wave crests, **the nonlinearity automatically amplitude-modulates the gas noise in lockstep with each cylinder firing pulse!** *(Headroom corollary: this same $\text{sech}^2$ term also explains why overly loud `1.0x` bass waves compress and duck $2\text{–}4.5\text{ kHz}$ zing harmonics inside the waveshaper—keep `1.0x` balanced at high RPM!)*
+
+2. **Short Inverting Comb-Delay Pipe Waveguide ($0.9\text{–}3.4\text{ ms}$):**
+   Even before building a 48 kHz `AudioWorklet` waveguide in Chapter 2, inserting a short Web Audio `DelayNode` ($\tau_d$) with **negative feedback** (`feedback ≈ -0.26 to -0.35`, modeling the phase-inverting open-pipe pressure reflection) and `25–35%` wet mix right after the waveshaper reinforces odd pipe harmonics around $f_1 = \frac{1}{2\tau_d}$ and adds natural phase dispersion:
+
+    - **$\tau_d \approx 0.9\text{ ms}$ ($f_1 \approx 555\text{ Hz}$):** Short, stubby $3.0\text{L}$ Formula 1 Inconel megaphone collector.
+    - **$\tau_d \approx 2.2\text{ ms}$ ($f_1 \approx 227\text{ Hz}$):** Mid-engine Flat-6 header-to-muffler collector path.
+    - **$\tau_d \approx 3.4\text{ ms}$ ($f_1 \approx 147\text{ Hz}$):** Long sill-mounted side-exit pipe on an $8.4\text{L}$ V10.
+
+3. **Series `peaking` Formant Bank (4 Zones) + Dual `-24 dB/oct` Butterworth Low-Pass:**
+   Four series `peaking` biquads take $< 0.1\%$ CPU and map 1-to-1 onto physical acoustic regions:
+
+    - **$F_1$ ($100\text{–}160\text{ Hz}$, $Q \approx 1.2\text{–}1.5$):** **Lower Body / Block Thump** (displacement chest weight).
+    - **$F_2$ ($230\text{–}350\text{ Hz}$, $Q \approx 1.3\text{–}1.6$):** **Upper Body Dome** (overlaps $F_1$ to eliminate mid-RPM synth thinness; drifts $+25\%$ with exhaust temperature).
+    - **$F_3$ ($650\text{–}1{,}200\text{ Hz}$, $Q \approx 1.8\text{–}2.5$):** **Primary Collector Bark / Howl** (woody V8 burble, hollow Flat-6 howl, V10 mid-wail).
+    - **$F_4$ ($1{,}650\text{–}3{,}200\text{ Hz}$, $Q \approx 2.0\text{–}3.0$):** **Top-End Metallic Zing / Raspy Scream** (unlocked above $5{,}500\text{ RPM}$ as the dual `-24 dB/oct` Butterworth low-pass sweeps open along $u_{\text{RPM}}^{2.5\text{–}2.8}$).
 
 ---
 
-### How Many Formant Filters Do You Actually Need?
-**Short answer: 2 on Intake + 3 on Exhaust (+ 1 or 2 cascaded Exhaust Low-Pass nodes) = 6–7 filter nodes total.**
+### How Do You Tune Them? (Methodology + Battle-Tested Acoustic Recipes)
 
-Why not 10 or 20?
+When tuning an engine patch on a real-time FFT + spectral histogram analyzer, use this 4-step workflow:
 
-1. Even human speech—the most complex resonant instrument our brains decode—is completely intelligible with just **3 formants ($F_1, F_2, F_3$)**.
-2. Web Audio `BiquadFilterNode`s run in native C++/SIMD on the audio thread; 7 biquads take **$< 0.1%$ CPU**. Adding 15 overlapping peaks doesn't cost much CPU, *but* overlapping high-$Q$ boosts sum constructively and turn your mix into muddy, clipping soup.
-3. Three well-placed exhaust formants map cleanly to real physical zones you can hear and tune independently:
-    - **$F_1$ ($90\text{–}240\text{ Hz}$, $Q \approx 1.5\text{–}3.0$):** **Chest / Muffler Box Boom** (cabin drone & displacement weight).
-    - **$F_2$ ($350\text{–}900\text{ Hz}$, $Q \approx 2.5\text{–}5.0$):** **Primary Pipe Character** (woody V8 burble, boxy I4 tone, hollow Flat-6 mid-range).
-    - **$F_3$ ($1{,}000\text{–}2{,}400\text{ Hz}$, $Q \approx 3.0\text{–}6.0$):** **Collector Metallic Bite / Wail** (BMW Straight-6 rasp, Porsche high-RPM howl, VTEC scream).
+1. **Lock Crankshaft Orders & Stratify Waveforms (`detune = 0`):** Assign `triangle` to sub/bank orders (`1.0x`, `1.5x`, `2.5x`), `sawtooth` to the primary firing order (`2.0x`, `3.0x`, `4.0x`, `5.0x`), and convex-gated (`rpmModExp: 2.2–2.8`) `sawtooth` to upper zing orders (`6.0x`, `9.0x`, `10.0x`). Verify at redline that the primary firing order leads `1.0x` by $+5\text{ to }+15\text{ dB}$ (except on odd-fire divorced-pipe engines) and that short-window RMS amplitude warble is $< 3\%$.
+2. **Set the Dual `-24 dB/oct` Butterworth Low-Pass (`Q = 0.707`, i.e. `-3.0 dB` in Web Audio) & Cam Curve ($\gamma$):** With formants flat, dial idle cutoff ($200\text{–}280\text{ Hz}$) for a warm mechanical thrum, set redline WOT cutoff ($1{,}800\text{ Hz}$ on big-block V8/V10 up to $4{,}300\text{–}9{,}500\text{ Hz}$ on high-revving Flat-6 / F1 V10), and raise $\gamma$ (`2.4–2.8`) until $3{,}500\text{ RPM}$ sounds completely rounded while $7{,}000+\text{ RPM}$ sparkles with metallic bite.
+3. **Sculpt the Wide-$Q$ Body Dome ($F_1 + F_2$) Before Upper Formants ($F_3 + F_4$):** Hold $3{,}500\text{–}4{,}500\text{ RPM}$ under partial load and overlap $F_1$ + $F_2$ (`Q ≈ 1.3–1.5`) until the chest register feels full and seamless; then sweep $F_3$ and $F_4$ at $6{,}500+\text{ RPM}$ to voice the collector howl and metallic header zing.
+4. **Blend Pre-Waveshaper Turbulence & Short Pipe Comb:** Bring up `brown` noise at low/mid load for exhaust chuff and high-RPM `pink` noise for gas velocity rush inside the `soft_tanh` shaper, then add `20–30%` of inverting pipe delay (`0.9–3.4 ms`).
 
----
+#### Calibrated Acoustic Target Table Across Engine Architectures
 
-### How Do You Tune Them? (Methodology + Starting Recipes)
-
-When you build your formant controls in [`audio_tuner.html`](../src/audio_tuner.html), use the **"Sweep & Lock" studio EQ technique**:
-
-1. **Set the Load Low-Pass first:** With formants flat (`gain = 0 dB`), adjust your idle `lowpass` cutoff until all artificial synth buzz disappears at idle (usually $200\text{–}320\text{ Hz}$), then set your full-throttle `lowpass` ceiling where the engine sounds bright without fizzing ($900\text{ Hz}$ for a lazy V8 up to $2{,}400\text{ Hz}$ for a screaming Flat-6 / VTEC).
-2. **Solo-boost one formant at a time:** Crank $F_2$'s gain temporarily to `+15 dB` with `Q = 5`, hold the engine around $3{,}500\text{ RPM}$, and slowly drag $F_2$'s frequency slider until it hits the exact "throatiness" or "metallic rasp" of the car you have in mind. Then pull `gain` back to a natural `+6` to `+10 dB` and widen `Q` (`2.5`–`4.5`) so transitions across RPM feel smooth rather than whistly.
-3. **Carve a scoop if it sounds "boxy":** Real exhausts also have destructive acoustic cancellations! Setting one `peaking` node to **`-5 dB` around `300–450 Hz`** removes "cardboard box" muddiness and makes low bass + high metallic wail pop in high contrast.
-
-#### Starting Acoustic Target Table for Your Presets
-
-| Engine Preset | Harmonic Orders (`mult` of $f_{\text{rot}}$) | Exhaust Formants ($F_1 / F_2 / F_3$) | Exhaust Low-Pass (Idle $\to$ WOT) | Intake Formants ($F_{\text{box}} / F_{\text{runner}}$) |
-| :--- | :--- | :--- | :--- | :--- |
-| **`v8`** *(Land Cruiser / Cross-Plane)* | `0.5x` (0.5), `1.0x` (0.8), `2.0x` (0.6), `4.0x` (0.7) | **$110\text{ Hz}$** (+8 dB, Q=2) · **$260\text{ Hz}$** (+6 dB, Q=2.5) · **$620\text{ Hz}$** (+4 dB, Q=3) | $180\text{ Hz} \to 850\text{ Hz}$ | $160\text{ Hz}$ / $650\text{ Hz}$ |
-| **`i4`** *(Mini / Jazz / Jimny)* | `1.0x` (0.25), `2.0x` (0.9), `4.0x` (0.35) | **$145\text{ Hz}$** (+7 dB, Q=2) · **$380\text{ Hz}$** (-4 dB scoop!) · **$780\text{ Hz}$** (+6 dB, Q=3) | $220\text{ Hz} \to 1{,}300\text{ Hz}$ | $220\text{ Hz}$ / $1{,}100\text{ Hz}$ |
-| **`civic_vtec`** *(EG B16A)* | `2.0x` (0.85), `4.0x` (0.4), `6.0x` (boosts on VTEC!) | **$165\text{ Hz}$** (+6 dB, Q=2) · **$520\text{ Hz}$** (+5 dB, Q=3) · **$1{,}450\text{ Hz}$** (+9 dB, Q=4.5) | $260\text{ Hz} \to 2{,}200\text{ Hz}$ | $260\text{ Hz}$ / **$1{,}750\text{ Hz}$** (Q=5.5 on VTEC!) |
-| **`i6`** *(M3 G80 / E91 / G31)* | `1.5x` (0.45), `3.0x` (0.9), `6.0x` (0.4) | **$155\text{ Hz}$** (+7 dB, Q=2) · **$740\text{ Hz}$** (+8 dB, Q=4) · **$1{,}850\text{ Hz}$** (+7 dB, Q=5, metallic rasp) | $240\text{ Hz} \to 1{,}900\text{ Hz}$ | $210\text{ Hz}$ / $1{,}300\text{ Hz}$ |
-| **`flat6`** *(Cayman 987.2 S)* | `1.5x` (0.65), `3.0x` (0.85), `4.5x` (0.25), `6.0x` (0.45) | **$185\text{ Hz}$** (+6 dB, Q=2.2) · **$460\text{ Hz}$** (+5 dB, Q=3, boxer hollow thrum) · **$1{,}150\text{ Hz}$** (+10 dB, Q=4.5, wail) | $250\text{ Hz} \to 2{,}300\text{ Hz}$ | $240\text{ Hz}$ / **$1{,}050\text{ Hz}$ & $2{,}050\text{ Hz}$** |
+| Engine Preset | Stratified Orders (`detune = 0`) | Pipe Comb ($\tau_d, R$) | Exhaust Formants ($F_1$ Body / $F_2$ Dome / $F_3$ Bark / $F_4$ Zing) | Dual `-24 dB/oct` LP ($f_{\text{idle}} \to f_{\text{WOT}}, \gamma$) |
+| :--- | :--- | :---: | :--- | :--- |
+| **`v8`** *(Cross-Plane)* | `0.5x` tri, `1.0x` tri, `2.0x` saw, `4.0x` saw | $3.2\text{ ms}$, $-0.28$ | **$110\text{ Hz}$** (+7 dB, Q=1.3) · **$240\text{ Hz}$** (+5 dB, Q=1.4) · **$620\text{ Hz}$** (+4 dB, Q=2.0) | $180 \to 1{,}400\text{ Hz}$ ($\gamma=2.0$) |
+| **`i4`** *(16V Sport)* | `1.0x` tri, `2.0x` saw, `4.0x` saw, `6.0x` saw | $2.4\text{ ms}$, $-0.25$ | **$135\text{ Hz}$** (+6 dB, Q=1.4) · **$280\text{ Hz}$** (+4 dB, Q=1.5) · **$820\text{ Hz}$** (+5 dB, Q=2.2) · **$1.9\text{ kHz}$** (+4 dB) | $220 \to 2{,}400\text{ Hz}$ ($\gamma=2.2$) |
+| **`civic_vtec`** *(B16A)* | `1.0x` tri, `2.0x` saw, `4.0x` saw, `6.0x` saw ($\gamma=2.6$) | $2.0\text{ ms}$, $-0.28$ | **$155\text{ Hz}$** (+5 dB, Q=1.4) · **$310\text{ Hz}$** (+4 dB, Q=1.5) · **$1.45\text{ kHz}$** (+7 dB, Q=2.5) · **$2.8\text{ kHz}$** (+6 dB) | $250 \to 3{,}800\text{ Hz}$ ($\gamma=2.8$) |
+| **`i6`** *(M3 Straight-6)* | `1.0x` tri, `1.5x` tri, `3.0x` saw, `6.0x` saw, `9.0x` saw | $2.3\text{ ms}$, $-0.28$ | **$145\text{ Hz}$** (+6 dB, Q=1.3) · **$290\text{ Hz}$** (+5 dB, Q=1.4) · **$780\text{ Hz}$** (+6 dB, Q=2.2) · **$2.2\text{ kHz}$** (+7 dB, rasp) | $230 \to 3{,}600\text{ Hz}$ ($\gamma=2.5$) |
+| **`flat6`** *(Cayman 987.2 S, $7{,}400\text{ RPM}$)* | `1.0x` tri (tamed), `1.5x` tri, `3.0x` saw (lead), `4.5x` tri, `6.0x` saw ($\gamma=2.2$), `9.0x` saw ($\gamma=2.6$) | $2.2\text{ ms}$, $-0.26$ | **$142\text{ Hz}$** (+5.5 dB, Q=1.3) · **$280\to 365\text{ Hz}$** (+5 dB, Q=1.4) · **$720\to 1{,}020\text{ Hz}$** (+4.5 dB, Q=1.7) · **$1.65\to 2.65\text{ kHz}$** (+6.5 dB, Q=2.2) | $240 \to 4{,}340\text{ Hz}$ / $3{,}315\text{ Hz}$ ($\gamma=2.8$) |
+| **`dodge_viper_v10`** *(8.4L Odd-Fire Side-Pipe, $6{,}200\text{ RPM}$)* | `0.5x` sin, `1.0x` tri, `1.5x` saw (90°/54° odd-fire!), `2.5x` saw (5-cyl bank!), `5.0x` saw, `7.5x` tri | $3.4\text{ ms}$, $-0.32$ | **$115\text{ Hz}$** (+7.5 dB, Q=1.2) · **$235\text{ Hz}$** (+6 dB, Q=1.4) · **$540\text{ Hz}$** (+4.5 dB, Q=1.8) · **$1.45\text{ kHz}$** (+4 dB, Q=2.0) | $190 \to 2{,}350\text{ Hz}$ ($\gamma=2.1$) |
+| **`f1_golden_era_v10`** *(3.0L $19{,}000\text{ RPM}$ Screamer)* | `2.5x` tri, `5.0x` saw (dominant $1{,}583\text{ Hz}$), `7.5x` saw (musical 5th!), `10.0x` saw ($\gamma=2.2$) | $0.9\text{ ms}$, $-0.35$ | **$420\text{ Hz}$** (+3.5 dB, Q=1.4) · **$1{,}450\to 1{,}950\text{ Hz}$** (+7 dB, Q=2.0) · **$2{,}850\to 3{,}650\text{ Hz}$** (+8 dB, Q=2.4) · **$4.8\text{ kHz}$** (+5.5 dB) | $950 \to 9{,}800\text{ Hz}$ ($\gamma=2.2$) |
 
 ---
 
@@ -345,8 +427,8 @@ Pitch is controlled by **RPM**, but **Timbre & Volume** are controlled by **Mani
 * **High Load (`engineThrottle > 0`, climbing RPM):** Throttle butterfly is wide open $\to$ loud intake roar, bright exhaust `lowpass` cutoff, high waveshaper drive, deep sub-bass.
 * **Overrun / Deceleration (`engineThrottle === 0` while `rpm > idleRPM + 250`):** Throttle butterfly snaps shut! Intake roar drops to **zero** immediately, and exhaust `lowpass` closes down to a dark, hollow vacuum rumble ($200\text{–}300\text{ Hz}$).
 
-### Micro-Imperfection (Breaking the Frozen Robot Idle)
-At steady idle, a fixed `900.000 RPM` sounds like an electrical transformer. Adding $\pm 10\text{–}18\text{ RPM}$ of slow organic hunting (e.g., summing two slow sine waves at non-integer frequencies like $1.3\text{ Hz}$ and $3.1\text{ Hz}$, scaled down as RPM rises) plus detuning your mechanical vs. exhaust oscillators by `0.3%` (`1.003x`) creates natural acoustic beating instead of sterile phase-cancellation.
+### Micro-Imperfection (Shared Crankshaft Hunting, Never Per-Order Detuning!)
+At steady idle, a frozen `900.000 RPM` sounds like an electrical utility transformer. Add $\pm 10\text{–}18\text{ RPM}$ of slow organic idle hunting (e.g., summing two slow incommensurate sine waves like $1.3\text{ Hz}$ and $3.1\text{ Hz}$, tapered down as RPM rises) **directly to the single shared crankshaft variable `currentRPM`** so every engine order (`1.0x`, `1.5x`, `3.0x`, `6.0x`) tracks together in rigid `0 cents` phase-lock! Never apply static frequency offsets (such as `1.003x` / `5 cents` detune) between individual harmonic oscillators—doing so causes unphysical chorus warble at high RPM, whereas pre-waveshaper brown/pink gas turbulence already provides true cycle-to-cycle combustion texture.
 
 ---
 
@@ -367,10 +449,11 @@ At steady idle, a fixed `900.000 RPM` sounds like an electrical transformer. Add
 * **Phase B** (rolling backward or stopped, pressing `ArrowDown`) is **accelerating in Reverse**: `engineThrottle = 1.0` $\implies$ RPM flares on the virtual clutch to ~$2{,}000\text{ RPM}$, intake airbox booms, exhaust low-pass opens up!
 * **Phase D** (rolling backward at $-25\text{ px/s}$, pressing `ArrowUp`) is **stepping on the brake pedal**: `engineThrottle = 0.0`! Even though `input.throttle === +1`, it opposes the current motion (`velocity * input.throttle < 0` beyond a small deadzone like `|velocity| > 5 px/s`), so the clutch disengages / throttle stays shut and RPM settles peacefully toward idle instead of roaring!
 * **Clean boolean condition (with a small standstill deadzone $\epsilon \approx 5\text{ px/s}$ so you can launch cleanly in either direction):**
-  ```js
-  const isBraking = Math.abs(velocity) > 5 && Math.sign(input.throttle) !== Math.sign(velocity);
-  const engineThrottle = isBraking ? 0 : Math.abs(input.throttle);
-  ```
+
+```js
+const isBraking = Math.abs(velocity) > 5 && Math.sign(input.throttle) !== Math.sign(velocity);
+const engineThrottle = isBraking ? 0 : Math.abs(input.throttle);
+```
 
 </details>
 
@@ -392,33 +475,34 @@ Two quick engineering guardrails before you jump into code:
 
 Now it's your turn to write the code! Work through these four milestones in order so you can hear and test each improvement incrementally.
 
-### Milestone 1A: Physical Engine Orders & Clean VTEC (`src/AudioController.js`)
+### Milestone 1A: Stratified, Phase-Locked Engine Orders & Convex Cam Curves (`src/AudioController.js`)
 
 1. Replace the arbitrary `baseFreq` math in `calculateState()` with true physical crank rotation frequency:
    $$f_{\text{rot}} = \frac{\text{currentRPM}}{60}$$
 
-2. Interpret each preset's `harmonics[i].mult` as true **Engine Orders** (multiples of $f_{\text{rot}}$, e.g., `2.0` for I4 firing, `1.5` & `3.0` for I6/Flat-6, `0.5`, `1.0`, `2.0`, `4.0` for V8).
-3. Remove the musical pitch-jump multiplier (`vtecFreqShift`) on oscillator frequencies! Instead, when `isVtecActive` is true (or smoothly blended over a `300 RPM` transition window around `vtec.rpm`), boost upper harmonic gains (`mult >= 4`), intake runner formant gain, and exhaust low-pass cutoff.
+2. Stratify each preset's `harmonics[i]` as phase-locked (`detune = 0`) **Engine Orders**: `triangle` for sub/bank undertones (`1.0x`, `1.5x`, `2.5x`), `sawtooth` for the primary firing order (`2.0x` I4, `3.0x` I6/Flat-6, `4.0x` V8, `5.0x` V10), and convex-gated (`u_rpm ** 2.2–2.8`) `sawtooth` for top-end metallic zing (`6.0x`, `9.0x`, `10.0x`), keeping `1.0x` balanced so the primary firing order dominates near redline.
+3. Remove the musical pitch-jump multiplier (`vtecFreqShift`) on oscillator frequencies! Instead, use convex power-law RPM modulation ($u_{\text{RPM}}^\gamma$ with $\gamma \approx 2.4\text{–}2.8$) to smoothly ramp upper zing harmonics, high metallic formant gain, and dual low-pass cutoff across the high-cam crossover.
 
 ### Milestone 1B: Stateful Parking Drivetrain (`src/EngineSim.js`, `src/AudioController.js` & `src/main.js`)
 
 1. Create a stateful `Drivetrain` helper (either expanding `EngineSim.js` or a dedicated class imported by both `main.js` and `AudioTuner.js`) with `step(dt, velocityPxPerSec, rawThrottleInput)` returning `{ rpm, engineLoad, isOverrun, isReversing, isBraking }`:
     - Implement the braking vs. reverse-load check (`isBraking` when `|velocity| > 5` and `sign(throttle) !== sign(velocity)`).
     - Implement virtual clutch flare from a stop + 1st/Reverse gear ratio coupling (remembering Reverse is ~15% shorter than 1st!) + asymmetric flywheel inertia ($\tau_{\text{up}}$ vs. $\tau_{\text{down}}$).
-    - Add subtle idle RPM micro-hunting ($\pm 12\text{ RPM}$ at idle, tapering off above $1{,}500\text{ RPM}$).
+    - Add subtle shared-crankshaft idle RPM micro-hunting ($\pm 12\text{ RPM}$ at idle, tapering off above $1{,}500\text{ RPM}$).
 2. Update [`tests/unit/audio_logic.test.js`](../tests/unit/audio_logic.test.js) to test:
     - Tapping reverse throttle from standstill raises `rpm` and `engineLoad` (> 0).
     - Pressing opposite throttle while moving (`isBraking`) drops `engineLoad` to `0` rather than flaring the engine.
     - Run `npm test` to verify all unit tests pass!
 
-### Milestone 1C: Formant Filter Bank & Load-Modulated Low-Pass (`src/AudioController.js`)
+### Milestone 1C: Nonlinear Turbulent Exhaust Chain, Formant Body Dome & Dual `-24 dB/oct` Low-Pass (`src/AudioController.js`)
 
 1. **Exhaust Chain (Topology B):**
-    - Replace the hardcoded `1000 Hz` and `2500 Hz` notch filters in `init()` with a configurable array of **3 series `peaking` filters** ($F_1, F_2, F_3$, configured per engine preset in `ENGINE_PRESETS`) followed by **two cascaded `lowpass` filters** (`-24 dB/oct` muffler roll-off).
-    - Modulate the `lowpass` cutoff dynamically in `applyState()` using **both** `engineLoad` and `rpm` (dark and muffled at idle/overrun; bright and open under heavy throttle load).
+    - Sum `brown` (low-end chuff) and high-RPM `pink` (header rush) turbulence **into** the `Math.tanh` `WaveShaperNode` alongside your phase-locked harmonic oscillators for $\text{sech}^2$ pitch-locked intermodulation, followed by a short inverting pipe delay (`0.9–3.4 ms`, `feedback ≈ -0.28`).
+    - Replace the hardcoded `1000 Hz` and `2500 Hz` notch filters with **4 series `peaking` filters** (a wide-$Q$ `1.3–1.5` $F_1 + F_2$ body dome spanning $80\text{–}450\text{ Hz}$ with $20\text{–}40\%$ thermal drift, plus $F_3$ collector howl and $F_4$ top-end metallic zing) followed by **two cascaded Butterworth `lowpass` filters** (`-24 dB/oct` rounding, setting Web Audio `Q = 20 * Math.log10(0.707) ≈ -3.01` dB).
+    - Modulate the dual `lowpass` cutoff dynamically using `engineLoad` and convex $u_{\text{RPM}}^{\gamma}$ ($\gamma \approx 2.2\text{–}2.8$) so midrange stays dark and rounded while redline opens to $2.4\text{–}4.3+\text{ kHz}$.
 
 2. **Intake Chain (Topology A):**
-    - Route intake noise (plus a touch of firing-order ripple!) into **2 parallel `bandpass` formant filters** ($F_{\text{airbox}}$ and $F_{\text{runner}}$) whose frequencies stay **stationary** in Hz (except an optional plenum resonance switch on `flat6` / `civic_vtec`), gated strictly by `engineLoad`!
+    - Route filtered `pink` induction noise (**never** raw `sawtooth` oscillators, which leak $-6\text{ dB/oct}$ buzz!) into **2 parallel `bandpass` formant filters** ($F_{\text{airbox}}$ and $F_{\text{runner}}$) whose frequencies stay stationary in Hz (except an optional plenum resonance flap on `flat6` / `civic_vtec`), gated strictly by `engineLoad`!
 
 3. **Safety Limiter:** Insert a `DynamicsCompressorNode` before `this.analyser` so high-$Q$ formant sweeps never clip.
 
