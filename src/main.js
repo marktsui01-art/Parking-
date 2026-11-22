@@ -5,6 +5,7 @@ import { CanvasRenderer } from './CanvasRenderer.js';
 import { LEVELS } from './levels.js';
 import { SAT } from './SAT.js';
 import { AudioController } from './AudioController.js';
+import { solveCustomLevel } from './planner/index.js';
 
 let currentCarKey = 'm3_g80';
 
@@ -356,16 +357,120 @@ function showMenu() {
 }
 */
 
-// Bootstrap
-initLevelChooser();
-showMenu();
-
-// --- UI Wiring for Replay ---
+// --- UI Wiring for Replay & Auto-Park Demo ---
+const btnDemo = document.getElementById('btn-demo');
+const btnStopDemo = document.getElementById('btn-stop-demo');
+const demoStatus = document.getElementById('demo-status');
 const btnRecord = document.getElementById('btn-record');
 const btnStopRecord = document.getElementById('btn-stop-record');
 const btnUploadReplay = document.getElementById('btn-upload-replay');
 const fileInputReplay = document.getElementById('replay-file');
 const replayControls = document.getElementById('replay-controls');
+
+let activeDemoOverlay = null;
+let isDemoPlayback = false;
+let isDemoPlanning = false;
+
+function setDemoStatus(text) {
+    if (!demoStatus) return;
+    if (text) {
+        demoStatus.innerText = text;
+        demoStatus.style.display = 'inline-block';
+    } else {
+        demoStatus.innerText = '';
+        demoStatus.style.display = 'none';
+    }
+}
+
+function resetDemoUiForManualPlay() {
+    isDemoPlayback = false;
+    isDemoPlanning = false;
+    btnDemo.disabled = false;
+    btnDemo.style.display = 'inline-block';
+    btnStopDemo.style.display = 'none';
+    btnRecord.style.display = 'inline-block';
+    btnStopRecord.style.display = 'none';
+    setDemoStatus('');
+}
+
+btnDemo.onclick = () => {
+    if (gameState !== 'PLAYING' || !engine.currentLevel || isDemoPlanning) return;
+    if (replayState === 'RECORDING') window.stopRecording();
+
+    const initialState = {
+        x: engine.pos.x,
+        y: engine.pos.y,
+        heading: engine.heading,
+        velocity: engine.velocity,
+        steerAngle: engine.steerAngle
+    };
+
+    isDemoPlanning = true;
+    btnDemo.disabled = true;
+    setDemoStatus('Planning...');
+
+    setTimeout(() => {
+        if (gameState !== 'PLAYING' || !engine.currentLevel) {
+            isDemoPlanning = false;
+            btnDemo.disabled = false;
+            return;
+        }
+
+        const currentLvlIdx = LEVELS.indexOf(engine.currentLevel);
+        const levelIndex = currentLvlIdx >= 0 ? currentLvlIdx : 0;
+        const solved = solveCustomLevel(engine.currentLevel, CAR_MODELS[currentCarKey], {
+            levelIndex,
+            carKey: currentCarKey,
+            initialState
+        });
+
+        isDemoPlanning = false;
+
+        if (!solved.success || !solved.replay) {
+            btnDemo.disabled = false;
+            setDemoStatus('No valid path found');
+            setTimeout(() => {
+                if (!isDemoPlayback) setDemoStatus('');
+            }, 3000);
+            return;
+        }
+
+        // Start Auto-Park directly from the car's current pose without resetting to start
+        if (solved.requiresInstantStop) {
+            engine.velocity = 0;
+            engine.steerAngle = 0;
+        }
+        hideEditor();
+        recordedInputs = solved.replay.inputs;
+        replayFrame = 0;
+        replayState = 'PLAYBACK';
+        isDemoPlayback = true;
+        activeDemoOverlay = {
+            waypoints: solved.result.waypoints,
+            cusps: solved.result.cusps
+        };
+
+        btnDemo.disabled = false;
+        btnDemo.style.display = 'none';
+        btnRecord.style.display = 'none';
+        btnStopRecord.style.display = 'none';
+        btnStopDemo.style.display = 'inline-block';
+        const shifts = solved.result.cusps.length;
+        setDemoStatus(`Demo: ${shifts} gear shift${shifts === 1 ? '' : 's'}`);
+    }, 0);
+};
+
+btnStopDemo.onclick = () => {
+    if (!engine.currentLevel) return;
+    replayState = 'NONE';
+    recordedInputs = [];
+    replayFrame = 0;
+    activeDemoOverlay = null;
+    gameState = 'PLAYING';
+    messageArea.style.display = 'none';
+    returnContainer.style.display = 'none';
+    resetDemoUiForManualPlay();
+};
 
 btnRecord.onclick = () => {
     window.startRecording();
@@ -389,6 +494,8 @@ fileInputReplay.onchange = (e) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
+        activeDemoOverlay = null;
+        isDemoPlayback = false;
         window.loadReplay(evt.target.result);
     };
     reader.readAsText(file);
@@ -400,17 +507,19 @@ fileInputReplay.onchange = (e) => {
 const _originalShowMenu = showMenu;
 showMenu = function () {
     _originalShowMenu();
+    activeDemoOverlay = null;
+    resetDemoUiForManualPlay();
     replayControls.style.display = 'none';
 };
 
 const _originalStartLevel = startLevel;
 startLevel = function (index) {
     _originalStartLevel(index);
-    // If not playing a replay, show record button
+    activeDemoOverlay = null;
+    // If not playing a replay, show record + demo controls
     if (replayState !== 'PLAYBACK') {
         replayControls.style.display = 'block';
-        btnRecord.style.display = 'inline-block';
-        btnStopRecord.style.display = 'none';
+        resetDemoUiForManualPlay();
     } else {
         replayControls.style.display = 'none';
     }
@@ -441,7 +550,7 @@ function loop(now) {
     if (accumulator > MAX_ACCUMULATOR) accumulator = MAX_ACCUMULATOR;
 
     while (accumulator >= FIXED_STEP) {
-        if (gameState === 'PLAYING') {
+        if (gameState === 'PLAYING' && !isDemoPlanning) {
             let input = { steer: 0, throttle: 0 };
 
             if (replayState === 'PLAYBACK') {
@@ -473,9 +582,14 @@ function loop(now) {
 
             // Check for Game Over conditions
             if (engine.won) {
+                if (isDemoPlayback) {
+                    isDemoPlayback = false;
+                    btnStopDemo.style.display = 'none';
+                    setDemoStatus('Demo complete!');
+                }
                 showGameOver(true);
             }
-        } else {
+        } else if (gameState !== 'PLAYING') {
             // Stop audio if not playing
             audioController.stop();
         }
@@ -483,7 +597,7 @@ function loop(now) {
     }
 
     // Render
-    renderer.render(engine);
+    renderer.render(engine, activeDemoOverlay);
 
     // Telemetry Update
     if (gameState === 'PLAYING') {

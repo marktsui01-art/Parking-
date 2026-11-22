@@ -22,8 +22,9 @@ export class CanvasRenderer {
     /**
      * Draws the current frame.
      * @param {GameEngine} engine
+     * @param {object|null} [demoOverlay=null] - Optional { waypoints, cusps } planned path overlay
      */
-    render(engine) {
+    render(engine, demoOverlay = null) {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         // Draw Level Elements
@@ -53,6 +54,10 @@ export class CanvasRenderer {
 
                 this.drawRotatedRect(centerX, centerY, engine.length, engine.width, start.heading || 0, 'rgba(255, 255, 255, 0.1)', 'rgba(255, 255, 255, 0.4)', [5, 5]);
             }
+        }
+
+        if (demoOverlay && demoOverlay.waypoints && demoOverlay.waypoints.length > 1) {
+            this.drawDemoOverlay(demoOverlay);
         }
 
         this.ctx.save();
@@ -128,6 +133,55 @@ export class CanvasRenderer {
         this.ctx.translate(x, y);
         this.ctx.rotate(angle);
         this.ctx.fillRect(-w / 2, -h / 2, w, h);
+        this.ctx.restore();
+    }
+
+    /**
+     * Renders the planned path (forward=green, reverse=amber) and numbered gear-shift pivot markers.
+     */
+    drawDemoOverlay(demoOverlay) {
+        const wps = demoOverlay.waypoints;
+        this.ctx.save();
+        this.ctx.lineWidth = 2.5;
+
+        let i = 0;
+        while (i < wps.length) {
+            const dir = wps[i].dir;
+            this.ctx.beginPath();
+            this.ctx.moveTo(wps[i].x, wps[i].y);
+            let j = i + 1;
+            while (j < wps.length && wps[j].dir === dir) {
+                this.ctx.lineTo(wps[j].x, wps[j].y);
+                j++;
+            }
+            this.ctx.strokeStyle = dir >= 0 ? 'rgba(46, 204, 113, 0.75)' : 'rgba(243, 156, 18, 0.85)';
+            this.ctx.setLineDash(dir >= 0 ? [6, 4] : [4, 4]);
+            this.ctx.stroke();
+            i = j;
+        }
+
+        // Draw gear-shift pivot / cusp markers
+        const cusps = demoOverlay.cusps || [];
+        this.ctx.setLineDash([]);
+        this.ctx.font = 'bold 9px sans-serif';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+
+        for (let k = 0; k < cusps.length; k++) {
+            const cusp = cusps[k];
+            this.ctx.beginPath();
+            this.ctx.arc(cusp.x, cusp.y, 9, 0, Math.PI * 2);
+            this.ctx.fillStyle = 'rgba(20, 20, 20, 0.85)';
+            this.ctx.fill();
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeStyle = '#f1c40f';
+            this.ctx.stroke();
+
+            this.ctx.fillStyle = '#fff';
+            const gearLabel = cusp.toDir < 0 ? 'R' : 'D';
+            this.ctx.fillText(`${k + 1}${gearLabel}`, cusp.x, cusp.y + 0.5);
+        }
+
         this.ctx.restore();
     }
 }
