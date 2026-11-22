@@ -128,7 +128,8 @@ function buildTrajectoryFromSegments(start, segments, stepSize = 1.2) {
         }
         prevDir = seg.dir;
 
-        const steps = Math.max(1, Math.ceil(seg.length / stepSize));
+        const segStepSize = seg.length < 6.0 ? Math.min(stepSize, 0.4) : stepSize;
+        const steps = Math.max(1, Math.ceil(seg.length / segStepSize));
         const ds = (seg.dir * seg.length) / steps;
 
         if (waypoints.length === 0) {
@@ -192,7 +193,7 @@ export function computeGoalPoses(level, carSpec, checker = new CollisionChecker(
  * and heading-alignment snap primitives. Escapes tight parking bays cleanly and checks
  * direct Reeds-Shepp connections back to startPose.
  */
-function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
+function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin, fineMode = false) {
     const turningRadius = carSpec.wheelBase / Math.tan(carSpec.maxSteerAngle);
     const prims = [];
     for (const s of [-1, 0, 1]) {
@@ -201,6 +202,7 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
     }
 
     // Immediate direct Reeds-Shepp shot from startPose -> goals
+    const rsStepSize = fineMode ? 1.0 : 1.8;
     for (const g of goals) {
         const rs = computeReedsSheppPaths(startPose, g, turningRadius, {
             reverseWeight: 1.2,
@@ -208,7 +210,7 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
         });
         const limit = Math.min(5, rs.length);
         for (let k = 0; k < limit; k++) {
-            if (isReedsSheppPathFree(startPose, rs[k].segments, turningRadius, checker, margin)) {
+            if (isReedsSheppPathFree(startPose, rs[k].segments, turningRadius, checker, margin, rsStepSize)) {
                 return {
                     directSegs: rs[k].segments.map((s) => ({ ...s, kappa: s.steer / turningRadius })),
                     goalPose: g,
@@ -219,11 +221,15 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
         }
     }
 
+    const maxExp = fineMode ? 2400 : 1600;
+    const maxShifts = fineMode ? 24 : 8;
+    const minMove = fineMode ? 0.75 : 1.5;
     const snapAngles = [0, Math.PI / 2, -Math.PI / 2, Math.PI, startPose.heading];
     const heap = new MinHeap();
     const bestCost = new Map();
-    const keyOf = (x, y, h, dir) =>
-        `${Math.round(x / 3)},${Math.round(y / 3)},${Math.round(normalizeAngle(h) / (Math.PI / 60))},${dir}`;
+    const keyOf = (x, y, h, dir, inBay) => (inBay
+        ? `F${Math.round(x / 0.75)},${Math.round(y / 0.75)},${Math.round(normalizeAngle(h) / (Math.PI / 120))},${dir}`
+        : `${Math.round(x / 3)},${Math.round(y / 3)},${Math.round(normalizeAngle(h) / (Math.PI / 60))},${dir}`);
 
     for (const g of goals) {
         heap.push(0, {
@@ -243,7 +249,7 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
     const minClearRadius = Math.min(level.target.width, level.target.height) * 0.7;
     let expanded = 0;
 
-    while (heap.size > 0 && expanded < 1600) {
+    while (heap.size > 0 && expanded < maxExp) {
         const cur = heap.pop();
         expanded++;
 
@@ -259,7 +265,7 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
             });
             const limit = Math.min(4, rs.length);
             for (let k = 0; k < limit; k++) {
-                if (isReedsSheppPathFree(startPose, rs[k].segments, turningRadius, checker, margin)) {
+                if (isReedsSheppPathFree(startPose, rs[k].segments, turningRadius, checker, margin, rsStepSize)) {
                     const rsSegs = rs[k].segments.map((s) => ({ ...s, kappa: s.steer / turningRadius }));
                     return {
                         directSegs: rsSegs.concat(reverseSegments(cur.segs)),
@@ -286,7 +292,7 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
             }
         }
 
-        if (cur.shifts >= 8 || distFromTarget > 220) continue;
+        if (cur.shifts >= maxShifts || distFromTarget > 220) continue;
 
         for (let p = 0; p < prims.length; p++) {
             const pr = prims[p];
@@ -302,28 +308,46 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
 
             for (let step = 1; step <= 260; step++) {
                 const nxt = stepArc(sx, sy, sh, pr.kappa, pr.dir * 0.5);
-                if (checker.collides(nxt.x, nxt.y, nxt.heading, margin)) break;
+                if (checker.collides(nxt.x, nxt.y, nxt.heading, margin)) {
+                    if (fineMode) {
+                        for (let ref = 0; ref < 3; ref++) {
+                            const rNxt = stepArc(sx, sy, sh, pr.kappa, pr.dir * 0.125);
+                            if (checker.collides(rNxt.x, rNxt.y, rNxt.heading, margin)) break;
+                            sx = rNxt.x;
+                            sy = rNxt.y;
+                            sh = rNxt.heading;
+                            maxD += 0.125;
+                        }
+                    }
+                    break;
+                }
                 sx = nxt.x;
                 sy = nxt.y;
                 sh = nxt.heading;
                 maxD += 0.5;
-                if ((step <= 60 && step % 16 === 0) || (step > 60 && step % 40 === 0)) {
+                if (fineMode) {
+                    if (step >= 32 && step % 32 === 0) {
+                        samples.push({ x: sx, y: sy, h: sh, d: maxD });
+                    }
+                } else if ((step <= 60 && step % 16 === 0) || (step > 60 && step % 40 === 0)) {
                     samples.push({ x: sx, y: sy, h: sh, d: maxD });
                 }
             }
-            if (maxD < 1.5) continue;
+            if (maxD < minMove) continue;
 
             samples.push({ x: sx, y: sy, h: sh, d: maxD });
 
             // Snap onto exact cardinal / start headings when turning across them
             if (Math.abs(pr.kappa) > 1e-6) {
                 const rate = pr.dir * pr.kappa;
+                const minSnap = fineMode ? 0.75 : 1.0;
+                const snapEndMargin = fineMode ? 0.25 : 0.5;
                 for (let a = 0; a < snapAngles.length; a++) {
                     let diff = normalizeAngle(snapAngles[a] - cur.heading);
                     if (rate > 0 && diff <= 0) diff += TWO_PI;
                     if (rate < 0 && diff >= 0) diff -= TWO_PI;
                     const dSnap = diff / rate;
-                    if (dSnap > 1.0 && dSnap < maxD - 0.5) {
+                    if (dSnap > minSnap && dSnap < maxD - snapEndMargin) {
                         const sp = stepArc(cur.x, cur.y, cur.heading, pr.kappa, pr.dir * dSnap);
                         if (!checker.collides(sp.x, sp.y, sp.heading, margin)) {
                             samples.push({ x: sp.x, y: sp.y, h: sp.heading, d: dSnap });
@@ -332,7 +356,7 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
                 }
             }
 
-            if (maxD > 14) {
+            if (maxD > (fineMode ? 20 : 14)) {
                 const half = stepArc(cur.x, cur.y, cur.heading, pr.kappa, pr.dir * (maxD * 0.5));
                 samples.push({ x: half.x, y: half.y, h: half.heading, d: maxD * 0.5 });
             }
@@ -342,15 +366,17 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin) {
                 const sp = samples[s];
                 const nh = normalizeAngle(sp.h);
                 const nLen = cur.len + sp.d;
-                const k = keyOf(sp.x, sp.y, nh, pr.dir);
+                const ncx = sp.x + checker.bodyCenterDist * Math.cos(nh);
+                const ncy = sp.y + checker.bodyCenterDist * Math.sin(nh);
+                const nd = Math.hypot(ncx - level.target.x, ncy - level.target.y);
+                const k = keyOf(sp.x, sp.y, nh, pr.dir, fineMode && nd < minClearRadius + 15);
                 const costVal = nextShifts * 45 + nLen;
                 if (costVal >= (bestCost.get(k) ?? Infinity) - 1e-6) continue;
                 bestCost.set(k, costVal);
 
-                const ncx = sp.x + checker.bodyCenterDist * Math.cos(nh);
-                const ncy = sp.y + checker.bodyCenterDist * Math.sin(nh);
-                const nd = Math.hypot(ncx - level.target.x, ncy - level.target.y);
-                const prio = nextShifts * 32 + nLen * 0.25 - Math.min(nd, 180) * 1.4;
+                const prio = fineMode
+                    ? nextShifts * 12 + nLen * 0.15 - Math.min(nd, 180) * 3.5
+                    : nextShifts * 32 + nLen * 0.25 - Math.min(nd, 180) * 1.4;
                 heap.push(prio, {
                     x: sp.x,
                     y: sp.y,
@@ -770,6 +796,7 @@ export function planParkingPath(level, carSpec, options = {}) {
     const forwardOnly = options.forwardOnly ?? false;
     const cache = options._cache || {};
     cache.funnelByMargin = cache.funnelByMargin || {};
+    cache.fineAttempted = cache.fineAttempted || {};
 
     let totalExp = 0;
     const pass2Candidates = [];
@@ -781,7 +808,7 @@ export function planParkingPath(level, carSpec, options = {}) {
             const activeGoals = goals.filter((g) => !checker.collides(g.x, g.y, g.heading, margin));
             if (activeGoals.length === 0) continue;
 
-            const funnel = buildGoalFunnel(level, carSpec, checker, activeGoals, startPose, margin);
+            let funnel = buildGoalFunnel(level, carSpec, checker, activeGoals, startPose, margin, false);
             totalExp += funnel.expanded;
 
             let finalSegs = funnel.directSegs;
@@ -799,35 +826,62 @@ export function planParkingPath(level, carSpec, options = {}) {
                     continue;
                 }
 
-                if (!cache.bfsToStart) {
-                    const startBodyLevel = {
-                        ...level,
-                        target: {
-                            x: startPose.x + checker.bodyCenterDist * Math.cos(startPose.heading),
-                            y: startPose.y + checker.bodyCenterDist * Math.sin(startPose.heading),
-                            width: 40,
-                            height: 40,
-                            angle: 0
-                        }
-                    };
-                    cache.bfsToStart = new HeuristicGrid(startBodyLevel, carSpec, cellSize);
+                // Quick forward probe (Start -> Goal funnel) catches forward-entry corridors
+                // like multi-deck garages in ~50-300 expansions with natural forward driving.
+                const quickFwdExp = options.quickForwardExpansions ?? 400;
+                if (quickFwdExp > 0 && funnel.funnelTargets.length > 0) {
+                    if (!cache.bfsToGoal) {
+                        cache.bfsToGoal = new HeuristicGrid(level, carSpec, cellSize);
+                    }
+                    const quickFwd = forwardHybridAStar(
+                        level,
+                        carSpec,
+                        checker,
+                        cache.bfsToGoal,
+                        startPose,
+                        activeGoals,
+                        funnel.funnelTargets,
+                        margin,
+                        quickFwdExp
+                    );
+                    totalExp += quickFwd.exp;
+                    if (quickFwd.segs) {
+                        finalSegs = quickFwd.segs;
+                        goalPose = quickFwd.goalPose;
+                    }
                 }
 
-                const rev = goalToStartHybridAStar(
-                    level,
-                    carSpec,
-                    checker,
-                    cache.bfsToStart,
-                    startPose,
-                    activeGoals,
-                    funnel.funnelTargets,
-                    margin,
-                    maxExpRev
-                );
-                totalExp += rev.exp;
-                if (rev.segs) {
-                    finalSegs = rev.segs;
-                    goalPose = rev.goalPose;
+                if (!finalSegs) {
+                    if (!cache.bfsToStart) {
+                        const startBodyLevel = {
+                            ...level,
+                            target: {
+                                x: startPose.x + checker.bodyCenterDist * Math.cos(startPose.heading),
+                                y: startPose.y + checker.bodyCenterDist * Math.sin(startPose.heading),
+                                width: 40,
+                                height: 40,
+                                angle: 0
+                            }
+                        };
+                        cache.bfsToStart = new HeuristicGrid(startBodyLevel, carSpec, cellSize);
+                    }
+
+                    const rev = goalToStartHybridAStar(
+                        level,
+                        carSpec,
+                        checker,
+                        cache.bfsToStart,
+                        startPose,
+                        activeGoals,
+                        funnel.funnelTargets,
+                        margin,
+                        maxExpRev
+                    );
+                    totalExp += rev.exp;
+                    if (rev.segs) {
+                        finalSegs = rev.segs;
+                        goalPose = rev.goalPose;
+                    }
                 }
             }
 
@@ -849,7 +903,39 @@ export function planParkingPath(level, carSpec, options = {}) {
         }
     }
 
-    // Pass 2: Stage 3 Forward Hybrid A* fallback only if Pass 1 failed on all margins
+    // Pass 2: Fine deep-escape funnel retry (if not already tried) + Stage 3 Forward Hybrid A* fallback
+    if (allowForwardFallback) {
+        for (const margin of margins) {
+            if (cache.fineAttempted[margin]) continue;
+            if (checker.collides(startPose.x, startPose.y, startPose.heading, margin)) continue;
+            const activeGoals = goals.filter((g) => !checker.collides(g.x, g.y, g.heading, margin));
+            if (activeGoals.length === 0) continue;
+
+            cache.fineAttempted[margin] = true;
+            const fineFunnel = buildGoalFunnel(level, carSpec, checker, activeGoals, startPose, margin, true);
+            totalExp += fineFunnel.expanded;
+            if (fineFunnel.directSegs) {
+                const { waypoints, cusps } = buildTrajectoryFromSegments(startPose, fineFunnel.directSegs, 1.2);
+                return {
+                    success: true,
+                    segments: fineFunnel.directSegs,
+                    waypoints,
+                    cusps,
+                    goalPose: fineFunnel.goalPose,
+                    stats: {
+                        expansions: totalExp,
+                        margin,
+                        durationMs: performance.now() - t0
+                    }
+                };
+            }
+            if (fineFunnel.funnelTargets.length > 0 && !cache.funnelByMargin[margin]) {
+                cache.funnelByMargin[margin] = { activeGoals, funnelTargets: fineFunnel.funnelTargets };
+                pass2Candidates.push({ margin, activeGoals, funnelTargets: fineFunnel.funnelTargets });
+            }
+        }
+    }
+
     const fwdCandidates = forwardOnly
         ? margins
             .map((m) => (cache.funnelByMargin[m] ? { margin: m, ...cache.funnelByMargin[m] } : null))

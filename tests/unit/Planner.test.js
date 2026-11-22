@@ -57,15 +57,21 @@ describe('Autonomous Parking Planner (Hybrid A* + Reeds-Shepp)', () => {
         ['cayman_987', 9],
         ['cayman_987', 10],
         ['cayman_987', 11],
+        ['cayman_987', 12],
         ['e91_touring', 6],
         ['e91_touring', 9],
         ['e91_touring', 11],
+        ['g31_xdrive', 9],
+        ['g31_xdrive', 10],
+        ['g31_xdrive', 11],
+        ['g31_xdrive', 12],
         ['microlino', 6],
         ['microlino', 11],
         ['landcruiser_300', 3],
         ['landcruiser_300', 5],
         ['landcruiser_300', 7],
-        ['landcruiser_300', 8]
+        ['landcruiser_300', 8],
+        ['landcruiser_300', 12]
     ])('solves tough level with diverse car model %s on level %i', (carKey, levelIdx) => {
         const solved = solveLevel(levelIdx, carKey);
         expect(solved.success).toBe(true);
@@ -82,7 +88,8 @@ describe('Auto-Park From Anywhere (Mid-Level / Moving / Edge Cases)', () => {
         ['Level 3 Parallel mid-lot angled', 2, { x: 420, y: 340, heading: -0.45, velocity: 0, steerAngle: 0 }],
         ['Level 6 Hardcore Parallel alongside spot', 5, { x: 560, y: 220, heading: 0.08, velocity: 0, steerAngle: 0 }],
         ['Level 7 Spiral halfway up right aisle', 6, { x: 735, y: 310, heading: -Math.PI / 2, velocity: 0, steerAngle: 0 }],
-        ['Level 9 Constrained 90° mid-aisle', 8, { x: 430, y: 278, heading: 0.15, velocity: 0, steerAngle: 0 }]
+        ['Level 9 Constrained 90° mid-aisle', 8, { x: 430, y: 278, heading: 0.15, velocity: 0, steerAngle: 0 }],
+        ['Level 13 Parkhaus upper aisle', 12, { x: 520, y: 170, heading: Math.PI, velocity: 0, steerAngle: 0 }]
     ])('initiates cleanly from %s without teleporting', (_label, levelIdx, initialState) => {
         const level = LEVELS[levelIdx];
         const solved = solveCustomLevel(level, CAR_MODELS.m3_g80, {

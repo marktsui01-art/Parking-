@@ -244,7 +244,7 @@ if (process.argv[1] === import.meta.filename) {
         const replayFile = args[0];
         if (!replayFile) {
             console.error('Usage:');
-            console.error('  node scripts/solve_level.js --solve --level <0-11|all> [--car <carKey>] [--out <path>]');
+            console.error(`  node scripts/solve_level.js --solve --level <0-${LEVELS.length - 1}|all> [--car <carKey>] [--out <path>]`);
             console.error('  node scripts/solve_level.js <replay_file.json> [--optimize]');
             process.exit(1);
         }

@@ -130,25 +130,47 @@ function buildVelocityProfile(phase, checker, carSpec, speedScale) {
     const vLim = new Float64Array(n);
     if (n <= 1) return vLim;
 
+    const isMicro = phase.totalLength < 6.0;
+    const openScale = typeof speedScale === 'number' ? speedScale : speedScale.open;
+    const tightScale = typeof speedScale === 'number' ? speedScale : speedScale.tight;
     const gearMax = dir > 0
-        ? Math.min(310, carSpec.maxSpeed * 0.90)
-        : Math.min(145, carSpec.maxSpeed * 0.50);
-    const aLatMax = dir > 0 ? 190 : 120;
-    const microCap = phase.totalLength < 20 ? 35 : gearMax;
+        ? carSpec.maxSpeed * 0.98
+        : Math.min(180, carSpec.maxSpeed * 0.58);
+    const microCap = isMicro ? 14 : (phase.totalLength < 20 ? 35 : gearMax);
 
     for (let k = 0; k < n - 1; k++) {
         const wp = pts[k];
-        const straightBoost = Math.abs(wp.kappa) < 1e-4 ? 1.4 : 1.0;
+        const absK = Math.abs(wp.kappa);
+        const straightBoost = absK < 1e-4 ? 1.45 : (absK < 0.008 ? 1.2 : 1.0);
         let clearLim;
-        if (checker.collides(wp.x, wp.y, wp.heading, 1.2)) clearLim = 55 * straightBoost;
-        else if (checker.collides(wp.x, wp.y, wp.heading, 3.5)) clearLim = 95 * straightBoost;
-        else if (checker.collides(wp.x, wp.y, wp.heading, 8.0)) clearLim = 175 * straightBoost;
-        else if (checker.collides(wp.x, wp.y, wp.heading, 16.0)) clearLim = 240 * straightBoost;
-        else clearLim = gearMax;
+        let aLat;
+        let isTight = false;
+        if (checker.collides(wp.x, wp.y, wp.heading, 1.2)) {
+            clearLim = 55 * straightBoost;
+            aLat = dir > 0 ? 185 : 115;
+            isTight = true;
+        } else if (checker.collides(wp.x, wp.y, wp.heading, 3.5)) {
+            clearLim = 95 * straightBoost;
+            aLat = dir > 0 ? 190 : 120;
+            isTight = true;
+        } else if (checker.collides(wp.x, wp.y, wp.heading, 8.0)) {
+            clearLim = 190 * straightBoost;
+            aLat = dir > 0 ? 270 : 150;
+            isTight = absK >= 0.008;
+        } else if (checker.collides(wp.x, wp.y, wp.heading, 16.0)) {
+            clearLim = 270 * straightBoost;
+            aLat = dir > 0 ? 360 : 180;
+            isTight = absK >= 0.011;
+        } else {
+            clearLim = gearMax;
+            aLat = dir > 0 ? 420 : 200;
+        }
 
-        const curvLim = Math.abs(wp.kappa) > 1e-4 ? Math.sqrt(aLatMax / Math.abs(wp.kappa)) : gearMax;
-        const scaled = Math.min(gearMax, microCap, clearLim, curvLim) * speedScale;
-        vLim[k] = Math.max(Math.min(20, clearLim), scaled);
+        const curvLim = absK > 1e-4 ? Math.sqrt(aLat / absK) : gearMax;
+        const scale = (isTight || isMicro) ? tightScale : openScale;
+        const scaled = Math.min(gearMax, microCap, clearLim, curvLim) * scale;
+        const floorV = isMicro ? Math.min(6, clearLim) : (isTight ? Math.min(10, clearLim) : Math.min(20, clearLim));
+        vLim[k] = Math.max(floorV, scaled);
     }
 
     vLim[n - 1] = 0;
@@ -157,7 +179,7 @@ function buildVelocityProfile(phase, checker, carSpec, speedScale) {
     for (let k = n - 2; k >= 0; k--) {
         const ds = Math.max(0, pts[k + 1].s - pts[k].s);
         const distToEnd = phase.totalLength - pts[k].s;
-        const aBrake = (distToEnd < 12 ? 0.65 : 0.80) * carSpec.acceleration;
+        const aBrake = (isMicro ? 0.55 : distToEnd < 12 ? 0.65 : 0.85) * carSpec.acceleration;
         const vBrake = Math.sqrt(vLim[k + 1] * vLim[k + 1] + 2 * aBrake * ds);
         if (vBrake < vLim[k]) {
             vLim[k] = vBrake;
@@ -181,15 +203,15 @@ function computeSteerCommand(engine, phase, idx, dir) {
     const eTheta = normalizeAngle(wp.heading - engine.heading);
 
     const speedAbs = Math.abs(engine.velocity);
-    const lookSteps = Math.max(2, Math.round(speedAbs * FIXED_STEP * 1.4));
+    const isMicro = phase.totalLength < 6.0;
+    const lookDist = isMicro ? 0.5 : Math.max(2.4, speedAbs * FIXED_STEP * 1.7);
     let kappaSum = 0;
     let count = 0;
-    const endIdx = Math.min(pts.length - 1, idx + lookSteps);
-    for (let k = idx; k <= endIdx; k++) {
+    for (let k = idx; k < pts.length && (pts[k].s - wp.s) <= lookDist; k++) {
         kappaSum += pts[k].kappa;
         count++;
     }
-    const kappaRef = kappaSum / count;
+    const kappaRef = count > 0 ? kappaSum / count : wp.kappa;
 
     const gainScale = 1 / (1 + speedAbs / 260);
     const kappaCmd = kappaRef + gainScale * (dir * 0.14 * eTheta - 0.0045 * eCt);
@@ -256,14 +278,18 @@ function simulateTrajectory(plan, level, carSpec, speedScale, options = {}) {
         }
 
         let idx = 0;
+        const isMicro = phase.totalLength < 6.0;
+        const stopTol = isMicro ? 0.03 : 0.12;
+        const stopVelTol = isMicro ? 0.25 : 0.5;
+        const minCrawl = isMicro ? 0.8 : 1.5;
         const maxPhaseFrames = Math.max(300, Math.ceil((phase.totalLength / 12 + 6.0) * 60));
 
         for (let frame = 0; frame < maxPhaseFrames; frame++) {
-            // Advance monotonic waypoint index within local search window
+            // Advance monotonic waypoint index within local 45 px arc-length window
             let bestIdx = idx;
             let bestDistSq = Infinity;
-            const searchEnd = Math.min(pts.length - 1, idx + 35);
-            for (let k = idx; k <= searchEnd; k++) {
+            const baseS = pts[idx].s;
+            for (let k = idx; k < pts.length && (pts[k].s - baseS) <= 45; k++) {
                 const dx = engine.pos.x - pts[k].x;
                 const dy = engine.pos.y - pts[k].y;
                 const dSq = dx * dx + dy * dy;
@@ -283,7 +309,7 @@ function simulateTrajectory(plan, level, carSpec, speedScale, options = {}) {
             const steer = computeSteerCommand(engine, phase, idx, dir);
             lastSteer = steer;
 
-            if (dRem <= 0.12 && Math.abs(engine.velocity) < 0.5) {
+            if (dRem <= stopTol && Math.abs(engine.velocity) < stopVelTol) {
                 break;
             }
 
@@ -294,11 +320,11 @@ function simulateTrajectory(plan, level, carSpec, speedScale, options = {}) {
                 : vProfile[idx];
 
             let vDesired;
-            if (dRem <= 0.12) {
+            if (dRem <= stopTol) {
                 vDesired = 0;
             } else {
                 const vMag = Math.min(vProf, dRem * 30);
-                vDesired = dir * Math.max(1.5, vMag);
+                vDesired = dir * Math.max(minCrawl, vMag);
             }
 
             let throttle = clamp((vDesired - engine.velocity) / (engine.acceleration * FIXED_STEP), -1, 1);
@@ -370,7 +396,18 @@ export function compilePathToReplay(plan, levelIndex, carKey, level, carSpec, op
     }
 
     const checker = new CollisionChecker(level, carSpec);
-    const speedScales = plan.alreadyInside ? [0.5] : [1.0, 0.8, 0.6, 0.4, 0.25];
+    const speedScales = plan.alreadyInside
+        ? [{ open: 0.5, tight: 0.5 }]
+        : [
+            { open: 1.0, tight: 1.0 },
+            { open: 1.0, tight: 0.8 },
+            { open: 1.0, tight: 0.6 },
+            { open: 1.0, tight: 0.4 },
+            { open: 1.0, tight: 0.25 },
+            { open: 0.75, tight: 0.25 },
+            { open: 0.55, tight: 0.2 },
+            { open: 0.4, tight: 0.15 }
+        ];
     let bestSim = null;
 
     for (const speedScale of speedScales) {

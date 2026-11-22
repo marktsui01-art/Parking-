@@ -301,5 +301,60 @@ export const LEVELS = [
             { x: 650, y: 268, width: 94, height: 38, angle: 0 },
             { x: 760, y: 268, width: 94, height: 38, angle: 0 },
         ]
+    },
+    {
+        name: "Level 13: Underground Parkhaus",
+        description: "Exit the entry ramp, thread the lower-deck pillar chicane, swing the hairpin onto the upper deck, and squeeze past the bay-mouth pillar into the dead-end stall.",
+        // Scale: 20px = 1m
+        start: { x: 65, y: 530, heading: 0 },
+        // Recessed dead-end corner stall flanked by concrete bay-mouth pillar (left) & parked neighbor (right)
+        target: { x: 105, y: 68, width: 50, height: 110, angle: 0 },
+        obstacles: [
+            // Outer perimeter walls
+            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+            // Central concrete deck divider wall + hairpin apex structural pillar
+            { x: 315, y: 330, width: 610, height: 20, angle: 0 },
+            { x: 626, y: 330, width: 26, height: 26, angle: 0 },
+
+            // Act 1: Entry ramp ticket booth & lower-deck staggered pillar chicane
+            { x: 68, y: 404, width: 116, height: 128, angle: 0 },
+            { x: 245, y: 538, width: 38, height: 94, angle: 0 },
+            { x: 295, y: 538, width: 38, height: 94, angle: 0 },
+            { x: 270, y: 462, width: 26, height: 26, angle: 0 },
+            { x: 445, y: 392, width: 38, height: 94, angle: 0 },
+            { x: 495, y: 392, width: 38, height: 94, angle: 0 },
+            { x: 470, y: 468, width: 26, height: 26, angle: 0 },
+
+            // Act 2: Hairpin architectural bevels & outer concrete column
+            { x: 768, y: 32, width: 80, height: 20, angle: Math.PI / 4 },
+            { x: 768, y: 568, width: 80, height: 20, angle: -Math.PI / 4 },
+            { x: 777, y: 330, width: 26, height: 26, angle: 0 },
+
+            // Act 3: Upper-deck tight aisle, bay-mouth pillar, parked neighbors & opposite deck
+            { x: 63, y: 102, width: 26, height: 26, angle: 0 }, // Bay-mouth concrete column (58px mouth)
+            { x: 63, y: 23, width: 26, height: 26, angle: 0 },  // Rear structural column left of stall
+            { x: 153, y: 68, width: 38, height: 94, angle: 0 }, // Neighbor car right of stall
+            { x: 208, y: 68, width: 38, height: 94, angle: 0 },
+            { x: 263, y: 68, width: 38, height: 94, angle: 0 },
+            { x: 318, y: 102, width: 26, height: 26, angle: 0 },
+            { x: 373, y: 68, width: 38, height: 94, angle: 0 },
+            { x: 428, y: 68, width: 38, height: 94, angle: 0 },
+            { x: 483, y: 68, width: 38, height: 94, angle: 0 },
+
+            // Opposite parked-car row along central divider + corner stairwell block
+            { x: 35, y: 280, width: 50, height: 80, angle: 0 },
+            { x: 155, y: 268, width: 38, height: 94, angle: 0 },
+            { x: 210, y: 268, width: 38, height: 94, angle: 0 },
+            { x: 265, y: 268, width: 38, height: 94, angle: 0 },
+            { x: 320, y: 236, width: 26, height: 26, angle: 0 },
+            { x: 375, y: 268, width: 38, height: 94, angle: 0 },
+            { x: 430, y: 268, width: 38, height: 94, angle: 0 },
+            { x: 485, y: 268, width: 38, height: 94, angle: 0 },
+            { x: 540, y: 268, width: 38, height: 94, angle: 0 },
+        ]
     }
 ];
