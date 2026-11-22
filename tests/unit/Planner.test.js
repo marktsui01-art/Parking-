@@ -1,6 +1,7 @@
 import { LEVELS } from '../../src/levels.js';
 import { GameEngine, CAR_MODELS } from '../../src/GameEngine.js';
 import { Vector2 } from '../../src/Vector2.js';
+import { CollisionChecker } from '../../src/planner/CollisionChecker.js';
 import { solveLevel, solveCustomLevel } from '../../src/planner/index.js';
 import { simulateReplay } from '../../scripts/solve_level.js';
 
@@ -150,5 +151,63 @@ describe('Auto-Park From Anywhere (Mid-Level / Moving / Edge Cases)', () => {
         expect(sim.won).toBe(true);
         expect(sim.crashCount).toBe(0);
         expect(sim.score).toBe(1000);
+    });
+
+    test('drives briskly on open straightaways while finishing cleanly on Level 1', () => {
+        const solved = solveLevel(0, 'm3_g80');
+        expect(solved.success).toBe(true);
+        expect(solved.result.durationSec).toBeLessThan(4.5);
+
+        const engine = new GameEngine();
+        engine.applyCarModel(CAR_MODELS.m3_g80);
+        engine.loadLevel(LEVELS[0]);
+        let maxSpeed = 0;
+        let crashCount = 0;
+        for (const inp of solved.replay.inputs) {
+            const prevTimer = engine.crashTimer;
+            engine.update(1 / 60, inp);
+            if (engine.crashTimer > prevTimer) crashCount++;
+            maxSpeed = Math.max(maxSpeed, Math.abs(engine.velocity));
+        }
+
+        expect(maxSpeed).toBeGreaterThan(150);
+        expect(engine.won).toBe(true);
+        expect(crashCount).toBe(0);
+        expect(engine.score).toBe(1000);
+    });
+
+    test('drives fast on open straights and slows down for tight sections on Level 7 (The Spiral)', () => {
+        const level = LEVELS[6];
+        const carSpec = CAR_MODELS.m3_g80;
+        const solved = solveLevel(6, 'm3_g80');
+        expect(solved.success).toBe(true);
+        expect(solved.result.durationSec).toBeLessThan(16.5);
+
+        const checker = new CollisionChecker(level, carSpec);
+        const engine = new GameEngine();
+        engine.applyCarModel(carSpec);
+        engine.loadLevel(level);
+
+        let maxOpenSpeed = 0;
+        let maxTightSpeed = 0;
+        let crashCount = 0;
+        for (const inp of solved.replay.inputs) {
+            const prevTimer = engine.crashTimer;
+            engine.update(1 / 60, inp);
+            if (engine.crashTimer > prevTimer) crashCount++;
+            const speed = Math.abs(engine.velocity);
+            if (!checker.collides(engine.pos.x, engine.pos.y, engine.heading, 16)) {
+                maxOpenSpeed = Math.max(maxOpenSpeed, speed);
+            }
+            if (checker.collides(engine.pos.x, engine.pos.y, engine.heading, 1.5)) {
+                maxTightSpeed = Math.max(maxTightSpeed, speed);
+            }
+        }
+
+        expect(maxOpenSpeed).toBeGreaterThan(240);
+        expect(maxTightSpeed).toBeLessThan(120);
+        expect(engine.won).toBe(true);
+        expect(crashCount).toBe(0);
+        expect(engine.score).toBe(1000);
     });
 });

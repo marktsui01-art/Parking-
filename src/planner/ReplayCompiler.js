@@ -1,5 +1,6 @@
 import { GameEngine } from '../GameEngine.js';
 import { Vector2 } from '../Vector2.js';
+import { CollisionChecker } from './CollisionChecker.js';
 import { normalizeAngle } from './ReedsShepp.js';
 
 const FIXED_STEP = 1 / 60;
@@ -119,7 +120,55 @@ function splitPhases(waypoints) {
 }
 
 /**
- * Computes lateral steering command for a given trajectory phase point.
+ * Builds an adaptive per-waypoint speed profile based on obstacle clearance,
+ * path curvature, gear direction, and a backward braking pass to guarantee smooth stops.
+ */
+function buildVelocityProfile(phase, checker, carSpec, speedScale) {
+    const pts = phase.points;
+    const dir = phase.dir;
+    const n = pts.length;
+    const vLim = new Float64Array(n);
+    if (n <= 1) return vLim;
+
+    const gearMax = dir > 0
+        ? Math.min(310, carSpec.maxSpeed * 0.90)
+        : Math.min(145, carSpec.maxSpeed * 0.50);
+    const aLatMax = dir > 0 ? 190 : 120;
+    const microCap = phase.totalLength < 20 ? 35 : gearMax;
+
+    for (let k = 0; k < n - 1; k++) {
+        const wp = pts[k];
+        const straightBoost = Math.abs(wp.kappa) < 1e-4 ? 1.4 : 1.0;
+        let clearLim;
+        if (checker.collides(wp.x, wp.y, wp.heading, 1.2)) clearLim = 55 * straightBoost;
+        else if (checker.collides(wp.x, wp.y, wp.heading, 3.5)) clearLim = 95 * straightBoost;
+        else if (checker.collides(wp.x, wp.y, wp.heading, 8.0)) clearLim = 175 * straightBoost;
+        else if (checker.collides(wp.x, wp.y, wp.heading, 16.0)) clearLim = 240 * straightBoost;
+        else clearLim = gearMax;
+
+        const curvLim = Math.abs(wp.kappa) > 1e-4 ? Math.sqrt(aLatMax / Math.abs(wp.kappa)) : gearMax;
+        const scaled = Math.min(gearMax, microCap, clearLim, curvLim) * speedScale;
+        vLim[k] = Math.max(Math.min(20, clearLim), scaled);
+    }
+
+    vLim[n - 1] = 0;
+
+    // Backward braking pass ensures smooth deceleration before tight turns, tight spots, and phase stops
+    for (let k = n - 2; k >= 0; k--) {
+        const ds = Math.max(0, pts[k + 1].s - pts[k].s);
+        const distToEnd = phase.totalLength - pts[k].s;
+        const aBrake = (distToEnd < 12 ? 0.65 : 0.80) * carSpec.acceleration;
+        const vBrake = Math.sqrt(vLim[k + 1] * vLim[k + 1] + 2 * aBrake * ds);
+        if (vBrake < vLim[k]) {
+            vLim[k] = vBrake;
+        }
+    }
+
+    return vLim;
+}
+
+/**
+ * Computes lateral steering command with speed-adaptive curvature lookahead and stability damping.
  */
 function computeSteerCommand(engine, phase, idx, dir) {
     const pts = phase.points;
@@ -131,24 +180,26 @@ function computeSteerCommand(engine, phase, idx, dir) {
     const eCt = (engine.pos.x - wp.x) * (-sinH) + (engine.pos.y - wp.y) * cosH;
     const eTheta = normalizeAngle(wp.heading - engine.heading);
 
-    // Average local curvature slightly ahead to anticipate arc transitions
+    const speedAbs = Math.abs(engine.velocity);
+    const lookSteps = Math.max(2, Math.round(speedAbs * FIXED_STEP * 1.4));
     let kappaSum = 0;
     let count = 0;
-    for (let k = idx; k <= Math.min(pts.length - 1, idx + 2); k++) {
+    const endIdx = Math.min(pts.length - 1, idx + lookSteps);
+    for (let k = idx; k <= endIdx; k++) {
         kappaSum += pts[k].kappa;
         count++;
     }
     const kappaRef = kappaSum / count;
 
-    // Critically damped kinematic path tracker (validated for both dir = +1 and dir = -1)
-    const kappaCmd = kappaRef + dir * 0.14 * eTheta - 0.0045 * eCt;
+    const gainScale = 1 / (1 + speedAbs / 260);
+    const kappaCmd = kappaRef + gainScale * (dir * 0.14 * eTheta - 0.0045 * eCt);
     return clamp(Math.atan(engine.wheelBase * kappaCmd) / engine.maxSteerAngle, -1, 1);
 }
 
 /**
- * Runs closed-loop zero-overshoot tracking across all phases at a specific base cruise speed.
+ * Runs closed-loop adaptive-speed tracking across all phases at a specific speed scale.
  */
-function simulateTrajectory(plan, level, carSpec, baseCruise, options = {}) {
+function simulateTrajectory(plan, level, carSpec, speedScale, options = {}) {
     const engine = new GameEngine();
     engine.applyCarModel(carSpec);
     engine.loadLevel(level);
@@ -160,6 +211,7 @@ function simulateTrajectory(plan, level, carSpec, baseCruise, options = {}) {
         engine.steerAngle = options.initialState.steerAngle || 0;
     }
 
+    const checker = options.checker || new CollisionChecker(level, carSpec);
     const phases = plan.alreadyInside ? [] : splitPhases(plan.waypoints);
     const inputs = [];
     let crashCount = 0;
@@ -189,12 +241,12 @@ function simulateTrajectory(plan, level, carSpec, baseCruise, options = {}) {
 
         if (pts.length === 0) continue;
 
-        const phaseCruise = phase.totalLength < 20 ? Math.min(baseCruise, 18) : baseCruise;
+        const vProfile = buildVelocityProfile(phase, checker, carSpec, speedScale);
 
         // Smooth stationary steering alignment before shifting gears on subsequent phases
         const initialSteer = computeSteerCommand(engine, phase, 0, dir);
         if (pIdx > 0) {
-            const turnFrames = 10;
+            const turnFrames = 5;
             for (let f = 1; f <= turnFrames; f++) {
                 const alpha = f / turnFrames;
                 const steer = lastSteer + (initialSteer - lastSteer) * alpha;
@@ -204,14 +256,13 @@ function simulateTrajectory(plan, level, carSpec, baseCruise, options = {}) {
         }
 
         let idx = 0;
-        const aBrake = 0.45 * engine.acceleration;
-        const maxPhaseFrames = Math.max(300, Math.ceil((phase.totalLength / Math.max(8, phaseCruise) + 4.0) * 60));
+        const maxPhaseFrames = Math.max(300, Math.ceil((phase.totalLength / 12 + 6.0) * 60));
 
         for (let frame = 0; frame < maxPhaseFrames; frame++) {
             // Advance monotonic waypoint index within local search window
             let bestIdx = idx;
             let bestDistSq = Infinity;
-            const searchEnd = Math.min(pts.length - 1, idx + 25);
+            const searchEnd = Math.min(pts.length - 1, idx + 35);
             for (let k = idx; k <= searchEnd; k++) {
                 const dx = engine.pos.x - pts[k].x;
                 const dy = engine.pos.y - pts[k].y;
@@ -236,12 +287,17 @@ function simulateTrajectory(plan, level, carSpec, baseCruise, options = {}) {
                 break;
             }
 
+            const nextIdx = Math.min(pts.length - 1, idx + 1);
+            const segDs = Math.max(0.1, pts[nextIdx].s - wp.s);
+            const vProf = along >= 0
+                ? vProfile[idx] + (vProfile[nextIdx] - vProfile[idx]) * clamp(along / segDs, 0, 1)
+                : vProfile[idx];
+
             let vDesired;
             if (dRem <= 0.12) {
                 vDesired = 0;
             } else {
-                const vSafe = Math.sqrt(Math.max(0, 2 * aBrake * Math.max(0, dRem - 0.08)));
-                const vMag = Math.min(phaseCruise, vSafe, dRem * 30);
+                const vMag = Math.min(vProf, dRem * 30);
                 vDesired = dir * Math.max(1.5, vMag);
             }
 
@@ -294,7 +350,7 @@ function simulateTrajectory(plan, level, carSpec, baseCruise, options = {}) {
 
 /**
  * Compiles a geometric Hybrid A* + Reeds-Shepp plan into a verified 60 Hz GameEngine replay.
- * Automatically tries progressively gentler cruise speeds if tight clearance causes a graze.
+ * Automatically tries progressively gentler speed scales if tight clearance causes a graze.
  *
  * @param {object} plan - Output from planParkingPath()
  * @param {number} levelIndex
@@ -313,11 +369,12 @@ export function compilePathToReplay(plan, levelIndex, carKey, level, carSpec, op
         };
     }
 
-    const cruiseSpeeds = plan.alreadyInside ? [30] : [95, 60, 30, 15];
+    const checker = new CollisionChecker(level, carSpec);
+    const speedScales = plan.alreadyInside ? [0.5] : [1.0, 0.8, 0.6, 0.4, 0.25];
     let bestSim = null;
 
-    for (const speed of cruiseSpeeds) {
-        const sim = simulateTrajectory(plan, level, carSpec, speed, options);
+    for (const speedScale of speedScales) {
+        const sim = simulateTrajectory(plan, level, carSpec, speedScale, { ...options, checker });
         bestSim = sim;
         if (sim.won && sim.crashCount === 0) {
             return {
