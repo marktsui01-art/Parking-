@@ -65,13 +65,15 @@ describe('Autonomous Parking Planner (Hybrid A* + Reeds-Shepp)', () => {
         ['g31_xdrive', 10],
         ['g31_xdrive', 11],
         ['g31_xdrive', 12],
+        ['g31_xdrive', 13],
         ['microlino', 6],
         ['microlino', 11],
         ['landcruiser_300', 3],
         ['landcruiser_300', 5],
         ['landcruiser_300', 7],
         ['landcruiser_300', 8],
-        ['landcruiser_300', 12]
+        ['landcruiser_300', 12],
+        ['landcruiser_300', 13]
     ])('solves tough level with diverse car model %s on level %i', (carKey, levelIdx) => {
         const solved = solveLevel(levelIdx, carKey);
         expect(solved.success).toBe(true);
@@ -101,6 +103,29 @@ describe('Auto-Park From Anywhere (Mid-Level / Moving / Edge Cases)', () => {
         expect(solved.replay).not.toBeNull();
 
         const sim = replayFromLiveState(level, 'm3_g80', initialState, solved.replay.inputs);
+        expect(sim.won).toBe(true);
+        expect(sim.crashCount).toBe(0);
+        expect(sim.score).toBe(1000);
+        expect(Math.hypot(sim.firstFramePos.x - initialState.x, sim.firstFramePos.y - initialState.y)).toBeLessThan(2);
+    });
+
+    test.each([
+        ['Bottom-right corner turning', { x: 700, y: 500, heading: -Math.PI / 4, velocity: 0, steerAngle: 0 }],
+        ['Right aisle heading north', { x: 735, y: 340, heading: -Math.PI / 2, velocity: 0, steerAngle: 0 }],
+        ['Top aisle alongside spot facing W', { x: 600, y: 145, heading: Math.PI, velocity: 0, steerAngle: 0 }],
+        ['Top aisle past spot facing W', { x: 480, y: 145, heading: Math.PI, velocity: 0, steerAngle: 0 }],
+        ['Top-left corner facing S', { x: 80, y: 110, heading: Math.PI / 2, velocity: 0, steerAngle: 0 }]
+    ])('initiates g31_xdrive cleanly on Level 7 from %s without teleporting', (_label, initialState) => {
+        const level = LEVELS[6];
+        const solved = solveCustomLevel(level, CAR_MODELS.g31_xdrive, {
+            levelIndex: 6,
+            carKey: 'g31_xdrive',
+            initialState
+        });
+        expect(solved.success).toBe(true);
+        expect(solved.replay).not.toBeNull();
+
+        const sim = replayFromLiveState(level, 'g31_xdrive', initialState, solved.replay.inputs);
         expect(sim.won).toBe(true);
         expect(sim.crashCount).toBe(0);
         expect(sim.score).toBe(1000);

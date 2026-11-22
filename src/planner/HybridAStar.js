@@ -394,6 +394,182 @@ function buildGoalFunnel(level, carSpec, checker, goals, startPose, margin, fine
     return { directSegs: null, funnelTargets, expanded };
 }
 
+const bayEscapeCache = new Map();
+
+function getBayEscapeCacheKey(level, carSpec, margin) {
+    const t = level.target;
+    const obsKey = level.obstacles
+        .map((o) => `${o.x},${o.y},${o.width},${o.height},${o.angle || 0}`)
+        .join(';');
+    return `${t.x},${t.y},${t.width},${t.height},${t.angle || 0}|${obsKey}|${carSpec.wheelBase},${carSpec.width},${carSpec.frontOverhang},${carSpec.rearOverhang},${carSpec.maxSteerAngle}|${margin}`;
+}
+
+function hasPerpendicularAisleTarget(level, checker, funnelTargets) {
+    const t = level.target;
+    const bayAxis = t.height > t.width ? (t.angle || 0) + Math.PI / 2 : (t.angle || 0);
+    for (let i = 0; i < funnelTargets.length; i++) {
+        const ft = funnelTargets[i];
+        const cx = ft.x + checker.bodyCenterDist * Math.cos(ft.heading);
+        const cy = ft.y + checker.bodyCenterDist * Math.sin(ft.heading);
+        if (Math.hypot(cx - t.x, cy - t.y) >= 90 && Math.abs(Math.sin(ft.heading - bayAxis)) >= 0.75) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Start-independent 5-steer bay escape for deep tight-mouth bays where Stage 1 stays
+ * aligned with the bay axis. Escapes perpendicular into the open aisle on all sides.
+ */
+function escapeBayToAisle(level, carSpec, checker, goals, margin, maxExp = 12000) {
+    const t = level.target;
+    const bayAxis = t.height > t.width ? (t.angle || 0) + Math.PI / 2 : (t.angle || 0);
+    const prims = [];
+    for (const steer of [-1, -0.5, 0, 0.5, 1]) {
+        const kappa = steer === 0 ? 0 : Math.tan(steer * carSpec.maxSteerAngle) / carSpec.wheelBase;
+        for (const dir of [1, -1]) prims.push({ steer, dir, kappa });
+    }
+
+    const bounds = checker.getWorldBounds();
+    const minX = bounds.minX - 50;
+    const minY = bounds.minY - 50;
+    const nodes = [];
+    const open = new MinHeap();
+    const bestG = new Map();
+
+    const packKey = (x, y, h, dir, tier) => {
+        const xyRes = tier === 0 ? 2 : 4;
+        const tb = 72;
+        const gx = Math.max(0, Math.min(1023, Math.round((x - minX) / xyRes) + 64));
+        const gy = Math.max(0, Math.min(1023, Math.round((y - minY) / xyRes) + 64));
+        let norm = h % TWO_PI;
+        if (norm < 0) norm += TWO_PI;
+        const gt = Math.floor(norm / (TWO_PI / tb)) % tb;
+        return ((((tier * 1024 + gx) * 1024 + gy) * 72 + gt) * 2) + (dir < 0 ? 1 : 0);
+    };
+
+    for (const g of goals) {
+        const ni = nodes.length;
+        nodes.push({
+            x: g.x,
+            y: g.y,
+            heading: g.heading,
+            g: 0,
+            tier: 0,
+            parent: -1,
+            dir: 0,
+            steer: 0,
+            kappa: 0,
+            stepLen: 0,
+            goalPose: g
+        });
+        open.push(0, ni);
+    }
+
+    const targets = [];
+    const seenBuckets = new Set();
+    let exp = 0;
+
+    while (open.size > 0 && exp < maxExp && targets.length < 16) {
+        const ci = open.pop();
+        const cur = nodes[ci];
+        if (cur.parent !== -1) {
+            const ck = packKey(cur.x, cur.y, cur.heading, cur.dir, cur.tier);
+            if (cur.g > (bestG.get(ck) ?? Infinity) + 1e-6) continue;
+        }
+        exp++;
+
+        const cx = cur.x + checker.bodyCenterDist * Math.cos(cur.heading);
+        const cy = cur.y + checker.bodyCenterDist * Math.sin(cur.heading);
+        const dCenter = Math.hypot(cx - t.x, cy - t.y);
+        const perpAlign = Math.abs(Math.sin(cur.heading - bayAxis));
+        if (dCenter >= 90 && perpAlign >= 0.80 && !checker.isCarInsideTarget(cur.x, cur.y, cur.heading, -2)) {
+            const bk = `${Math.round(cur.x / 35)},${Math.round(cur.y / 35)},${Math.round(normalizeAngle(cur.heading) / (Math.PI / 4))}`;
+            if (!seenBuckets.has(bk)) {
+                seenBuckets.add(bk);
+                const segsFromGoal = [];
+                let p = ci;
+                while (nodes[p].parent !== -1) {
+                    const n = nodes[p];
+                    segsFromGoal.push({ steer: n.steer, dir: n.dir, length: n.stepLen, kappa: n.kappa });
+                    p = n.parent;
+                }
+                segsFromGoal.reverse();
+                targets.push({
+                    x: cur.x,
+                    y: cur.y,
+                    heading: cur.heading,
+                    segsFromGoal,
+                    dir: cur.dir,
+                    shifts: 0,
+                    len: cur.g,
+                    goalPose: nodes[p].goalPose
+                });
+            }
+        }
+        if (dCenter > 180) continue;
+
+        const stepLen = cur.tier === 0 ? 4 : 8;
+        const subCnt = Math.max(1, Math.ceil(stepLen / 2.0));
+        const subDs = stepLen / subCnt;
+
+        for (let p = 0; p < prims.length; p++) {
+            const pr = prims[p];
+            let sx = cur.x;
+            let sy = cur.y;
+            let sh = cur.heading;
+            let hit = false;
+
+            const signedSubDs = pr.dir * subDs;
+            for (let s = 0; s < subCnt; s++) {
+                const nxt = stepArc(sx, sy, sh, pr.kappa, signedSubDs);
+                sx = nxt.x;
+                sy = nxt.y;
+                sh = nxt.heading;
+                if (checker.collides(sx, sy, sh, margin)) {
+                    hit = true;
+                    break;
+                }
+            }
+            if (hit) continue;
+
+            sh = normalizeAngle(sh);
+            let cost = stepLen * (pr.dir > 0 ? 1.15 : 1.0);
+            if (cur.dir !== 0 && pr.dir !== cur.dir) cost += 25;
+            if (cur.dir !== 0 && pr.steer !== cur.steer) cost += 2 * Math.abs(pr.steer - cur.steer);
+            const ng = cur.g + cost;
+
+            const ncx = sx + checker.bodyCenterDist * Math.cos(sh);
+            const ncy = sy + checker.bodyCenterDist * Math.sin(sh);
+            const nd = Math.hypot(ncx - t.x, ncy - t.y);
+            const nTier = Math.hypot(sx - t.x, sy - t.y) < 60 ? 0 : 1;
+            const nk = packKey(sx, sy, sh, pr.dir, nTier);
+            if (ng >= (bestG.get(nk) ?? Infinity) - 1e-6) continue;
+            bestG.set(nk, ng);
+
+            const nPerp = Math.abs(Math.sin(sh - bayAxis));
+            const prio = ng - Math.min(nd, 150) * 2.2 - nPerp * 110;
+            const ni = nodes.length;
+            nodes.push({
+                x: sx,
+                y: sy,
+                heading: sh,
+                g: ng,
+                tier: nTier,
+                parent: ci,
+                dir: pr.dir,
+                steer: pr.steer,
+                kappa: pr.kappa,
+                stepLen
+            });
+            open.push(prio, ni);
+        }
+    }
+
+    return { targets, exp };
+}
+
 /**
  * Stage 2: 3-Tier Multi-Resolution Hybrid A* searching Goal/Funnel -> Start.
  */
@@ -633,7 +809,7 @@ function forwardHybridAStar(level, carSpec, checker, bfsToGoal, startPose, goals
         g: 0,
         f: hWeight * sh0,
         h: sh0,
-        near: sh0 < 220,
+        near: sh0 < 220 || checker.collides(startPose.x, startPose.y, startPose.heading, margin + 15),
         parent: -1,
         dir: 0,
         steer: 0,
@@ -653,14 +829,14 @@ function forwardHybridAStar(level, carSpec, checker, bfsToGoal, startPose, goals
         exp++;
 
         const shotInt = cur.h < 220 ? 3 : 12;
-        if (exp % shotInt === 0) {
+        if (exp === 1 || exp % shotInt === 0) {
             const sortedT = allTargets
                 .map((t) => ({
                     t,
                     d: Math.hypot(t.x - cur.x, t.y - cur.y) + 25 * Math.abs(normalizeAngle(t.heading - cur.heading))
                 }))
                 .sort((a, b) => a.d - b.d)
-                .slice(0, 6);
+                .slice(0, 8);
 
             for (let i = 0; i < sortedT.length; i++) {
                 const t = sortedT[i].t;
@@ -718,7 +894,7 @@ function forwardHybridAStar(level, carSpec, checker, bfsToGoal, startPose, goals
 
             const ng = cur.g + cost;
             const nh = bfsToGoal.getDistance(sx, sy, sh);
-            const nNear = nh < 220;
+            const nNear = nh < 220 || checker.collides(sx, sy, sh, margin + 15);
             const nk = packKey(sx, sy, sh, pr.dir, nNear);
             if (ng >= (bestG.get(nk) ?? Infinity) - 1e-6) continue;
 
@@ -824,6 +1000,13 @@ export function planParkingPath(level, carSpec, options = {}) {
                 // Skip Stage 2 if bay escape exhausted all states inside the bay at this margin
                 if (funnel.funnelTargets.length === 0 && funnel.expanded < 1600) {
                     continue;
+                }
+
+                // Reuse cached perpendicular aisle escape targets on repeat queries
+                const escKey = getBayEscapeCacheKey(level, carSpec, margin);
+                const cachedEsc = bayEscapeCache.get(escKey);
+                if (cachedEsc && cachedEsc.length > 0) {
+                    funnel = { ...funnel, funnelTargets: funnel.funnelTargets.concat(cachedEsc) };
                 }
 
                 // Quick forward probe (Start -> Goal funnel) catches forward-entry corridors
@@ -947,6 +1130,21 @@ export function planParkingPath(level, carSpec, options = {}) {
             cache.bfsToGoal = new HeuristicGrid(level, carSpec, cellSize);
         }
         for (const cand of fwdCandidates) {
+            let fwdTargets = cand.funnelTargets;
+            if (!hasPerpendicularAisleTarget(level, checker, fwdTargets)) {
+                const escKey = getBayEscapeCacheKey(level, carSpec, cand.margin);
+                if (!bayEscapeCache.has(escKey)) {
+                    const esc = escapeBayToAisle(level, carSpec, checker, cand.activeGoals, cand.margin, 12000);
+                    totalExp += esc.exp;
+                    if (bayEscapeCache.size >= 64) bayEscapeCache.clear();
+                    bayEscapeCache.set(escKey, esc.targets);
+                }
+                const escTargets = bayEscapeCache.get(escKey);
+                if (escTargets && escTargets.length > 0) {
+                    fwdTargets = fwdTargets.concat(escTargets);
+                }
+            }
+
             const fwd = forwardHybridAStar(
                 level,
                 carSpec,
@@ -954,7 +1152,7 @@ export function planParkingPath(level, carSpec, options = {}) {
                 cache.bfsToGoal,
                 startPose,
                 cand.activeGoals,
-                cand.funnelTargets,
+                fwdTargets,
                 cand.margin,
                 maxExpFwd
             );

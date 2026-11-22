@@ -205,9 +205,21 @@ export const LEVELS = [
             { x: 0, y: 300, width: 20, height: 600, angle: 0 },
             { x: 800, y: 300, width: 20, height: 600, angle: 0 },
 
-            // Neighbors
+            // Back Wall behind parking row (removes the wide top approach)
+            { x: 400, y: 130, width: 800, height: 20, angle: 0 },
+
+            // Full parked-car row flanking the target bay (x = 500)
+            { x: 80, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 140, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 200, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 260, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 320, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 380, y: 200, width: 38, height: 94, angle: 0 },
             { x: 440, y: 200, width: 38, height: 94, angle: 0 },
             { x: 560, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 620, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 680, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 740, y: 200, width: 38, height: 94, angle: 0 },
 
             // Opposite Wall
             // Spot bottom at y = 200 + 50 = 250.
@@ -355,6 +367,70 @@ export const LEVELS = [
             { x: 430, y: 268, width: 38, height: 94, angle: 0 },
             { x: 485, y: 268, width: 38, height: 94, angle: 0 },
             { x: 540, y: 268, width: 38, height: 94, angle: 0 },
+        ]
+    },
+    {
+        name: "Level 14: Tight 90° Car Park",
+        description: "Thread four tight 90° car-park bends (4.5m) into a narrow 3.0m approach lane and squeeze into the wide 90° bay. Tuned to push even the Land Cruiser to its limit.",
+        // Scale: 20px = 1m
+        // Corridors: 90px (4.5m) across 4 tight 90° bends (Land Cruiser 1-shot min is 85.3px)
+        // Final narrow approach lane: 60px (3.0m, y in [128, 188])
+        // Wide 90° final bay: 78px target box (3.9m), 94px mouth (4.7m, x in [618, 712])
+        start: { x: 56, y: 545, heading: 0 },
+        target: { x: 665, y: 69, width: 78, height: 112, angle: 0 },
+        obstacles: [
+            // Outer perimeter walls
+            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+            // Zone 1: Upper-left stairwell core & Bend 1 apex column (bounds Entry y=[500,590] & Shaft 1 x=[136,226])
+            { x: 60, y: 490, width: 100, height: 20, angle: 0 },
+            { x: 126, y: 242, width: 20, height: 464, angle: 0 },
+            { x: 123, y: 487, width: 26, height: 26, angle: 0 },
+            { x: 62, y: 140, width: 64, height: 150, angle: 0 },
+
+            // Zone 2: Lower-right deck & Bend 2 apex column (bounds Shaft 1 east & Mid-Deck south y=416)
+            { x: 239, y: 429, width: 26, height: 26, angle: 0 },
+            { x: 236, y: 516, width: 20, height: 148, angle: 0 },
+            { x: 521, y: 426, width: 538, height: 20, angle: 0 },
+            { x: 312, y: 532, width: 38, height: 94, angle: 0 },
+            { x: 424, y: 532, width: 38, height: 94, angle: 0 },
+            { x: 536, y: 532, width: 38, height: 94, angle: 0 },
+            { x: 648, y: 532, width: 38, height: 94, angle: 0 },
+            { x: 742, y: 532, width: 38, height: 94, angle: 0 },
+
+            // Zone 3: Upper-middle deck & Bend 3 apex column (bounds Mid-Deck north y=326 & Shaft 2 west x=336)
+            { x: 223, y: 316, width: 174, height: 20, angle: 0 },
+            { x: 326, y: 155, width: 20, height: 290, angle: 0 },
+            { x: 323, y: 313, width: 26, height: 26, angle: 0 },
+            { x: 184, y: 74, width: 38, height: 94, angle: 0 },
+            { x: 236, y: 74, width: 38, height: 94, angle: 0 },
+            { x: 286, y: 74, width: 38, height: 94, angle: 0 },
+
+            // Zone 4: Central-right deck, Bend 4 apex column & narrow 3.0m approach lane south wall (y=188)
+            { x: 439, y: 231, width: 26, height: 26, angle: 0 },
+            { x: 436, y: 330, width: 20, height: 172, angle: 0 },
+            { x: 476, y: 228, width: 48, height: 20, angle: 0 },
+            { x: 513, y: 213, width: 26, height: 50, angle: 0 },
+            { x: 658, y: 198, width: 264, height: 20, angle: 0 },
+            { x: 540, y: 314, width: 38, height: 94, angle: 0 },
+            { x: 604, y: 314, width: 38, height: 94, angle: 0 },
+            { x: 668, y: 314, width: 38, height: 94, angle: 0 },
+            { x: 732, y: 314, width: 38, height: 94, angle: 0 },
+
+            // Zone 5: Upper parking row & symmetrical columns framing the wide 90° final spot (mouth x=[618,712])
+            { x: 366, y: 81, width: 38, height: 94, angle: 0 },
+            { x: 415, y: 81, width: 38, height: 94, angle: 0 },
+            { x: 464, y: 81, width: 38, height: 94, angle: 0 },
+            { x: 513, y: 81, width: 38, height: 94, angle: 0 },
+            { x: 562, y: 81, width: 38, height: 94, angle: 0 },
+            { x: 605, y: 115, width: 26, height: 26, angle: 0 },
+            { x: 605, y: 23, width: 26, height: 26, angle: 0 },
+            { x: 725, y: 115, width: 26, height: 26, angle: 0 },
+            { x: 725, y: 23, width: 26, height: 26, angle: 0 },
+            { x: 764, y: 81, width: 38, height: 94, angle: 0 },
         ]
     }
 ];
