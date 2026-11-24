@@ -83,6 +83,21 @@ describe('Autonomous Parking Planner (Hybrid A* + Reeds-Shepp)', () => {
         expect(sim.crashCount).toBe(0);
         expect(sim.score).toBe(1000);
     });
+
+    test('solves Level 9 (Constrained 90°) cleanly via rear entry with g31_xdrive', () => {
+        const solved = solveLevel(8, 'g31_xdrive');
+        expect(solved.success).toBe(true);
+        expect(solved.replay).not.toBeNull();
+
+        const finalWp = solved.plan.waypoints[solved.plan.waypoints.length - 1];
+        // Bay opens south (+y), so rear-entry (backed-in) ends facing south (+pi/2 => sin > 0.9)
+        expect(Math.sin(finalWp.heading)).toBeGreaterThan(0.9);
+
+        const sim = simulateReplay(solved.replay);
+        expect(sim.won).toBe(true);
+        expect(sim.crashCount).toBe(0);
+        expect(sim.score).toBe(1000);
+    });
 });
 
 describe('Auto-Park From Anywhere (Mid-Level / Moving / Edge Cases)', () => {

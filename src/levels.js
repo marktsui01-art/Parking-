@@ -194,9 +194,9 @@ export const LEVELS = [
     },
     {
         name: "Level 9: Constrained 90°",
-        description: "Wide spot, but a wall opposite limits your turning radius. You'll need to use the full width of the aisle to get this right.",
+        description: "Realistic 2.5m painted stall (2.9m car-to-car opening) off a constrained 4.3m aisle. Pull past and back in — nose-in won't clear cleanly in a 5m car like the BMW G31!",
         start: { x: 72, y: 290, heading: 0 },
-        // Target: Vertical. Wider spot (60px instead of 50px).
+        // Target: Standard 2.5m x 5.5m painted stall (50px x 110px)
         target: { x: 500, y: 200, width: 50, height: 110, angle: 0 },
         obstacles: [
             // Bounds
@@ -208,24 +208,26 @@ export const LEVELS = [
             // Back Wall behind parking row (removes the wide top approach)
             { x: 400, y: 130, width: 800, height: 20, angle: 0 },
 
-            // Full parked-car row flanking the target bay (x = 500)
-            { x: 80, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 140, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 200, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 260, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 320, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 380, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 440, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 560, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 620, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 680, y: 200, width: 38, height: 94, angle: 0 },
-            { x: 740, y: 200, width: 38, height: 94, angle: 0 },
+            // Full parked-car row (50px / 2.5m pitch) leaving a realistic 58px (2.9m) car-to-car opening (x in [471, 529])
+            { x: 52, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 102, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 152, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 202, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 252, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 302, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 352, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 402, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 452, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 548, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 598, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 648, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 698, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 748, y: 200, width: 38, height: 94, angle: 0 },
 
             // Opposite Wall
-            // Spot bottom at y = 200 + 50 = 250.
-            // Aisle width = 5m = 100px.
-            // Wall at y = 330.
-            { x: 400, y: 330, width: 800, height: 20, angle: 0 }
+            // Parked noses at y = 247; opposite wall top edge at y = 333 -> 86px (4.3m) aisle.
+            // G31 xDrive: 1-shot back-in needs 4.2m (clean); 1-shot nose-in needs 7.0m (requires rear entry).
+            { x: 400, y: 343, width: 800, height: 20, angle: 0 }
         ]
     },
     {
