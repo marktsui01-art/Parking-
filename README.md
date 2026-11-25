@@ -8,7 +8,7 @@ A browser-based 2D parking simulator built on real-scale **Ackermann steering ge
 
 - **Realistic Bicycle Kinematics & Scale (`20 px = 1 m`):** Play inside an `800×600` world (`40 m × 30 m`) with asymmetric front/rear overhangs, steering-angle limits, drag, and stationary win checks.
 - **10 Real-World Scaled Vehicles:** From the nimble `2.52 m` Microlino 2.0 EV to the `5.00 m` Toyota Land Cruiser 300 with a `30°` lock.
-- **14 Handcrafted Levels:** Progress from open bays and basic alleys through parallel squeezes, constrained 90° rear-entry stalls, a spiral garage ramp, an underground Parkhaus, and a multi-bend tight 90° car park.
+- **15 Handcrafted Levels:** Progress from open bays and basic alleys through parallel squeezes, constrained 90° rear-entry and end-of-aisle stalls, a spiral garage ramp, an underground Parkhaus, and a multi-bend tight 90° car park.
 - **Auto-Park From Anywhere:** Click **🤖 Auto-Park Demo** mid-level (even while rolling or parked close to a wall) to plan and execute a collision-free Reeds-Shepp / Hybrid A\* parking trajectory at 60 Hz with path & gear-shift visualization.
 - **Procedural Engine Audio:** Each car synthesizes its engine sound in real time with zero pre-recorded audio files — driven by a 60 Hz parking drivetrain (clutch flare, braking vs. reverse detection, idle hunting) and a subtractive formant synthesizer (`ModularAudioEngine`), plus an optional **Engine Sound** override in the menu.
 - **Replay & In-Game Level Editor:** Record and reload `.json` driving replays, click any obstacle/target/start pose mid-level to inspect or tweak coordinates live, and copy updated level JSON.
@@ -77,6 +77,7 @@ Then open:
 | 12 | **Level 12: Elite Challenge** | `5.4 m` parallel spot off a `3.0 m` lane — minimal clearance front and rear |
 | 13 | **Level 13: Underground Parkhaus** | Pillar chicane, hairpin ramp, and column-flanked dead-end bay |
 | 14 | **Level 14: Tight 90° Car Park** | Four `4.5 m` 90° bends into a `3.0 m` approach lane and wide `3.9 m` 90° bay |
+| 15 | **Level 15: End-of-Aisle 90°** | Dead-end `2.5 m` stall off a `5.6 m` aisle — forward park or reverse down from the entry cross-aisle |
 
 ---
 
@@ -85,7 +86,7 @@ Then open:
 The planner ([`src/planner/`](./src/planner/)) pairs an exact OBB `CollisionChecker`, a `HeuristicGrid` (holonomic 2D BFS + Reeds-Shepp distance), bidirectional **Hybrid A\*** with a tight-bay escape funnel, and a closed-loop pure-pursuit + PID speed `ReplayCompiler`:
 
 ```bash
-# Solve all 14 levels headlessly and verify zero-crash 1000-score replays
+# Solve all 15 levels headlessly and verify zero-crash 1000-score replays
 node scripts/solve_level.js --solve --level all --car m3_g80
 node scripts/solve_level.js --solve --level all --car g31_xdrive
 

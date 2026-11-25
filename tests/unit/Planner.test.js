@@ -66,6 +66,7 @@ describe('Autonomous Parking Planner (Hybrid A* + Reeds-Shepp)', () => {
         ['g31_xdrive', 11],
         ['g31_xdrive', 12],
         ['g31_xdrive', 13],
+        ['g31_xdrive', 14],
         ['microlino', 6],
         ['microlino', 11],
         ['landcruiser_300', 3],
@@ -73,7 +74,8 @@ describe('Autonomous Parking Planner (Hybrid A* + Reeds-Shepp)', () => {
         ['landcruiser_300', 7],
         ['landcruiser_300', 8],
         ['landcruiser_300', 12],
-        ['landcruiser_300', 13]
+        ['landcruiser_300', 13],
+        ['landcruiser_300', 14]
     ])('solves tough level with diverse car model %s on level %i', (carKey, levelIdx) => {
         const solved = solveLevel(levelIdx, carKey);
         expect(solved.success).toBe(true);
@@ -94,6 +96,51 @@ describe('Autonomous Parking Planner (Hybrid A* + Reeds-Shepp)', () => {
         expect(Math.sin(finalWp.heading)).toBeGreaterThan(0.9);
 
         const sim = simulateReplay(solved.replay);
+        expect(sim.won).toBe(true);
+        expect(sim.crashCount).toBe(0);
+        expect(sim.score).toBe(1000);
+    });
+
+    test.each(['m3_g80', 'g31_xdrive'])(
+        'solves Level 15 (End-of-Aisle 90°) cleanly via forward nose-in entry from mid-aisle with %s',
+        (carKey) => {
+            const level = LEVELS[14];
+            const initialState = { x: 420, y: 305, heading: 0, velocity: 0, steerAngle: 0 };
+            const solved = solveCustomLevel(level, CAR_MODELS[carKey], {
+                levelIndex: 14,
+                carKey,
+                initialState
+            });
+            expect(solved.success).toBe(true);
+            expect(solved.replay).not.toBeNull();
+
+            const finalWp = solved.plan.waypoints[solved.plan.waypoints.length - 1];
+            // Bay opens south (+y), so forward nose-in ends facing north (-pi/2 => sin < -0.9)
+            expect(Math.sin(finalWp.heading)).toBeLessThan(-0.9);
+
+            const sim = replayFromLiveState(level, carKey, initialState, solved.replay.inputs);
+            expect(sim.won).toBe(true);
+            expect(sim.crashCount).toBe(0);
+            expect(sim.score).toBe(1000);
+        }
+    );
+
+    test('solves Level 15 (End-of-Aisle 90°) via full-aisle reverse entry from entry cross-aisle with g31_xdrive', () => {
+        const level = LEVELS[14];
+        const initialState = { x: 165, y: 305, heading: Math.PI, velocity: 0, steerAngle: 0 };
+        const solved = solveCustomLevel(level, CAR_MODELS.g31_xdrive, {
+            levelIndex: 14,
+            carKey: 'g31_xdrive',
+            initialState
+        });
+        expect(solved.success).toBe(true);
+        expect(solved.replay).not.toBeNull();
+
+        const finalWp = solved.plan.waypoints[solved.plan.waypoints.length - 1];
+        // Backed-in ends facing south (+pi/2 => sin > 0.9)
+        expect(Math.sin(finalWp.heading)).toBeGreaterThan(0.9);
+
+        const sim = replayFromLiveState(level, 'g31_xdrive', initialState, solved.replay.inputs);
         expect(sim.won).toBe(true);
         expect(sim.crashCount).toBe(0);
         expect(sim.score).toBe(1000);

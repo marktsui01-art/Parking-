@@ -434,5 +434,42 @@ export const LEVELS = [
             { x: 725, y: 23, width: 26, height: 26, angle: 0 },
             { x: 764, y: 81, width: 38, height: 94, angle: 0 },
         ]
+    },
+    {
+        name: "Level 15: End-of-Aisle 90°",
+        description: "Dead-end 90° stall off a 5.6m aisle. No room past the spot to pull ahead and back in — swing wide to forward park, or turn around in the entry cross-aisle and reverse all the way down!",
+        // Scale: 20px = 1m
+        // 5.6m (112px) aisle (1.3m wider than Level 9's 4.3m) + realistic 0.60m (12px) side-wall door buffer
+        // Left cross-aisle (x in [10, 210]) allows turning around to reverse down the full aisle
+        start: { x: 72, y: 305, heading: 0 },
+        target: { x: 753, y: 200, width: 50, height: 110, angle: 0 },
+        obstacles: [
+            // Outer perimeter walls
+            { x: 400, y: 0, width: 800, height: 20, angle: 0 },
+            { x: 400, y: 600, width: 800, height: 20, angle: 0 },
+            { x: 0, y: 300, width: 20, height: 600, angle: 0 },
+            { x: 800, y: 300, width: 20, height: 600, angle: 0 },
+
+            // Back wall behind parking row
+            { x: 400, y: 130, width: 800, height: 20, angle: 0 },
+
+            // Full parked-car row (50px / 2.5m pitch) leaving 66px (3.3m) car-to-wall mouth at dead end (x in [724, 790])
+            { x: 255, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 305, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 355, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 405, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 455, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 505, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 555, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 605, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 655, y: 200, width: 38, height: 94, angle: 0 },
+            { x: 705, y: 200, width: 38, height: 94, angle: 0 },
+
+            // Opposite aisle wall (top edge y = 359 -> 112px / 5.6m aisle from parked noses at y = 247)
+            // Terminates at x = 210 to form the left entry cross-aisle turnaround
+            { x: 505, y: 369, width: 590, height: 20, angle: 0 },
+            // Vertical corner wall closing off the space below the opposite aisle wall
+            { x: 220, y: 485, width: 20, height: 232, angle: 0 }
+        ]
     }
 ];
