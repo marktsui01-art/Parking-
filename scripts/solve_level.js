@@ -3,6 +3,7 @@ import { LEVELS } from '../src/levels.js';
 import { solveLevel } from '../src/planner/index.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Constants matching src/main.js
 const FIXED_STEP = 1 / 60;
@@ -223,7 +224,7 @@ function runSolveCli(args) {
 }
 
 // CLI Execution
-if (process.argv[1] === import.meta.filename) {
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const args = process.argv.slice(2);
 
     if (args.includes('--solve')) {

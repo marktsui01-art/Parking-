@@ -481,23 +481,26 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         const telem4_wot = await getTelemetry();
         console.log('State 4b (Redline WOT 7400 RPM, 100%):', telem4_wot);
 
-        // Copy screenshots to /media/documents/2025/gemini_scratch/audio_tuner_screenshots/
-        const destDir = '/media/documents/2025/gemini_scratch/audio_tuner_screenshots';
-        if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-        }
-        const screenshotFiles = [
-            'boxer6_1_idle.png',
-            'boxer6_2_mid.png',
-            'boxer6_3_overrun.png',
-            'boxer6_4_wot.png',
-            'boxer6_3500rpm.png',
-            'boxer6_5000rpm.png'
-        ];
-        for (const file of screenshotFiles) {
-            const srcPath = `verification/${file}`;
-            if (fs.existsSync(srcPath)) {
-                fs.copyFileSync(srcPath, `${destDir}/${file}`);
+        // Copy screenshots to /media/documents/2025/gemini_scratch/audio_tuner_screenshots/ when available locally
+        const scratchRoot = '/media/documents/2025/gemini_scratch';
+        if (!process.env.CI && fs.existsSync(scratchRoot)) {
+            const destDir = `${scratchRoot}/audio_tuner_screenshots`;
+            if (!fs.existsSync(destDir)) {
+                fs.mkdirSync(destDir, { recursive: true });
+            }
+            const screenshotFiles = [
+                'boxer6_1_idle.png',
+                'boxer6_2_mid.png',
+                'boxer6_3_overrun.png',
+                'boxer6_4_wot.png',
+                'boxer6_3500rpm.png',
+                'boxer6_5000rpm.png'
+            ];
+            for (const file of screenshotFiles) {
+                const srcPath = `verification/${file}`;
+                if (fs.existsSync(srcPath)) {
+                    fs.copyFileSync(srcPath, `${destDir}/${file}`);
+                }
             }
         }
 
@@ -535,8 +538,11 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         if (!fs.existsSync('verification')) {
             fs.mkdirSync('verification', { recursive: true });
         }
-        const destDir = '/media/documents/2025/gemini_scratch/audio_tuner_screenshots';
-        if (!fs.existsSync(destDir)) {
+        const scratchRoot = '/media/documents/2025/gemini_scratch';
+        const destDir = !process.env.CI && fs.existsSync(scratchRoot)
+            ? `${scratchRoot}/audio_tuner_screenshots`
+            : null;
+        if (destDir && !fs.existsSync(destDir)) {
             fs.mkdirSync(destDir, { recursive: true });
         }
 
@@ -700,10 +706,12 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
             'f1_v10_3_overrun.png',
             'f1_v10_4_wot_19k.png'
         ];
-        for (const file of newScreenshots) {
-            const srcPath = `verification/${file}`;
-            if (fs.existsSync(srcPath)) {
-                fs.copyFileSync(srcPath, `${destDir}/${file}`);
+        if (destDir) {
+            for (const file of newScreenshots) {
+                const srcPath = `verification/${file}`;
+                if (fs.existsSync(srcPath)) {
+                    fs.copyFileSync(srcPath, `${destDir}/${file}`);
+                }
             }
         }
 
@@ -817,12 +825,15 @@ test.describe('Modular DSP Audio Workbench E2E Suite', () => {
         if (!fs.existsSync('verification')) {
             fs.mkdirSync('verification', { recursive: true });
         }
-        const destDir = '/media/documents/2025/gemini_scratch/audio_tuner_screenshots';
-        if (!fs.existsSync(destDir)) {
+        const scratchRoot = '/media/documents/2025/gemini_scratch';
+        const destDir = !process.env.CI && fs.existsSync(scratchRoot)
+            ? `${scratchRoot}/audio_tuner_screenshots`
+            : null;
+        if (destDir && !fs.existsSync(destDir)) {
             fs.mkdirSync(destDir, { recursive: true });
         }
         await page.screenshot({ path: 'verification/boxer6_ab_switcher.png', fullPage: true });
-        if (fs.existsSync('verification/boxer6_ab_switcher.png')) {
+        if (destDir && fs.existsSync('verification/boxer6_ab_switcher.png')) {
             fs.copyFileSync('verification/boxer6_ab_switcher.png', `${destDir}/boxer6_ab_switcher.png`);
         }
 
