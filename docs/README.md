@@ -1,6 +1,10 @@
 # Procedural Engine Audio From First Principles
 
+[← Back to Main Game README](../README.md)
+
 A hands-on, two-part DSP & vehicle acoustics curriculum designed specifically for the **2D Kinematic Parking Simulator** (`Parking-`).
+
+> **Note:** The Tier 1 subtractive formant architecture and Chapter 1.5 Parking Drivetrain from this guide are now integrated live into the simulator via [`src/ModularAudioEngine.js`](../src/ModularAudioEngine.js), [`src/Drivetrain.js`](../src/Drivetrain.js), and [`src/GameAudioController.js`](../src/GameAudioController.js).
 
 > **Philosophy:** Zero black-box libraries, zero pre-baked audio assets, and **you write 100% of the code**. Both chapters build from first-principles physics and mechanical intuition—assuming **no prior Digital Signal Processing (DSP) background**—and include scattered **"Pause & Think"** checkpoints so you can test your intuition before coding.
 

@@ -4,7 +4,7 @@ import { InputHandler } from './InputHandler.js';
 import { CanvasRenderer } from './CanvasRenderer.js';
 import { LEVELS } from './levels.js';
 import { SAT } from './SAT.js';
-import { AudioController } from './AudioController.js';
+import { GameAudioController, GAME_SOUND_OPTIONS } from './GameAudioController.js';
 import { solveCustomLevel } from './planner/index.js';
 
 let currentCarKey = 'm3_g80';
@@ -14,7 +14,8 @@ const canvas = document.getElementById('gameCanvas');
 const engine = new GameEngine();
 const inputHandler = new InputHandler();
 const renderer = new CanvasRenderer(canvas);
-const audioController = new AudioController();
+const audioController = new GameAudioController();
+audioController.setCarModel(currentCarKey, CAR_MODELS[currentCarKey]);
 const telemetry = document.getElementById('telemetry');
 
 // UI Elements
@@ -25,6 +26,8 @@ const messageArea = document.getElementById('message-area');
 const returnContainer = document.getElementById('return-container');
 const returnBtn = document.getElementById('return-btn');
 const carSelect = document.getElementById('car-select');
+const soundSelect = document.getElementById('sound-select');
+const btnMute = document.getElementById('btn-mute');
 
 let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
 
@@ -78,6 +81,7 @@ window.loadReplay = (jsonString) => {
         if (data.carModel && CAR_MODELS[data.carModel]) {
             currentCarKey = data.carModel;
             engine.applyCarModel(CAR_MODELS[currentCarKey]);
+            audioController.setCarModel(currentCarKey, CAR_MODELS[currentCarKey]);
             // Update UI selector if possible (optional)
             carSelect.value = currentCarKey;
         }
@@ -114,8 +118,34 @@ function initLevelChooser() {
         currentCarKey = e.target.value;
         const model = CAR_MODELS[currentCarKey];
         engine.applyCarModel(model);
-        audioController.setEngineType(model.engineConfig);
+        audioController.setCarModel(currentCarKey, model);
     };
+
+    if (soundSelect) {
+        soundSelect.innerHTML = '';
+        for (const optDef of GAME_SOUND_OPTIONS) {
+            const opt = document.createElement('option');
+            opt.value = optDef.key;
+            opt.innerText = optDef.label;
+            if (optDef.key === audioController.soundOverride) opt.selected = true;
+            soundSelect.appendChild(opt);
+        }
+        soundSelect.onchange = (e) => {
+            audioController.setSoundOverride(e.target.value);
+        };
+    }
+
+    if (btnMute) {
+        const syncMuteButton = () => {
+            btnMute.innerText = audioController.userMuted ? '🔇 Muted' : '🔊 Sound';
+            btnMute.style.background = audioController.userMuted ? '#7f8c8d' : '#34495e';
+        };
+        syncMuteButton();
+        btnMute.onclick = () => {
+            audioController.toggleMute();
+            syncMuteButton();
+        };
+    }
 
     levelList.innerHTML = '';
     LEVELS.forEach((level, index) => {
@@ -131,9 +161,9 @@ function startLevel(index) {
     // Attempt to init audio context on user gesture
     audioController.init();
 
-    // Set initial engine type if not set
+    // Sync sound engine and drivetrain to current car
     if (CAR_MODELS[currentCarKey]) {
-        audioController.setEngineType(CAR_MODELS[currentCarKey].engineConfig);
+        audioController.setCarModel(currentCarKey, CAR_MODELS[currentCarKey]);
     }
 
     const level = LEVELS[index];
@@ -531,6 +561,7 @@ showMenu();
 
 // Expose to window
 window.game = engine;
+window.audioController = audioController;
 // Also expose regression test runner
 window.runRegressionTests = () => testTurningCircle(GameEngine);
 
@@ -576,9 +607,8 @@ function loop(now) {
             // Update Logic
             engine.update(FIXED_STEP, input);
 
-            // Audio Update
-            const speedRatio = engine.velocity / engine.maxSpeed;
-            audioController.update(speedRatio, input.throttle);
+            // Audio Update (Drivetrain physics -> Modular DSP Synthesizer)
+            audioController.update(FIXED_STEP, engine.velocity, input.throttle);
 
             // Check for Game Over conditions
             if (engine.won) {
@@ -604,7 +634,7 @@ function loop(now) {
         const vKmh = (engine.velocity / 20 * 3.6).toFixed(1);
         const scoreText = `Score: ${engine.score}`;
 
-        const rpmTxt = `RPM: ${audioController.currentRPM}`;
+        const rpmTxt = `RPM: ${Math.round(audioController.currentRPM)} (${audioController.gear})`;
 
         telemetry.innerText = `Level: ${engine.currentLevel ? engine.currentLevel.name : 'None'}
 Pos: (${engine.pos.x.toFixed(1)}, ${engine.pos.y.toFixed(1)})
@@ -612,6 +642,7 @@ Heading: ${(engine.heading * 180 / Math.PI).toFixed(1)}°
 Speed: ${vKmh} km/h (${engine.velocity.toFixed(1)} px/s)
 Steer: ${(engine.steerAngle * 180 / Math.PI).toFixed(1)}°
 ${rpmTxt}
+Sound: ${audioController.activePresetName}
 ${scoreText}`;
     } else {
         telemetry.innerText = `State: ${gameState}`;

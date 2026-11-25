@@ -631,6 +631,242 @@ export const MODULAR_PATCH_PRESETS = {
             { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
             { from: 'flt_exh_lp2', to: 'master' }
         ]
+    },
+
+    inline_6_m3: {
+        name: 'BMW M3 (S58 3.0L Inline-6)',
+        baseRPM: 850,
+        redlineRPM: 7200,
+        cylinders: 6,
+        masterGain: 0.78,
+        nodes: [
+            { id: 'osc_block10', type: 'oscillator', name: 'Crank & Block 1.0x (Sub Floor)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.26, throttleModGain: 0.12, rpmModGain: -0.10, rpmModExp: 1.0 } },
+            { id: 'osc_bank15', type: 'oscillator', name: 'Split Header Order 1.5x (3-Cyl)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.5, freqHz: 100, detune: 0, gain: 0.38, throttleModGain: 0.18, rpmModGain: -0.06, rpmModExp: 1.0 } },
+            { id: 'osc_fire30', type: 'oscillator', name: 'Primary Firing 3.0x (S58 Core)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 3.0, freqHz: 100, detune: 0, gain: 0.64, throttleModGain: 0.36, rpmModGain: 0.24, rpmModExp: 1.0 } },
+            { id: 'osc_bank45', type: 'oscillator', name: 'Bank 3rd Order 4.5x (Harmonic)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 4.5, freqHz: 100, detune: 0, gain: 0.08, throttleModGain: 0.12, rpmModGain: 0.22, rpmModExp: 2.0 } },
+            { id: 'osc_wail60', type: 'oscillator', name: 'Secondary Firing 6.0x (VANOS Howl)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.08, throttleModGain: 0.22, rpmModGain: 0.48, rpmModExp: 2.2 } },
+            { id: 'osc_zing90', type: 'oscillator', name: '3rd Firing Harmonic 9.0x (S58 Rasp)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 9.0, freqHz: 100, detune: 0, gain: 0.02, throttleModGain: 0.14, rpmModGain: 0.42, rpmModExp: 2.6 } },
+            { id: 'noise_intake', type: 'noise', name: 'Combustion & Air Turbulence (Brown)', enabled: true, bypass: false, solo: false, params: { noiseType: 'brown', gain: 0.10, throttleModGain: 0.28, rpmModGain: 0.10, rpmModExp: 1.0 } },
+            { id: 'noise_rasp', type: 'noise', name: 'High-RPM Collector Rush (Pink)', enabled: true, bypass: false, solo: false, params: { noiseType: 'pink', gain: 0.0, throttleModGain: 0.10, rpmModGain: 0.18, rpmModExp: 2.4 } },
+            { id: 'shaper_exh', type: 'waveshaper', name: 'Equal-Length Collector Saturation', enabled: true, bypass: false, solo: false, params: { curveType: 'soft_tanh', drive: 13, mix: 0.78, outputGain: 0.42 } },
+            { id: 'delay_pipe', type: 'delay', name: 'Exhaust Pipe Waveguide (2.3ms)', enabled: true, bypass: false, solo: false, params: { delayMs: 2.3, feedback: -0.28, mix: 0.28 } },
+            { id: 'flt_f1_boom', type: 'filter', name: 'Formant F1: Muffler Body (145Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 145, Q: 1.3, filterGain: 5.5, rpmModFreq: 30, throttleModFreq: 0, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f2_body', type: 'filter', name: 'Formant F2: I6 Block Dome (290Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 290, Q: 1.4, filterGain: 5.0, rpmModFreq: 80, throttleModFreq: 40, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f3_howl', type: 'filter', name: 'Formant F3: Straight-6 Howl (780Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 780, Q: 1.9, filterGain: 5.5, rpmModFreq: 320, throttleModFreq: 180, rpmModExp: 1.4, outGain: 1.0 } },
+            { id: 'flt_f4_rasp', type: 'filter', name: 'Formant F4: S58 Metallic Rasp (1950Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 1950, Q: 2.1, filterGain: 7.5, rpmModFreq: 550, throttleModFreq: 220, rpmModExp: 2.2, outGain: 1.0 } },
+            { id: 'flt_exh_lp', type: 'filter', name: 'Primary Load Lowpass (Stage 1)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 230, Q: 0.72, filterGain: 0, rpmModFreq: 2450, throttleModFreq: 520, rpmModExp: 2.5, outGain: 1.0 } },
+            { id: 'flt_exh_lp2', type: 'filter', name: 'Secondary Rounding Lowpass (Stage 2)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 340, Q: 0.72, filterGain: 0, rpmModFreq: 3100, throttleModFreq: 700, rpmModExp: 2.5, outGain: 0.85 } }
+        ],
+        connections: [
+            { from: 'osc_block10', to: 'shaper_exh' },
+            { from: 'osc_bank15', to: 'shaper_exh' },
+            { from: 'osc_fire30', to: 'shaper_exh' },
+            { from: 'osc_bank45', to: 'shaper_exh' },
+            { from: 'osc_wail60', to: 'shaper_exh' },
+            { from: 'osc_zing90', to: 'shaper_exh' },
+            { from: 'noise_intake', to: 'shaper_exh' },
+            { from: 'noise_rasp', to: 'shaper_exh' },
+            { from: 'shaper_exh', to: 'delay_pipe' },
+            { from: 'delay_pipe', to: 'flt_f1_boom' },
+            { from: 'flt_f1_boom', to: 'flt_f2_body' },
+            { from: 'flt_f2_body', to: 'flt_f3_howl' },
+            { from: 'flt_f3_howl', to: 'flt_f4_rasp' },
+            { from: 'flt_f4_rasp', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
+    },
+
+    inline_6_touring: {
+        name: 'BMW Touring (Smooth Inline-6)',
+        baseRPM: 800,
+        redlineRPM: 6800,
+        cylinders: 6,
+        masterGain: 0.76,
+        nodes: [
+            { id: 'osc_block10', type: 'oscillator', name: 'Crank & Block 1.0x (Sub Floor)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.30, throttleModGain: 0.14, rpmModGain: -0.08, rpmModExp: 1.0 } },
+            { id: 'osc_bank15', type: 'oscillator', name: 'Bank Order 1.5x (3-Cyl)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.5, freqHz: 100, detune: 0, gain: 0.40, throttleModGain: 0.18, rpmModGain: -0.04, rpmModExp: 1.0 } },
+            { id: 'osc_fire30', type: 'oscillator', name: 'Primary Firing 3.0x (Refined I6)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 3.0, freqHz: 100, detune: 0, gain: 0.62, throttleModGain: 0.34, rpmModGain: 0.22, rpmModExp: 1.0 } },
+            { id: 'osc_bank45', type: 'oscillator', name: 'Bank 3rd Order 4.5x', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 4.5, freqHz: 100, detune: 0, gain: 0.08, throttleModGain: 0.10, rpmModGain: 0.18, rpmModExp: 2.0 } },
+            { id: 'osc_wail60', type: 'oscillator', name: 'Secondary Firing 6.0x (Smooth Upper)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.06, throttleModGain: 0.18, rpmModGain: 0.36, rpmModExp: 2.2 } },
+            { id: 'noise_intake', type: 'noise', name: 'Refined Induction Flow (Brown)', enabled: true, bypass: false, solo: false, params: { noiseType: 'brown', gain: 0.09, throttleModGain: 0.26, rpmModGain: 0.08, rpmModExp: 1.0 } },
+            { id: 'shaper_exh', type: 'waveshaper', name: 'Touring Muffler Saturation', enabled: true, bypass: false, solo: false, params: { curveType: 'soft_tanh', drive: 11, mix: 0.72, outputGain: 0.44 } },
+            { id: 'delay_pipe', type: 'delay', name: 'Resonated Touring Pipe (2.6ms)', enabled: true, bypass: false, solo: false, params: { delayMs: 2.6, feedback: -0.24, mix: 0.24 } },
+            { id: 'flt_f1_boom', type: 'filter', name: 'Formant F1: Executive Warmth (135Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 135, Q: 1.3, filterGain: 5.5, rpmModFreq: 25, throttleModFreq: 0, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f2_body', type: 'filter', name: 'Formant F2: Smooth I6 Body (270Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 270, Q: 1.4, filterGain: 5.0, rpmModFreq: 65, throttleModFreq: 35, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f3_howl', type: 'filter', name: 'Formant F3: Silky Six Throat (720Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 720, Q: 1.8, filterGain: 4.0, rpmModFreq: 240, throttleModFreq: 140, rpmModExp: 1.4, outGain: 1.0 } },
+            { id: 'flt_f4_sheen', type: 'filter', name: 'Formant F4: Upper Harmonic Sheen (1600Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 1600, Q: 2.0, filterGain: 4.5, rpmModFreq: 350, throttleModFreq: 160, rpmModExp: 2.0, outGain: 1.0 } },
+            { id: 'flt_exh_lp', type: 'filter', name: 'Primary Load Lowpass (Stage 1)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 210, Q: 0.72, filterGain: 0, rpmModFreq: 1650, throttleModFreq: 480, rpmModExp: 2.3, outGain: 1.0 } },
+            { id: 'flt_exh_lp2', type: 'filter', name: 'Secondary Rounding Lowpass (Stage 2)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 310, Q: 0.72, filterGain: 0, rpmModFreq: 2150, throttleModFreq: 640, rpmModExp: 2.3, outGain: 0.85 } }
+        ],
+        connections: [
+            { from: 'osc_block10', to: 'shaper_exh' },
+            { from: 'osc_bank15', to: 'shaper_exh' },
+            { from: 'osc_fire30', to: 'shaper_exh' },
+            { from: 'osc_bank45', to: 'shaper_exh' },
+            { from: 'osc_wail60', to: 'shaper_exh' },
+            { from: 'noise_intake', to: 'shaper_exh' },
+            { from: 'shaper_exh', to: 'delay_pipe' },
+            { from: 'delay_pipe', to: 'flt_f1_boom' },
+            { from: 'flt_f1_boom', to: 'flt_f2_body' },
+            { from: 'flt_f2_body', to: 'flt_f3_howl' },
+            { from: 'flt_f3_howl', to: 'flt_f4_sheen' },
+            { from: 'flt_f4_sheen', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
+    },
+
+    inline_4_sport: {
+        name: '16V Sport Inline-4',
+        baseRPM: 850,
+        redlineRPM: 6500,
+        cylinders: 4,
+        masterGain: 0.78,
+        nodes: [
+            { id: 'osc_block10', type: 'oscillator', name: 'Crank & Block 1.0x (Balance Shaft)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.32, throttleModGain: 0.14, rpmModGain: -0.10, rpmModExp: 1.0 } },
+            { id: 'osc_fire20', type: 'oscillator', name: 'Primary Firing 2.0x (4-Cyl Core)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 2.0, freqHz: 100, detune: 0, gain: 0.66, throttleModGain: 0.36, rpmModGain: 0.22, rpmModExp: 1.0 } },
+            { id: 'osc_over40', type: 'oscillator', name: 'Secondary Firing 4.0x (Upper Growl)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 4.0, freqHz: 100, detune: 0, gain: 0.14, throttleModGain: 0.22, rpmModGain: 0.36, rpmModExp: 2.0 } },
+            { id: 'osc_zing60', type: 'oscillator', name: '3rd Firing Harmonic 6.0x (16V Bite)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.04, throttleModGain: 0.14, rpmModGain: 0.34, rpmModExp: 2.4 } },
+            { id: 'noise_intake', type: 'noise', name: 'Combustion & Airbox Thrum (Brown)', enabled: true, bypass: false, solo: false, params: { noiseType: 'brown', gain: 0.10, throttleModGain: 0.28, rpmModGain: 0.08, rpmModExp: 1.0 } },
+            { id: 'noise_rasp', type: 'noise', name: 'High-RPM Exhaust Rush (Pink)', enabled: true, bypass: false, solo: false, params: { noiseType: 'pink', gain: 0.0, throttleModGain: 0.08, rpmModGain: 0.14, rpmModExp: 2.2 } },
+            { id: 'shaper_exh', type: 'waveshaper', name: '4-into-1 Collector Saturation', enabled: true, bypass: false, solo: false, params: { curveType: 'soft_tanh', drive: 13, mix: 0.76, outputGain: 0.44 } },
+            { id: 'delay_pipe', type: 'delay', name: 'Exhaust Pipe Waveguide (2.4ms)', enabled: true, bypass: false, solo: false, params: { delayMs: 2.4, feedback: -0.25, mix: 0.26 } },
+            { id: 'flt_f1_boom', type: 'filter', name: 'Formant F1: Compact Body (135Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 135, Q: 1.4, filterGain: 5.5, rpmModFreq: 25, throttleModFreq: 0, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f2_body', type: 'filter', name: 'Formant F2: Midrange Punch (280Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 280, Q: 1.5, filterGain: 4.5, rpmModFreq: 70, throttleModFreq: 35, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f3_bark', type: 'filter', name: 'Formant F3: Runner Bark (820Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 820, Q: 2.0, filterGain: 4.5, rpmModFreq: 260, throttleModFreq: 160, rpmModExp: 1.4, outGain: 1.0 } },
+            { id: 'flt_f4_sheen', type: 'filter', name: 'Formant F4: 16V Zing (1850Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 1850, Q: 2.2, filterGain: 4.5, rpmModFreq: 420, throttleModFreq: 180, rpmModExp: 2.0, outGain: 1.0 } },
+            { id: 'flt_exh_lp', type: 'filter', name: 'Primary Load Lowpass (Stage 1)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 220, Q: 0.72, filterGain: 0, rpmModFreq: 1700, throttleModFreq: 480, rpmModExp: 2.2, outGain: 1.0 } },
+            { id: 'flt_exh_lp2', type: 'filter', name: 'Secondary Rounding Lowpass (Stage 2)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 330, Q: 0.72, filterGain: 0, rpmModFreq: 2250, throttleModFreq: 660, rpmModExp: 2.2, outGain: 0.85 } }
+        ],
+        connections: [
+            { from: 'osc_block10', to: 'shaper_exh' },
+            { from: 'osc_fire20', to: 'shaper_exh' },
+            { from: 'osc_over40', to: 'shaper_exh' },
+            { from: 'osc_zing60', to: 'shaper_exh' },
+            { from: 'noise_intake', to: 'shaper_exh' },
+            { from: 'noise_rasp', to: 'shaper_exh' },
+            { from: 'shaper_exh', to: 'delay_pipe' },
+            { from: 'delay_pipe', to: 'flt_f1_boom' },
+            { from: 'flt_f1_boom', to: 'flt_f2_body' },
+            { from: 'flt_f2_body', to: 'flt_f3_bark' },
+            { from: 'flt_f3_bark', to: 'flt_f4_sheen' },
+            { from: 'flt_f4_sheen', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
+    },
+
+    civic_vtec_b16: {
+        name: 'Honda Civic EG (B16A DOHC VTEC)',
+        baseRPM: 900,
+        redlineRPM: 8200,
+        cylinders: 4,
+        masterGain: 0.78,
+        nodes: [
+            { id: 'osc_block10', type: 'oscillator', name: 'Crank & Block 1.0x (Floor)', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.26, throttleModGain: 0.12, rpmModGain: -0.12, rpmModExp: 1.0 } },
+            { id: 'osc_fire20', type: 'oscillator', name: 'Primary Firing 2.0x (B16 Core)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 2.0, freqHz: 100, detune: 0, gain: 0.64, throttleModGain: 0.36, rpmModGain: 0.20, rpmModExp: 1.0 } },
+            { id: 'osc_vtec40', type: 'oscillator', name: 'Secondary Firing 4.0x (Cam Lobe)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 4.0, freqHz: 100, detune: 0, gain: 0.10, throttleModGain: 0.22, rpmModGain: 0.52, rpmModExp: 2.4 } },
+            { id: 'osc_vtec60', type: 'oscillator', name: '3rd Firing Harmonic 6.0x (VTEC Howl)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.03, throttleModGain: 0.18, rpmModGain: 0.50, rpmModExp: 2.8 } },
+            { id: 'osc_vtec80', type: 'oscillator', name: '4th Firing Harmonic 8.0x (8200 Scream)', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 8.0, freqHz: 100, detune: 0, gain: 0.01, throttleModGain: 0.12, rpmModGain: 0.36, rpmModExp: 3.0 } },
+            { id: 'noise_intake', type: 'noise', name: 'Combustion & Box Thrum (Brown)', enabled: true, bypass: false, solo: false, params: { noiseType: 'brown', gain: 0.09, throttleModGain: 0.26, rpmModGain: 0.08, rpmModExp: 1.0 } },
+            { id: 'noise_vtec_rush', type: 'noise', name: 'High-Cam Induction Rush (Pink)', enabled: true, bypass: false, solo: false, params: { noiseType: 'pink', gain: 0.0, throttleModGain: 0.14, rpmModGain: 0.26, rpmModExp: 2.6 } },
+            { id: 'shaper_exh', type: 'waveshaper', name: '4-2-1 Header Collector Saturation', enabled: true, bypass: false, solo: false, params: { curveType: 'soft_tanh', drive: 14, mix: 0.78, outputGain: 0.42 } },
+            { id: 'delay_pipe', type: 'delay', name: 'Exhaust Pipe Waveguide (2.0ms)', enabled: true, bypass: false, solo: false, params: { delayMs: 2.0, feedback: -0.28, mix: 0.28 } },
+            { id: 'flt_f1_boom', type: 'filter', name: 'Formant F1: Mid-Pipe Body (155Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 155, Q: 1.4, filterGain: 5.0, rpmModFreq: 30, throttleModFreq: 0, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f2_body', type: 'filter', name: 'Formant F2: Block Resonance (310Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 310, Q: 1.5, filterGain: 4.5, rpmModFreq: 80, throttleModFreq: 40, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f3_vtec', type: 'filter', name: 'Formant F3: DOHC Runner Bark (1350Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 1350, Q: 2.2, filterGain: 7.0, rpmModFreq: 450, throttleModFreq: 240, rpmModExp: 2.4, outGain: 1.0 } },
+            { id: 'flt_f4_scream', type: 'filter', name: 'Formant F4: VTEC Crossover Scream (2600Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 2600, Q: 2.3, filterGain: 6.5, rpmModFreq: 600, throttleModFreq: 240, rpmModExp: 2.8, outGain: 1.0 } },
+            { id: 'flt_exh_lp', type: 'filter', name: 'Primary Load Lowpass (Stage 1)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 245, Q: 0.72, filterGain: 0, rpmModFreq: 2800, throttleModFreq: 560, rpmModExp: 2.8, outGain: 1.0 } },
+            { id: 'flt_exh_lp2', type: 'filter', name: 'Secondary Rounding Lowpass (Stage 2)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 360, Q: 0.72, filterGain: 0, rpmModFreq: 3500, throttleModFreq: 740, rpmModExp: 2.8, outGain: 0.85 } }
+        ],
+        connections: [
+            { from: 'osc_block10', to: 'shaper_exh' },
+            { from: 'osc_fire20', to: 'shaper_exh' },
+            { from: 'osc_vtec40', to: 'shaper_exh' },
+            { from: 'osc_vtec60', to: 'shaper_exh' },
+            { from: 'osc_vtec80', to: 'shaper_exh' },
+            { from: 'noise_intake', to: 'shaper_exh' },
+            { from: 'noise_vtec_rush', to: 'shaper_exh' },
+            { from: 'shaper_exh', to: 'delay_pipe' },
+            { from: 'delay_pipe', to: 'flt_f1_boom' },
+            { from: 'flt_f1_boom', to: 'flt_f2_body' },
+            { from: 'flt_f2_body', to: 'flt_f3_vtec' },
+            { from: 'flt_f3_vtec', to: 'flt_f4_scream' },
+            { from: 'flt_f4_scream', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
+    },
+
+    v8_crossplane: {
+        name: 'Cross-Plane V8 (Land Cruiser 300)',
+        baseRPM: 700,
+        redlineRPM: 5500,
+        cylinders: 8,
+        masterGain: 0.80,
+        nodes: [
+            { id: 'osc_lope05', type: 'oscillator', name: 'Cross-Plane Burble 0.5x', enabled: true, bypass: false, solo: false, params: { waveform: 'sine', freqMode: 'harmonic', mult: 0.5, freqHz: 100, detune: 0, gain: 0.34, throttleModGain: 0.16, rpmModGain: -0.06, rpmModExp: 1.0 } },
+            { id: 'osc_block10', type: 'oscillator', name: 'Crank & Heavy Block 1.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 1.0, freqHz: 100, detune: 0, gain: 0.44, throttleModGain: 0.22, rpmModGain: 0.0, rpmModExp: 1.0 } },
+            { id: 'osc_bank20', type: 'oscillator', name: '4-Cyl Bank & Irregular Pulse 2.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 2.0, freqHz: 100, detune: 0, gain: 0.56, throttleModGain: 0.32, rpmModGain: 0.14, rpmModExp: 1.0 } },
+            { id: 'osc_fire40', type: 'oscillator', name: 'Primary V8 Firing 4.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'sawtooth', freqMode: 'harmonic', mult: 4.0, freqHz: 100, detune: 0, gain: 0.60, throttleModGain: 0.36, rpmModGain: 0.20, rpmModExp: 1.0 } },
+            { id: 'osc_grit60', type: 'oscillator', name: 'Upper Manifold Grit 6.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 6.0, freqHz: 100, detune: 0, gain: 0.10, throttleModGain: 0.16, rpmModGain: 0.18, rpmModExp: 1.8 } },
+            { id: 'noise_chuff', type: 'noise', name: 'Big-Displacement Chuff (Brown)', enabled: true, bypass: false, solo: false, params: { noiseType: 'brown', gain: 0.14, throttleModGain: 0.38, rpmModGain: 0.12, rpmModExp: 1.0 } },
+            { id: 'shaper_exh', type: 'waveshaper', name: 'V8 Collector Warm Saturation', enabled: true, bypass: false, solo: false, params: { curveType: 'soft_tanh', drive: 16, mix: 0.82, outputGain: 0.40 } },
+            { id: 'delay_pipe', type: 'delay', name: 'Long Tailpipe Waveguide (3.2ms)', enabled: true, bypass: false, solo: false, params: { delayMs: 3.2, feedback: -0.28, mix: 0.30 } },
+            { id: 'flt_f1_thunder', type: 'filter', name: 'Formant F1: V8 Sub Thunder (110Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 110, Q: 1.3, filterGain: 7.0, rpmModFreq: 20, throttleModFreq: 10, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f2_chest', type: 'filter', name: 'Formant F2: Cross-Plane Chest (240Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 240, Q: 1.4, filterGain: 5.5, rpmModFreq: 55, throttleModFreq: 30, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f3_bark', type: 'filter', name: 'Formant F3: Intake Bark (620Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 620, Q: 1.9, filterGain: 4.0, rpmModFreq: 160, throttleModFreq: 120, rpmModExp: 1.3, outGain: 1.0 } },
+            { id: 'flt_exh_lp', type: 'filter', name: 'Primary Load Lowpass (Stage 1)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 185, Q: 0.72, filterGain: 0, rpmModFreq: 850, throttleModFreq: 420, rpmModExp: 2.0, outGain: 1.0 } },
+            { id: 'flt_exh_lp2', type: 'filter', name: 'Secondary Rounding Lowpass (Stage 2)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 275, Q: 0.72, filterGain: 0, rpmModFreq: 1150, throttleModFreq: 580, rpmModExp: 2.0, outGain: 0.85 } }
+        ],
+        connections: [
+            { from: 'osc_lope05', to: 'shaper_exh' },
+            { from: 'osc_block10', to: 'shaper_exh' },
+            { from: 'osc_bank20', to: 'shaper_exh' },
+            { from: 'osc_fire40', to: 'shaper_exh' },
+            { from: 'osc_grit60', to: 'shaper_exh' },
+            { from: 'noise_chuff', to: 'shaper_exh' },
+            { from: 'shaper_exh', to: 'delay_pipe' },
+            { from: 'delay_pipe', to: 'flt_f1_thunder' },
+            { from: 'flt_f1_thunder', to: 'flt_f2_chest' },
+            { from: 'flt_f2_chest', to: 'flt_f3_bark' },
+            { from: 'flt_f3_bark', to: 'flt_exh_lp' },
+            { from: 'flt_exh_lp', to: 'flt_exh_lp2' },
+            { from: 'flt_exh_lp2', to: 'master' }
+        ]
+    },
+
+    ev_microlino: {
+        name: 'Microlino 2.0 (Electric Drive)',
+        baseRPM: 0,
+        redlineRPM: 10000,
+        cylinders: 2,
+        masterGain: 0.65,
+        nodes: [
+            { id: 'osc_inv40', type: 'oscillator', name: 'Traction Motor Fundamental 4.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'sine', freqMode: 'harmonic', mult: 4.0, freqHz: 100, detune: 0, gain: 0.0, throttleModGain: 0.10, rpmModGain: 0.45, rpmModExp: 0.75 } },
+            { id: 'osc_inv80', type: 'oscillator', name: 'Inverter Switching Order 8.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'sine', freqMode: 'harmonic', mult: 8.0, freqHz: 100, detune: 0, gain: 0.0, throttleModGain: 0.08, rpmModGain: 0.24, rpmModExp: 1.1 } },
+            { id: 'osc_gear120', type: 'oscillator', name: 'Reduction Gear Mesh 12.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'triangle', freqMode: 'harmonic', mult: 12.0, freqHz: 100, detune: 0, gain: 0.0, throttleModGain: 0.06, rpmModGain: 0.14, rpmModExp: 1.4 } },
+            { id: 'osc_shimmer160', type: 'oscillator', name: 'Carrier Harmonic 16.0x', enabled: true, bypass: false, solo: false, params: { waveform: 'sine', freqMode: 'harmonic', mult: 16.0, freqHz: 100, detune: 0, gain: 0.0, throttleModGain: 0.04, rpmModGain: 0.08, rpmModExp: 1.6 } },
+            { id: 'noise_tire', type: 'noise', name: 'Tire & Airflow Whisper (Pink)', enabled: true, bypass: false, solo: false, params: { noiseType: 'pink', gain: 0.0, throttleModGain: 0.03, rpmModGain: 0.14, rpmModExp: 1.2 } },
+            { id: 'shaper_inv', type: 'waveshaper', name: 'Subtle Inverter Drive Stage', enabled: true, bypass: false, solo: false, params: { curveType: 'soft_tanh', drive: 2, mix: 0.20, outputGain: 0.90 } },
+            { id: 'flt_f1_motor', type: 'filter', name: 'Formant F1: Motor Casing (420Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 420, Q: 1.6, filterGain: 4.5, rpmModFreq: 180, throttleModFreq: 60, rpmModExp: 1.0, outGain: 1.0 } },
+            { id: 'flt_f2_gear', type: 'filter', name: 'Formant F2: Gearcase Whine (1350Hz)', enabled: true, bypass: false, solo: false, params: { filterType: 'peaking', frequency: 1350, Q: 2.2, filterGain: 4.0, rpmModFreq: 550, throttleModFreq: 150, rpmModExp: 1.2, outGain: 1.0 } },
+            { id: 'flt_ev_lp', type: 'filter', name: 'EV Cabin Lowpass (Stage 1)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 450, Q: 0.72, filterGain: 0, rpmModFreq: 3200, throttleModFreq: 600, rpmModExp: 1.2, outGain: 1.0 } },
+            { id: 'flt_ev_lp2', type: 'filter', name: 'EV Smoothing Lowpass (Stage 2)', enabled: true, bypass: false, solo: false, params: { filterType: 'lowpass', frequency: 700, Q: 0.72, filterGain: 0, rpmModFreq: 3800, throttleModFreq: 800, rpmModExp: 1.2, outGain: 0.90 } }
+        ],
+        connections: [
+            { from: 'osc_inv40', to: 'shaper_inv' },
+            { from: 'osc_inv80', to: 'shaper_inv' },
+            { from: 'osc_gear120', to: 'shaper_inv' },
+            { from: 'osc_shimmer160', to: 'shaper_inv' },
+            { from: 'noise_tire', to: 'shaper_inv' },
+            { from: 'shaper_inv', to: 'flt_f1_motor' },
+            { from: 'flt_f1_motor', to: 'flt_f2_gear' },
+            { from: 'flt_f2_gear', to: 'flt_ev_lp' },
+            { from: 'flt_ev_lp', to: 'flt_ev_lp2' },
+            { from: 'flt_ev_lp2', to: 'master' }
+        ]
     }
 };
 
@@ -691,6 +927,9 @@ export class ModularAudioEngine {
     constructor(initialPresetKey = 'series_peaking_formants') {
         this.ctx = null;
         this.masterGainNode = null;
+        this.outputMuteNode = null;
+        this.limiterNode = null;
+        this.isMuted = false;
         this.analyser = null;
         this.audioNodes = new Map();
         this.isPlaying = false;
@@ -1735,10 +1974,26 @@ export class ModularAudioEngine {
         this.masterGainNode = this.ctx.createGain();
         this.masterGainNode.gain.setValueAtTime(this.patch.masterGain ?? 0.7, this.ctx.currentTime);
 
+        this.outputMuteNode = this.ctx.createGain();
+        this.outputMuteNode.gain.setValueAtTime(this.isMuted ? 0 : 1, this.ctx.currentTime);
+
         this.analyser = this.ctx.createAnalyser();
         this.analyser.fftSize = 2048;
 
-        this.masterGainNode.connect(this.analyser);
+        this.masterGainNode.connect(this.outputMuteNode);
+        if (typeof this.ctx.createDynamicsCompressor === 'function') {
+            this.limiterNode = this.ctx.createDynamicsCompressor();
+            this.limiterNode.threshold.setValueAtTime(-3, this.ctx.currentTime);
+            this.limiterNode.knee.setValueAtTime(6, this.ctx.currentTime);
+            this.limiterNode.ratio.setValueAtTime(12, this.ctx.currentTime);
+            this.limiterNode.attack.setValueAtTime(0.003, this.ctx.currentTime);
+            this.limiterNode.release.setValueAtTime(0.1, this.ctx.currentTime);
+            this.outputMuteNode.connect(this.limiterNode);
+            this.limiterNode.connect(this.analyser);
+        } else {
+            this.limiterNode = null;
+            this.outputMuteNode.connect(this.analyser);
+        }
         this.analyser.connect(this.ctx.destination);
 
         this.buildGraph();
@@ -1751,6 +2006,24 @@ export class ModularAudioEngine {
     }
 
     /**
+     * Smoothly mute or unmute final output stage without stopping oscillators or closing AudioContext.
+     * @param {boolean} muted
+     * @param {number} [smoothTime=0.03]
+     */
+    setMuted(muted, smoothTime = 0.03) {
+        this.isMuted = !!muted;
+        if (this.ctx && this.outputMuteNode) {
+            const target = this.isMuted ? 0 : 1;
+            const t = this.ctx.currentTime;
+            if (smoothTime > 0 && typeof this.outputMuteNode.gain.setTargetAtTime === 'function') {
+                this.outputMuteNode.gain.setTargetAtTime(target, t, smoothTime);
+            } else {
+                this.outputMuteNode.gain.setValueAtTime(target, t);
+            }
+        }
+    }
+
+    /**
      * Stop and tear down live Web Audio graph.
      */
     stop() {
@@ -1759,6 +2032,16 @@ export class ModularAudioEngine {
         if (this.masterGainNode) {
             try { this.masterGainNode.disconnect(); } catch (e) {}
             this.masterGainNode = null;
+        }
+
+        if (this.outputMuteNode) {
+            try { this.outputMuteNode.disconnect(); } catch (e) {}
+            this.outputMuteNode = null;
+        }
+
+        if (this.limiterNode) {
+            try { this.limiterNode.disconnect(); } catch (e) {}
+            this.limiterNode = null;
         }
 
         if (this.analyser) {
@@ -1976,9 +2259,10 @@ export class ModularAudioEngine {
      * 
      * @param {number} rpm 
      * @param {number} throttle 
+     * @param {number} [smoothTime=0] Web Audio setTargetAtTime constant in seconds (0 = immediate setValueAtTime)
      * @returns {object} The calculated state
      */
-    update(rpm, throttle = 0) {
+    update(rpm, throttle = 0, smoothTime = 0) {
         this.currentRPM = rpm;
         this.currentThrottle = throttle;
 
@@ -1986,9 +2270,16 @@ export class ModularAudioEngine {
 
         if (this.ctx) {
             const t = this.ctx.currentTime;
+            const setParam = (param, val) => {
+                if (smoothTime > 0 && typeof param.setTargetAtTime === 'function') {
+                    param.setTargetAtTime(val, t, smoothTime);
+                } else {
+                    param.setValueAtTime(val, t);
+                }
+            };
 
             if (this.masterGainNode) {
-                this.masterGainNode.gain.setValueAtTime(state.masterGain, t);
+                setParam(this.masterGainNode.gain, state.masterGain);
             }
 
             for (const node of this.patch.nodes) {
@@ -1997,37 +2288,37 @@ export class ModularAudioEngine {
                 if (!st || !live) continue;
 
                 if (node.type === 'oscillator') {
-                    live.oscNode.frequency.setValueAtTime(st.frequency, t);
-                    live.oscNode.detune.setValueAtTime(st.detune, t);
-                    live.gainNode.gain.setValueAtTime(st.gain, t);
+                    setParam(live.oscNode.frequency, st.frequency);
+                    setParam(live.oscNode.detune, st.detune);
+                    setParam(live.gainNode.gain, st.gain);
                 } else if (node.type === 'noise') {
-                    live.gainNode.gain.setValueAtTime(st.gain, t);
+                    setParam(live.gainNode.gain, st.gain);
                 } else if (node.type === 'filter') {
-                    live.filterNode.frequency.setValueAtTime(st.frequency, t);
+                    setParam(live.filterNode.frequency, st.frequency);
                     const webQ = this._toWebAudioQ(st.filterType, st.Q);
-                    live.filterNode.Q.setValueAtTime(webQ, t);
-                    live.filterNode.gain.setValueAtTime(st.filterGain, t);
-                    live.outGain.gain.setValueAtTime(st.outGain, t);
+                    setParam(live.filterNode.Q, webQ);
+                    setParam(live.filterNode.gain, st.filterGain);
+                    setParam(live.outGain.gain, st.outGain);
 
                     if (st.bypass) {
-                        live.wetGain.gain.setValueAtTime(0, t);
-                        live.dryGain.gain.setValueAtTime(1, t);
+                        setParam(live.wetGain.gain, 0);
+                        setParam(live.dryGain.gain, 1);
                     } else {
-                        live.wetGain.gain.setValueAtTime(1, t);
-                        live.dryGain.gain.setValueAtTime(0, t);
+                        setParam(live.wetGain.gain, 1);
+                        setParam(live.dryGain.gain, 0);
                     }
                 } else if (node.type === 'waveshaper') {
-                    live.outputGain.gain.setValueAtTime(st.outputGain, t);
-                    live.wetGain.gain.setValueAtTime(st.mix, t);
-                    live.dryGain.gain.setValueAtTime(1 - st.mix, t);
+                    setParam(live.outputGain.gain, st.outputGain);
+                    setParam(live.wetGain.gain, st.mix);
+                    setParam(live.dryGain.gain, 1 - st.mix);
                 } else if (node.type === 'gain') {
-                    live.gainNode.gain.setValueAtTime(st.gain, t);
+                    setParam(live.gainNode.gain, st.gain);
                 } else if (node.type === 'delay') {
-                    live.delayNode.delayTime.setValueAtTime(st.delayTime, t);
-                    live.feedbackNode.gain.setValueAtTime(st.feedback, t);
-                    live.wetGain.gain.setValueAtTime(st.mix, t);
-                    live.dryGain.gain.setValueAtTime(1 - st.mix, t);
-                    live.output.gain.setValueAtTime(st.outGain, t);
+                    setParam(live.delayNode.delayTime, st.delayTime);
+                    setParam(live.feedbackNode.gain, st.feedback);
+                    setParam(live.wetGain.gain, st.mix);
+                    setParam(live.dryGain.gain, 1 - st.mix);
+                    setParam(live.output.gain, st.outGain);
                 }
             }
         }
