@@ -1,6 +1,64 @@
 import { Vector2 } from './Vector2.js';
 
 /**
+ * Computes true Ackermann steering angles for left and right front wheels.
+ * Positive steerAngle turns clockwise (right, +y on canvas), making the right wheel the inner wheel.
+ * @param {number} wheelBase
+ * @param {number} trackWidth
+ * @param {number} steerAngle
+ * @returns {{ left: number, right: number }}
+ */
+export function computeAckermannWheelAngles(wheelBase, trackWidth, steerAngle) {
+    if (Math.abs(steerAngle) < 1e-5) {
+        return { left: 0, right: 0 };
+    }
+    const sign = Math.sign(steerAngle);
+    const absR = wheelBase / Math.tan(Math.abs(steerAngle));
+    const halfTrack = trackWidth / 2;
+    const innerAngle = sign * Math.atan2(wheelBase, Math.max(1e-3, absR - halfTrack));
+    const outerAngle = sign * Math.atan2(wheelBase, absR + halfTrack);
+    return sign > 0
+        ? { left: outerAngle, right: innerAngle }
+        : { left: innerAngle, right: outerAngle };
+}
+
+/**
+ * Computes inset wheel dimensions, lateral track offset, and Ackermann front wheel angles
+ * so tires remain inside the SAT collision box across the full steering lock range.
+ * @param {object} engine
+ * @returns {{ wheelWidth: number, wheelHeight: number, axleY: number, frontLeftAngle: number, frontRightAngle: number }}
+ */
+export function computeWheelLayout(engine) {
+    const rearCap = engine.rearOverhang != null ? engine.rearOverhang * 2 - 0.5 : 11;
+    const frontCap = engine.frontOverhang != null ? engine.frontOverhang * 2 - 0.5 : 11;
+    const wheelWidth = Math.min(11, rearCap, frontCap, Math.max(7.5, engine.wheelBase * 0.21));
+    const wheelHeight = Math.min(4.6, Math.max(3.6, engine.width * 0.125));
+    const maxSteer = engine.maxSteerAngle || (40 * Math.PI / 180);
+
+    let axleY = engine.width / 2 - wheelHeight / 2 - 1;
+    for (let i = 0; i < 2; i++) {
+        const maxAngles = computeAckermannWheelAngles(engine.wheelBase, axleY * 2, maxSteer);
+        const innerAbsAngle = Math.abs(maxAngles.right);
+        const maxLatHalfExtent =
+            (wheelWidth / 2) * Math.sin(innerAbsAngle) +
+            (wheelHeight / 2) * Math.cos(innerAbsAngle);
+        axleY = Math.max(
+            wheelHeight,
+            Math.min(engine.width / 2 - wheelHeight / 2 - 1, engine.width / 2 - maxLatHalfExtent - 0.5)
+        );
+    }
+
+    const frontAngles = computeAckermannWheelAngles(engine.wheelBase, axleY * 2, engine.steerAngle || 0);
+    return {
+        wheelWidth,
+        wheelHeight,
+        axleY,
+        frontLeftAngle: frontAngles.left,
+        frontRightAngle: frontAngles.right
+    };
+}
+
+/**
  * Renders the game state to a canvas.
  */
 export class CanvasRenderer {
@@ -85,20 +143,17 @@ export class CanvasRenderer {
         // Front section
         this.ctx.fillRect(bodyCenterX + engine.length / 4, bodyCenterY - engine.width / 2, engine.length / 4, engine.width);
 
-        // Draw Wheels
+        // Draw Inset Ackermann Wheels
         this.ctx.fillStyle = '#000';
-        const wheelWidth = 12;
-        const wheelHeight = 6;
-
-        const axleY = engine.width / 2;
+        const { wheelWidth, wheelHeight, axleY, frontLeftAngle, frontRightAngle } = computeWheelLayout(engine);
 
         // Rear Wheels (At local x=0)
         this.drawWheel(0, -axleY, wheelWidth, wheelHeight, 0);
         this.drawWheel(0, axleY, wheelWidth, wheelHeight, 0);
 
-        // Front Wheels (At local x=wheelBase)
-        this.drawWheel(engine.wheelBase, -axleY, wheelWidth, wheelHeight, engine.steerAngle);
-        this.drawWheel(engine.wheelBase, axleY, wheelWidth, wheelHeight, engine.steerAngle);
+        // Front Wheels (At local x=wheelBase, true Ackermann inner/outer angles)
+        this.drawWheel(engine.wheelBase, -axleY, wheelWidth, wheelHeight, frontLeftAngle);
+        this.drawWheel(engine.wheelBase, axleY, wheelWidth, wheelHeight, frontRightAngle);
 
         this.ctx.restore();
     }
